@@ -1,15 +1,15 @@
 name:                expressionTesting
-version:             0.1.0.0
+version:             0.1.0.1
 description:
         This application allows to compare two types and compare two expressions by testing.
 synopsis:           Expression Testing
 category:           Testing
-author:             Martin Jonas
-maintainer:         359542@mail.muni.cz
+author:             Martin Jonáš <359542@mail.muni.cz>, Vladimír Štill <xstill@mail.muni.cz>
+maintainer:         359542@mail.muni.cz, xstill@mail.muni.cz
 
-cabal-version:      >= 1.2.3
+cabal-version:      >= 1.8
 build-type:         Simple
-tested-with:        GHC==7.4.1
+tested-with:        GHC==7.8.1
 
 extra-source-files: InteractiveImports/DataTypes.hs
                     InteractiveImports/Limiting.hs
@@ -21,7 +21,8 @@ Library
                     containers >= 0.4.2.1,
                     directory >= 1.1.0.2,
                     random >= 1.0.1.1,
-                    extensible-exceptions >= 0.1.1.4
+                    extensible-exceptions >= 0.1.1.4,
+                    cmdlib >= 0.3.5
 
   exposed-modules:    Types.TypeExpression
                       Types.Processing
@@ -36,3 +37,15 @@ Library
   ghc-options:        -O2
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
+
+Executable expressionTesting
+  build-depends:    expressionTesting,
+                    base,
+                    hint >= 0.3.3.4,
+                    parsec >= 3.1.2,
+                    containers >= 0.4.2.1,
+                    directory >= 1.1.0.2,
+                    random >= 1.0.1.1,
+                    extensible-exceptions >= 0.1.1.4,
+                    cmdlib >= 0.3.5
+  main-is:       Main.hs

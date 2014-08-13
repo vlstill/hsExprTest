@@ -4,11 +4,16 @@ update :
 	cabal update
 	make build
 
-build: 
+build:
+	cabal configure
+	cabal build
+	cp dist/build/expressionTesting/expressionTesting .
+
+install: 
 	cabal install
-	ghc Main.hs -o exprTest
 
 clean:
 	find -name '*.hi' -exec rm {} \;
 	find -name '*.o' -exec rm {} \;
-	rm exprTest
+	rm -rf dist
+	rm expressionTesting
