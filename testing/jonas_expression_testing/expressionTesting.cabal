@@ -1,5 +1,5 @@
 name:                expressionTesting
-version:             0.1.0.1
+version:             0.1.1
 description:
         This application allows to compare two types and compare two expressions by testing.
 synopsis:           Expression Testing
