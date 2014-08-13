@@ -10,12 +10,11 @@ import Result
 main :: IO ()
 main = do
 	args <- getArgs
-	if ("-compareTypes" `elem` args) then
-		compareTypes args
-	else if ("-compareExpressions" `elem` args) then
-		compareExpressions args
-	else
-		printHelp
+	if ("-compareTypes" `elem` args)
+            then compareTypes args
+            else if ("-compareExpressions" `elem` args)
+                then compareExpressions args
+                else printHelp
 
 -- | Function compareTypes gets student type and solution type from command line arguments and returns boolean value indicating equality of these two types
 compareTypes :: [String] -> IO ()
