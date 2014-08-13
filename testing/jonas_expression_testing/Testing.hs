@@ -1,5 +1,6 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving
+           , DeriveDataTypeable
+           #-}
 
 module Testing where
 
@@ -68,21 +69,22 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
                 , ("Solution", Just "Solution")
                 , ("Test.QuickCheck", Nothing)
                 , ("Test.QuickCheck.Property", Just "Prop")
-                , ("InteractiveImports.Limiting", Nothing) ]
+                , ("InteractiveImports.Limiting", Nothing)
+                ]
     solutionType <- typeOf ("Solution." ++ expression)
     studentType <- typeOf ("Student." ++ expression)
     case testTypeEquality solutionType studentType of
-        (Just resultType) ->
+        Just resultType ->
             case (getTestableArguments resultType) of
-                (Just n) -> do
+                Just n -> do
                     let testExpression = createTestExpression expression n limits
                     action <- interpret
                         ("quickCheckWithResult (stdArgs { chatty = False}) (" ++ testExpression ++ ")")
                         (as :: (IO Result))
                             >>= liftIO
                     return (getTestingResult action)
-                (Nothing) -> return NotTestable
-        (Nothing) -> return (TypesNotEqual solutionType studentType)
+                Nothing -> return NotTestable
+        Nothing -> return (TypesNotEqual solutionType studentType)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
@@ -122,4 +124,4 @@ run interpreter = do
         (Right result) -> return result
   where
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck" ]
-          
+
