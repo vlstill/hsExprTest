@@ -1,7 +1,7 @@
 module Result where
 
 data TestingResult
-	= WontCompile
+	= WontCompile String
 	| NotTestable
 	| TypesNotEqual String String
 	| DifferentValues

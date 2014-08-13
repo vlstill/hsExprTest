@@ -108,5 +108,5 @@ run :: Interpreter TestingResult -> IO TestingResult
 run interpreter = do
 	r <- runInterpreter interpreter
 	case r of
-		(Left error) -> return WontCompile
+		(Left error) -> return . WontCompile . show $ error
 		(Right result) -> return result
