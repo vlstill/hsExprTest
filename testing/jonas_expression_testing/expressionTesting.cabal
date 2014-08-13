@@ -9,7 +9,7 @@ maintainer:         359542@mail.muni.cz, xstill@mail.muni.cz
 
 cabal-version:      >= 1.8
 build-type:         Simple
-tested-with:        GHC==7.8.1
+tested-with:        GHC==7.8.3
 
 extra-source-files: InteractiveImports/DataTypes.hs
                     InteractiveImports/Limiting.hs
@@ -22,7 +22,8 @@ Library
                     directory >= 1.1.0.2,
                     random >= 1.0.1.1,
                     extensible-exceptions >= 0.1.1.4,
-                    cmdlib >= 0.3.5
+                    cmdlib >= 0.3.5,
+                    QuickCheck >= 2.7
 
   exposed-modules:    Types.TypeExpression
                       Types.Processing
@@ -47,5 +48,6 @@ Executable expressionTesting
                     directory >= 1.1.0.2,
                     random >= 1.0.1.1,
                     extensible-exceptions >= 0.1.1.4,
-                    cmdlib >= 0.3.5
+                    cmdlib >= 0.3.5,
+                    QuickCheck >= 2.7
   main-is:       Main.hs

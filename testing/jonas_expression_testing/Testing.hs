@@ -8,6 +8,7 @@ import Test.QuickCheck.Test as Test
 import System.Directory
 import Data.List
 import Language.Haskell.Interpreter hiding (WontCompile)
+import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Types.Parser
 import Types.Processing
 import Types.Comparing()
@@ -113,7 +114,10 @@ getTestingResult Test.NoExpectedFailure {} = Result.DifferentValues
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult
 run interpreter = do
-    r <- runInterpreter interpreter
+    r <- unsafeRunInterpreterWithArgs pkgs interpreter
     case r of
         (Left error) -> return . WontCompile . show $ error
         (Right result) -> return result
+  where
+    pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck" ]
+          
