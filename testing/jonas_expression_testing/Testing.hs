@@ -8,7 +8,8 @@ import Test.QuickCheck hiding (Success)
 import Test.QuickCheck.Test as Test
 import System.Directory
 import Data.List
-import Language.Haskell.Interpreter hiding (WontCompile)
+import Language.Haskell.Interpreter hiding ( WontCompile )
+import qualified Language.Haskell.Interpreter as I
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Types.Parser
 import Types.Processing
@@ -120,8 +121,13 @@ run :: Interpreter TestingResult -> IO TestingResult
 run interpreter = do
     r <- unsafeRunInterpreterWithArgs pkgs interpreter
     case r of
-        (Left error) -> return . WontCompile . show $ error
+        (Left error) -> case error of
+            I.UnknownError str -> ce $ "Unknown error: " ++ str
+            I.NotAllowed  str  -> ce $ "Not allowed: " ++ str
+            I.GhcException str -> ce $ "GHC exception: " ++ str
+            I.WontCompile list -> ce $ "Compilation error:\n" ++ unlines (map I.errMsg list)
         (Right result) -> return result
   where
+    ce = return . WontCompile
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck" ]
 

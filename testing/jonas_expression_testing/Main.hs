@@ -65,7 +65,9 @@ cExpr (Main { student, solution, limits, expressionName }) = do
     result <- if null limits
         then Testing.compareExpressions expressionName solution student
         else Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student
-    putStrLn $ show result
+    case result of
+        WontCompile m -> putStrLn m
+        _             -> putStrLn $ show result
     if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
 
 -- | Function parseLimits parses limiting expression in form "function;;;function;function;"
