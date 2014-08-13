@@ -58,6 +58,8 @@ testTypeEquality solution student =
 -- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
 testLimitedExpressionValues :: [Maybe String] -> String -> String -> String -> Interpreter TestingResult
 testLimitedExpressionValues limits expression solutionFile studentFile = do
+    set [ installedModulesInScope := False -- security reasons, avoid accessing internals
+        ]
     loadModules [ solutionFile, studentFile
                 , "InteractiveImports.Limiting", "InteractiveImports.DataTypes"
                 ]
