@@ -4,8 +4,8 @@
 
 module Testing where
 
-import Test.QuickCheck hiding (Success)
-import Test.QuickCheck.Test as Test
+import qualified Test.QuickCheck as QC
+import qualified Test.QuickCheck.Test as QCT
 import System.Directory
 import Data.List
 import Language.Haskell.Interpreter hiding ( WontCompile )
@@ -13,7 +13,7 @@ import qualified Language.Haskell.Interpreter as I
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Types.Parser
 import Types.Processing
-import Types.Comparing()
+import Types.Comparing ( compareTypes )
 import Files
 import Result as Result
 import Data.Typeable.Internal hiding (typeOf)
@@ -21,7 +21,7 @@ import Text.Printf
 import Types.TypeExpression
 import Config
 
-deriving instance Typeable Test.QuickCheck.Result
+deriving instance Typeable QC.Result
 
 -- | Function compareExpressions compares two expressions using QuickCheck and return result as IO String
 compareExpressions :: String -> String -> String -> IO TestingResult
@@ -47,11 +47,12 @@ testExpressionValues :: String -> String -> String -> Interpreter TestingResult
 testExpressionValues = testLimitedExpressionValues []
 
 -- | Function testTypeEquality compares two given type expressions.
-testTypeEquality :: String -> String -> Maybe TypeExpression
+testTypeEquality :: String -> String -> TypingResult
 testTypeEquality solution student =
     case (parsedSolutionType, parsedStudentType) of
-        (Right a, Right b) -> if a == b then Just a else Nothing
-        _ -> Nothing
+        (Right a, Right b) -> a `compareTypes` b
+        (_, Left _) -> CannotParse student
+        (Left _, _) -> CannotParse solution
     where
         parsedSolutionType = parseType solution
         parsedStudentType = parseType student
@@ -75,17 +76,17 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
     solutionType <- typeOf ("Solution." ++ expression)
     studentType <- typeOf ("Student." ++ expression)
     case testTypeEquality solutionType studentType of
-        Just resultType ->
+        TypesEqual resultType ->
             case (getTestableArguments resultType) of
                 Just n -> do
                     let testExpression = createTestExpression expression n limits
                     action <- interpret
                         ("quickCheckWithResult (stdArgs { chatty = False}) (" ++ testExpression ++ ")")
-                        (as :: (IO Result))
+                        (as :: (IO QCT.Result))
                             >>= liftIO
                     return (getTestingResult action)
                 Nothing -> return NotTestable
-        Nothing -> return (TypesNotEqual solutionType studentType)
+        r -> return (TypesNotEqual r)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
@@ -110,11 +111,11 @@ createLimits limits = "(" ++ show Config.additionConstant ++ " + " ++ show Confi
         process (argument, Just limitExpression) = limitExpression ++ " $ fromIntegral(parameter " ++ argument ++ ")"
         limitsExpression = concat (intersperse ", "  (map process limits))
 
-getTestingResult :: Result -> TestingResult
-getTestingResult Test.Success {} = Result.Success
-getTestingResult Test.GaveUp {} = Result.Success
-getTestingResult Test.Failure {reason = r} = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues
-getTestingResult Test.NoExpectedFailure {} = Result.DifferentValues
+getTestingResult :: QCT.Result -> TestingResult
+getTestingResult QCT.Success {} = Result.Success
+getTestingResult QCT.GaveUp {} = Result.Success
+getTestingResult QCT.Failure { QCT.reason = r } = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues
+getTestingResult QCT.NoExpectedFailure {} = Result.DifferentValues
 
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult

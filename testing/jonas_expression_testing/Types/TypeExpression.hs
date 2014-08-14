@@ -1,4 +1,11 @@
-module Types.TypeExpression (TypeExpression(..), TypeContext(..), Type(..), TypeClass(..), TypeVariable(..), TypeConstructor(..)) where
+module Types.TypeExpression 
+    ( TypeExpression(..)
+    , TypeContext(..)
+    , Type(..)
+    , TypeClass(..)
+    , TypeVariable(..)
+    , TypeConstructor(..)
+    ) where
 
 -- | Data type TypeExpression represents parsed type expression
 data TypeExpression = TypeExpression TypeContext Type deriving Show
@@ -8,7 +15,7 @@ data TypeContext = TypeContext [(TypeClass, TypeVariable)] deriving Show
 
 -- | Data type TypeExpression represents parsed type witnout the type context
 data Type 
-	-- | Application of the type on another type
+	-- | Application of the type constructor or variable on another type
 	= TypeApplication Type Type
 	-- | Type constructor
 	| TypeConstructor TypeConstructor

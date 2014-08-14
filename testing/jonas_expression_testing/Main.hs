@@ -56,8 +56,8 @@ run m@(Main { compareTypes, compareExpressions }) = case (compareTypes, compareE
 cTypes :: Main -> IO ()
 cTypes (Main { student, solution }) = do
     let result = Testing.testTypeEquality solution student
-    putStrLn $ if isJust result then "OK" else "FAILED"
-    if isJust result then exitSuccess else exitWith (ExitFailure 32)
+    putStrLn $ if isSuccess result then "OK" else "FAILED: " ++ show result
+    if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
 
 -- | Function compareTypes gets student expression and solution expression from command line arguments and returns boolean value indicating equality of these two expressions
 cExpr :: Main -> IO ()

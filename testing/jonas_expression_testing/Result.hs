@@ -1,14 +1,33 @@
-module Result where
+module Result
+    ( CResult ( .. )
+    , TestingResult ( .. )
+    , TypingResult ( .. )
+    ) where
+
+import Types.TypeExpression ( TypeExpression )
 
 data TestingResult
     = WontCompile String
     | NotTestable
-    | TypesNotEqual String String
+    | TypesNotEqual TypingResult
     | DifferentValues
     | Success
     | Timeout
-        deriving Show
+    deriving Show
 
-isSuccess :: TestingResult -> Bool
-isSuccess Success = True
-isSuccess _ = False
+data TypingResult
+    = TypesEqual TypeExpression
+    | CannotParse String
+    | NotEqual String
+    deriving Show
+
+class CResult r where
+    isSuccess :: r -> Bool
+
+instance CResult TestingResult where
+    isSuccess Success = True
+    isSuccess _ = False
+
+instance CResult TypingResult where
+    isSuccess (TypesEqual _) = True
+    isSuccess _              = False
