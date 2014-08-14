@@ -5,6 +5,7 @@ update :
 	make build
 
 build:
+	cabal install --dependencies
 	cabal configure
 	cabal build
 	cp dist/build/expressionTesting/expressionTesting .
