@@ -10,7 +10,7 @@ data TestingResult
     = WontCompile String
     | NotTestable
     | TypesNotEqual TypingResult
-    | DifferentValues
+    | DifferentValues String
     | Success
     | Timeout
     deriving Show

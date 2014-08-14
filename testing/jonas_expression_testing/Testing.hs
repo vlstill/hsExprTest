@@ -114,8 +114,9 @@ createLimits limits = "(" ++ show Config.additionConstant ++ " + " ++ show Confi
 getTestingResult :: QCT.Result -> TestingResult
 getTestingResult QCT.Success {} = Result.Success
 getTestingResult QCT.GaveUp {} = Result.Success
-getTestingResult QCT.Failure { QCT.reason = r } = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues
-getTestingResult QCT.NoExpectedFailure {} = Result.DifferentValues
+getTestingResult QCT.Failure { QCT.reason = r, QCT.output = o }
+    = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues o
+getTestingResult QCT.NoExpectedFailure { QCT.output = o } = Result.DifferentValues o
 
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult
