@@ -1,5 +1,5 @@
 name:                expressionTesting
-version:             0.1.1
+version:             0.1.2
 description:
         This application allows to compare two types and compare two expressions by testing.
 synopsis:           Expression Testing
@@ -13,8 +13,11 @@ tested-with:        GHC==7.8.3
 
 extra-source-files: InteractiveImports/DataTypes.hs
                     InteractiveImports/Limiting.hs
+                    Teacher/Test.hs
 					
 Library
+  hs-source-dirs:   src
+
   build-depends:    base,
                     hint >= 0.3.3.4,
                     parsec >= 3.1.2,
@@ -22,32 +25,30 @@ Library
                     directory >= 1.1.0.2,
                     random >= 1.0.1.1,
                     extensible-exceptions >= 0.1.1.4,
-                    cmdlib >= 0.3.5,
                     QuickCheck >= 2.7
 
   exposed-modules:    Types.TypeExpression
                       Types.Processing
                       Types.Parser
                       Types.Comparing
+                      Types.Formating
                       Config
                       Testing
-                      Main
                       Result
                       Files
+                      InteractiveImports.DataTypes
+                      InteractiveImports.Limiting
+                      Teacher.Test
 					  
   ghc-options:        -O2
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
 Executable expressionTesting
+  hs-source-dirs:   exec
+
   build-depends:    expressionTesting,
                     base,
-                    hint >= 0.3.3.4,
-                    parsec >= 3.1.2,
-                    containers >= 0.4.2.1,
-                    directory >= 1.1.0.2,
-                    random >= 1.0.1.1,
-                    extensible-exceptions >= 0.1.1.4,
-                    cmdlib >= 0.3.5,
-                    QuickCheck >= 2.7
-  main-is:       Main.hs
+                    cmdlib >= 0.3.5
+
+  main-is:          Main.hs
