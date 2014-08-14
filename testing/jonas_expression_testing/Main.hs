@@ -25,6 +25,7 @@ data Main = Main { compareTypes       :: Bool
                  , solution           :: String
                  , limits             :: String
                  , expressionName     :: String
+                 , testfile           :: FilePath
                  } deriving ( Typeable, Data, Eq, Show )
 
 instance Attributes Main where
@@ -34,7 +35,8 @@ instance Attributes Main where
         expressionName     %> [ Help "name of expression", ArgHelp "NAME" ],
         student            %> [ Help "student's answer", ArgHelp "CODE" ],
         solution           %> [ Help "teacher's solution", ArgHelp "CODE" ],
-        limits             %> [ Help "time limits", ArgHelp "function1;function2;..." ]
+        limits             %> [ Help "time limits", ArgHelp "function1;function2;..." ],
+        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH" ]
       ]
 
 instance RecordCommand Main where
@@ -61,15 +63,27 @@ cTypes (Main { student, solution }) = do
 
 -- | Function compareTypes gets student expression and solution expression from command line arguments and returns boolean value indicating equality of these two expressions
 cExpr :: Main -> IO ()
-cExpr (Main { student, solution, limits, expressionName }) = do
-    result <- if null limits
-        then Testing.compareExpressions expressionName solution student
-        else Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student
-    case result of
-        WontCompile m     -> putStrLn m
-        DifferentValues v -> putStrLn $ "DifferentValues: " ++ v
-        _                 -> putStrLn $ show result
-    if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
+cExpr (Main { student, solution, testfile, limits, expressionName })
+    = case (null testfile, null solution, null student, null expressionName) of
+        (True, False, False, False) -> do
+            result <- if null limits
+                then Testing.compareExpressions expressionName solution student
+                else Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student
+            finish result
+        (False, True, False, True) -> Testing.runTestfile testfile student >>= finish
+        _ -> do
+            hPutStrLn stderr $ unlines [
+              "You must specify `--student' and either of:",
+              "    a) `--solution', `--expression-name' and optionally `--limits'",
+              "    b) `--testfile'" ]
+            exitWith (ExitFailure 1)
+  where
+    finish result = do
+        case result of
+            WontCompile m     -> putStrLn m
+            DifferentValues v -> putStrLn $ "DifferentValues: " ++ v
+            _                 -> putStrLn $ show result
+        if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
 
 -- | Function parseLimits parses limiting expression in form "function;;;function;function;"
 parseLimits :: String -> [Maybe String]

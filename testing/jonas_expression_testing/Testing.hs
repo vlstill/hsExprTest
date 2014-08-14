@@ -1,25 +1,31 @@
 {-# LANGUAGE StandaloneDeriving
            , DeriveDataTypeable
+           , MultiWayIf
            #-}
 
 module Testing where
 
-import qualified Test.QuickCheck as QC
-import qualified Test.QuickCheck.Test as QCT
 import System.Directory
 import Data.List
+import Text.Printf
+import Data.Typeable hiding (typeOf)
+import qualified Data.Typeable as T
+
+import qualified Test.QuickCheck as QC
+import qualified Test.QuickCheck.Test as QCT
+
 import Language.Haskell.Interpreter hiding ( WontCompile )
 import qualified Language.Haskell.Interpreter as I
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
+
 import Types.Parser
 import Types.Processing
 import Types.Comparing ( compareTypes )
-import Files
-import Result as Result
-import Data.Typeable.Internal hiding (typeOf)
-import Text.Printf
 import Types.TypeExpression
+import Files
+import Result
 import Config
+import Teacher.Test
 
 deriving instance Typeable QC.Result
 
@@ -57,22 +63,31 @@ testTypeEquality solution student =
         parsedSolutionType = parseType solution
         parsedStudentType = parseType student
 
+setupInterpreter :: [ String ] -- ^ Modules
+                 -> [ (String, Maybe String) ] -- ^ optionally qualified imports
+                 -> Interpreter ()
+setupInterpreter mod imports = do
+    set [ installedModulesInScope := False -- security reasons, avoid accessing internals
+        ]
+    loadModules $ mod ++
+                [ "InteractiveImports.Limiting", "InteractiveImports.DataTypes"
+                , "Teacher.Test"
+                ]
+    setImportsQ $ [ ("Prelude", Nothing)
+                  , ("Test.QuickCheck", Nothing)
+                  , ("Test.QuickCheck.Property", Just "Prop")
+                  , ("InteractiveImports.Limiting", Nothing)
+                  , ("Teacher.Test", Nothing)
+                  ] ++ imports
+
 -- | Function testLimitedExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
 -- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
 testLimitedExpressionValues :: [Maybe String] -> String -> String -> String -> Interpreter TestingResult
 testLimitedExpressionValues limits expression solutionFile studentFile = do
-    set [ installedModulesInScope := False -- security reasons, avoid accessing internals
-        ]
-    loadModules [ solutionFile, studentFile
-                , "InteractiveImports.Limiting", "InteractiveImports.DataTypes"
-                ]
-    setImportsQ [ ("Prelude", Nothing)
-                , ("Student", Just "Student")
-                , ("Solution", Just "Solution")
-                , ("Test.QuickCheck", Nothing)
-                , ("Test.QuickCheck.Property", Just "Prop")
-                , ("InteractiveImports.Limiting", Nothing)
-                ]
+    setupInterpreter [ solutionFile, studentFile ]
+                     [ ("Student", Just "Student")
+                     , ("Solution", Just "Solution")
+                     ]
     solutionType <- typeOf ("Solution." ++ expression)
     studentType <- typeOf ("Student." ++ expression)
     case testTypeEquality solutionType studentType of
@@ -117,6 +132,45 @@ getTestingResult QCT.GaveUp {} = Result.Success
 getTestingResult QCT.Failure { QCT.reason = r, QCT.output = o }
     = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues o
 getTestingResult QCT.NoExpectedFailure { QCT.output = o } = Result.DifferentValues o
+
+runTestfile :: FilePath -> String -> IO TestingResult
+runTestfile testfile student = do
+    studentFile <- createStudentFile student
+    result <- run $ runTestfile' testfile studentFile
+    removeFile studentFile
+    return result
+
+runTestfile' :: FilePath -> FilePath -> Interpreter TestingResult
+runTestfile' test student = do
+    setupInterpreter [ test, student ] [ ("Student", Just "Student" ), ("Test", Nothing) ]
+    config <- interpret "testConfig" (as :: TestConfig)
+    solType <- case expectedType config of
+        None        -> return $ ""
+        TypeOf expr -> typeOf expr
+        Fixed t     -> return $ t
+    case solType of
+        "" -> runTest config
+        _  -> do
+            studType <- typeOf $ "Student." ++ studentExpression config
+            case testTypeEquality solType studType of
+                TypesEqual _ -> runTest config
+                r -> return $ TypesNotEqual r
+
+runTest :: TestConfig -> Interpreter TestingResult
+runTest TestConfig { test = TestEntry entry }  = typeOf entry >>= \t ->
+    if | t == showType (infer :: TestingResult)    -> interpret entry (as :: TestingResult)
+       | t == showType (infer :: IO TestingResult) -> interpret entry (as :: IO TestingResult) >>= liftIO
+runTest TestConfig { test = Properties props } = liftIO $
+    mapM applyQC props >>= return . qcFirstFailed
+  where applyQC (AnyProperty p) = QCT.quickCheckWithResult (QCT.stdArgs { QCT.chatty = False }) p
+  {-
+    interpret "qcRunProperties ((tProperties . test) testConfig)" (as :: IO TestingResult) >>=
+    liftIO
+  -}
+
+showType :: Typeable a => a -> String
+showType = show . T.typeOf
+
 
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult
