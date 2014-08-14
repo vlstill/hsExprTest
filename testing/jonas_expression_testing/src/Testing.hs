@@ -69,10 +69,7 @@ setupInterpreter :: [ String ] -- ^ Modules
 setupInterpreter mod imports = do
     set [ installedModulesInScope := False -- security reasons, avoid accessing internals
         ]
-    loadModules $ mod ++
-                [ "InteractiveImports.Limiting", "InteractiveImports.DataTypes"
-                , "Teacher.Test"
-                ]
+    loadModules mod
     setImportsQ $ [ ("Prelude", Nothing)
                   , ("Test.QuickCheck", Nothing)
                   , ("Test.QuickCheck.Property", Just "Prop")
@@ -185,5 +182,5 @@ run interpreter = do
         (Right result) -> return result
   where
     ce = return . WontCompile
-    pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck" ]
+    pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "expressionTesting" ]
 
