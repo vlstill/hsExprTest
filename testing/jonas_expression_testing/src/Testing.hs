@@ -178,7 +178,7 @@ run interpreter = do
             I.UnknownError str -> ce $ "Unknown error: " ++ str
             I.NotAllowed  str  -> ce $ "Not allowed: " ++ str
             I.GhcException str -> ce $ "GHC exception: " ++ str
-            I.WontCompile list -> ce $ "Compilation error:\n" ++ unlines (map I.errMsg list)
+            I.WontCompile list -> ce $ "Compilation error:\n" ++ (unlines . nub . map I.errMsg) list
         (Right result) -> return result
   where
     ce = return . WontCompile
