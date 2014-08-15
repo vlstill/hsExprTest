@@ -3,7 +3,7 @@
            , DeriveDataTypeable
            , NamedFieldPuns
            #-}
-module UI ( runUI, runExpressionTester ) where
+module UI ( runUI, runExpressionTester, Main ) where
 
 import System.Environment
 import System.IO
@@ -31,7 +31,7 @@ data Main
     | Testfile { student  :: String
                , testfile :: FilePath
                }
-    deriving ( Typeable, Data, Eq, Show )
+    deriving ( Typeable, Data, Eq, Show, Read )
 
 
 

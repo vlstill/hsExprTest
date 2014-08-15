@@ -53,3 +53,15 @@ Executable expressionTesting
 
   ghc-options:      -O0
   main-is:          Main.hs
+
+Executable expressionTestingService
+  hs-source-dirs:   exec
+
+  build-depends:    expressionTesting == 0.1.2,
+                    base >= 4.6,
+                    directory,
+                    cmdlib >= 0.3.5,
+                    network >= 2.4
+
+  ghc-options:      -O0
+  main-is:          Service.hs
