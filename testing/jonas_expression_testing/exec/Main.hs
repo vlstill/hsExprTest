@@ -14,76 +14,78 @@ import Data.Data
 import Data.Typeable
 import Control.Monad
 
-import System.Console.CmdLib hiding ( run )
+import System.Console.CmdLib
 
 import Result
 import qualified Testing as Testing
 
-data Main = Main { compareTypes       :: Bool
-                 , compareExpressions :: Bool
-                 , student            :: String
-                 , solution           :: String
-                 , limits             :: String
-                 , expressionName     :: String
-                 , testfile           :: FilePath
-                 } deriving ( Typeable, Data, Eq, Show )
+data Main 
+    = CompareTypes { student  :: String
+                   , solution :: String
+                   }
+    | CompareExpressions { student        :: String
+                         , solution       :: String
+                         , expressionName :: String
+                         , limits         :: String
+                         }
+    | Testfile { student  :: String
+               , testfile :: FilePath
+               }
+    deriving ( Typeable, Data, Eq, Show )
+
+
 
 instance Attributes Main where
-    attributes _ = group "Options" [
-        compareTypes       %> Help "test type equality",
-        compareExpressions %> Help "test expression equality",
-        expressionName     %> [ Help "name of expression", ArgHelp "NAME" ],
-        student            %> [ Help "student's answer", ArgHelp "CODE" ],
-        solution           %> [ Help "teacher's solution", ArgHelp "CODE" ],
-        limits             %> [ Help "time limits", ArgHelp "function1;function2;..." ],
-        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH" ]
-      ]
 
 instance RecordCommand Main where
-    mode_summary _ = "Expression testing for Haskell"
+    mode_summary (CompareTypes { }) = "Compare types"
+    mode_summary (CompareExpressions { }) = "Compare expressions"
+    mode_summary (Testfile { }) = "Test student's solution using given testfile"
 
--- | Main function, behaves differently according to the command line arguments
-main :: IO ()
-main = getArgs >>= executeR (Main {}) >>= run
+    mode_help _ = "mode_help"
 
-run :: Main -> IO ()
-run m@(Main { compareTypes, compareExpressions }) = case (compareTypes, compareExpressions) of
-    (True, True) -> hPutStrLn stderr "Could not do --compare-expressions and --compare-types at once" >>
-                    exitWith (ExitFailure 1)
-    (True, _   ) -> cTypes m
-    (_   , True) -> cExpr m
-    _            -> hPutStrLn stderr "You must specify either --compare-expressions or --compare-types"
+    rec_options (CompareTypes { }) = group "Compare types" [
+        student            %> [ Help "student's answer", ArgHelp "TYPE", Required True ],
+        solution           %> [ Help "teacher's solution", ArgHelp "TYPE", Required True ]
+      ]
+    rec_options (CompareExpressions { }) = group "Compare expressions" [
+        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
+        solution           %> [ Help "teacher's solution", ArgHelp "CODE", Required True ],
+        expressionName     %> [ Help "name of expression", ArgHelp "NAME", Required True ],
+        limits             %> [ Help "time limits", ArgHelp "function1;function2;...", Required False ]
+      ]
+    rec_options (Testfile { }) = group "Run testfile" [
+        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
+        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
+      ]
 
--- | Function compareTypes gets student type and solution type from command line arguments and returns boolean value indicating equality of these two types
-cTypes :: Main -> IO ()
-cTypes (Main { student, solution }) = do
-    let result = Testing.testTypeEquality solution student
-    putStrLn $ if isSuccess result then "OK" else "FAILED: " ++ show result
-    if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
+    run' (CompareTypes { student, solution }) _ = do
+        let result = Testing.testTypeEquality solution student
+        putStrLn $ if isSuccess result then "OK" else "FAILED: " ++ show result
+        if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
 
--- | Function compareTypes gets student expression and solution expression from command line arguments and returns boolean value indicating equality of these two expressions
-cExpr :: Main -> IO ()
-cExpr (Main { student, solution, testfile, limits, expressionName })
-    = case (null testfile, null solution, null student, null expressionName) of
-        (True, False, False, False) -> do
-            result <- if null limits
-                then Testing.compareExpressions expressionName solution student
-                else Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student
-            finish result
-        (False, True, False, True) -> Testing.runTestfile testfile student >>= finish
-        _ -> do
-            hPutStrLn stderr $ unlines [
-              "You must specify `--student' and either of:",
-              "    a) `--solution', `--expression-name' and optionally `--limits'",
-              "    b) `--testfile'" ]
-            exitWith (ExitFailure 1)
-  where
-    finish result = do
+    run' (CompareExpressions { student, solution, expressionName, limits = [] }) _ =
+        Testing.compareExpressions expressionName solution student >>= printResultAndExit
+
+    run' (CompareExpressions { student, solution, expressionName, limits }) _ =
+        Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student >>=
+        printResultAndExit
+
+    run' (Testfile { student, testfile }) _ =
+        Testing.runTestfile testfile student >>= printResultAndExit
+
+printResultAndExit :: TestingResult -> IO ()
+printResultAndExit result = do
         case result of
             WontCompile m     -> putStrLn m
             DifferentValues v -> putStrLn $ "DifferentValues: " ++ v
             _                 -> putStrLn $ show result
         if isSuccess result then exitSuccess else exitWith (ExitFailure 32)
+
+-- | Main function, behaves differently according to the command line arguments
+main :: IO ()
+main = getArgs >>= dispatch [] (recordCommands (undefined :: Main))
+-- execute (recordCommands (error "a" :: Main))
 
 -- | Function parseLimits parses limiting expression in form "function;;;function;function;"
 parseLimits :: String -> [Maybe String]
