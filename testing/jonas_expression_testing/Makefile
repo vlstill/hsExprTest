@@ -14,12 +14,13 @@ install:
 	cabal install
 
 clean:
-	find -name '*.hi' -exec rm {} \;
-	find -name '*.o' -exec rm {} \;
+	cabal clean
 	rm -rf dist || true
 	rm expressionTesting || true
 
 clean-all: clean
+	find -name '*.hi' -exec rm {} \;
+	find -name '*.o' -exec rm {} \;
 	cabal sandbox delete
 
 env : build
