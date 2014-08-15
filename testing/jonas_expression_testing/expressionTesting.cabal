@@ -40,15 +40,16 @@ Library
                       InteractiveImports.Limiting
                       Teacher.Test
 					  
-  ghc-options:        -O2
+  ghc-options:        -O0
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
 Executable expressionTesting
   hs-source-dirs:   exec
 
-  build-depends:    expressionTesting,
+  build-depends:    expressionTesting == 0.1.2,
                     base,
                     cmdlib >= 0.3.5
 
+  ghc-options:      -O0
   main-is:          Main.hs
