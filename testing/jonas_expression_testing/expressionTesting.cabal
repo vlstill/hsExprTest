@@ -10,10 +10,6 @@ maintainer:         359542@mail.muni.cz, xstill@mail.muni.cz
 cabal-version:      >= 1.8
 build-type:         Simple
 tested-with:        GHC==7.8.3
-
-extra-source-files: InteractiveImports/DataTypes.hs
-                    InteractiveImports/Limiting.hs
-                    Teacher/Test.hs
 					
 Library
   hs-source-dirs:   src
@@ -53,6 +49,7 @@ Executable expressionTesting
 
   ghc-options:      -O0
   main-is:          Main.hs
+  other-modules:    UI
 
 Executable expressionTestingService
   hs-source-dirs:   exec

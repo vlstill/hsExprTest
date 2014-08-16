@@ -26,3 +26,10 @@ clean-all: clean
 env : build
 	chmod +x wrap/env.sh
 	wrap/env.sh
+
+sdist :
+	cabal sdist
+
+nixcheck : sdist
+	chmod +x nixcheck.sh
+	./nixcheck.sh
