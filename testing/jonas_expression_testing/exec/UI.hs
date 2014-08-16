@@ -42,8 +42,6 @@ instance RecordCommand Main where
     mode_summary (CompareExpressions { }) = "Compare expressions"
     mode_summary (Testfile { }) = "Test student's solution using given testfile"
 
-    mode_help _ = "mode_help"
-
     rec_options (CompareTypes { }) = group "Compare types" [
         student            %> [ Help "student's answer", ArgHelp "TYPE", Required True ],
         solution           %> [ Help "teacher's solution", ArgHelp "TYPE", Required True ]
