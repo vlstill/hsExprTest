@@ -1,6 +1,6 @@
 {-# LANGUAGE Safe #-}
 
-module InteractiveImports.Limiting (Parametrizable(..)) where
+module Testing.Limiting (Parametrizable(..)) where
 
 -- | Class Parametrizable represents data types for which there is a function, which returns number representing size of the given value.
 class Parametrizable a where

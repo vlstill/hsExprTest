@@ -4,7 +4,7 @@
            , ExistentialQuantification
            #-}
 -- | Simple interface to testing
-module Teacher.Test (
+module Testing.Test (
     -- * Result re-exports
       TestingResult ( DifferentValues, Success, Timeout )
     -- * Configuration
@@ -18,20 +18,29 @@ module Teacher.Test (
     , qcToResult
     , qcFirstFailed
     , qcRunProperties
-    -- Utility types
+    -- * Utility types
     , AnyProperty ( AnyProperty )
+    -- * QuickCheck instances and utilities
+    , Arbitrary
+    , CoArbitrary
+    , Function
+    , Fun ( Fun )
     -- * InteractiveImports re-export
-    , module InteractiveImports.DataTypes
+    , module Testing.DataTypes
+    , module Testing.Limiting
     ) where
 
 import Result
 import qualified Test.QuickCheck.Test as QCT
+import Test.QuickCheck.Arbitrary ( Arbitrary, CoArbitrary )
+import Test.QuickCheck.Function ( Function, Fun ( Fun ) )
 import Control.Monad ( mapM )
 import Test.QuickCheck ( Testable )
 import Data.Monoid
 import Data.List
 import Data.Typeable
-import InteractiveImports.DataTypes
+import Testing.DataTypes
+import Testing.Limiting
 
 data AnyProperty = forall a. Testable a => AnyProperty a
     deriving ( Typeable )

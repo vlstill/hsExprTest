@@ -1,11 +1,11 @@
 {-# LANGUAGE Trustworthy #-}
 
-module InteractiveImports.DataTypes (Nat(..), BinaryTree(..)) where
+module Testing.DataTypes (Nat(..), BinaryTree(..)) where
 
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary
 import Control.Monad
-import InteractiveImports.Limiting
+import Testing.Limiting
 
 -- | Data type Nat represents natural numbers (with zero)
 data Nat = Zero | Succ Nat deriving (Eq, Ord, Show)
