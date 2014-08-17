@@ -112,7 +112,7 @@ createTestExpression expression arguments limits = wrap . map property $ degener
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
     property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
-                           , "((", intercalate ", " (params args), ") :: ", types args, ")"
+                           , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " == Student.", expr args, ") )"
                            ]
 
@@ -121,6 +121,7 @@ createTestExpression expression arguments limits = wrap . map property $ degener
     types = map qualifiedType >>>
             foldr (\(TypeExpression (TypeContext []) ty1) tys -> ty1 : tys) [] >>>
             TupleType >>>
+            TypeApplication (TypeConstructor "Maybe") >>>
             formatType
 {-
         printf ("\\%s -> within %s (Solution.%s %s == Student.%s %s)") argumentsExpression limitExpression expression argumentsExpression expression argumentsExpression
