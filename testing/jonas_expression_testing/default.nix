@@ -1,6 +1,8 @@
+{ expressionTestingSrc }:
+
 let pkgs = import <nixpkgs> {};
     make = haskell : haskell.callPackage ./expressionTesting.nix {
-        expressionTestingSrc = ./dist/expressionTesting-0.1.2.tar.gz;
+        inherit expressionTestingSrc;
     };
 in rec {
     current = make pkgs.haskellPackages;
