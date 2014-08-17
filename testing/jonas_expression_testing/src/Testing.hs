@@ -10,6 +10,7 @@ import Data.List
 import Text.Printf
 import Data.Typeable hiding (typeOf)
 import qualified Data.Typeable as T
+import Control.Arrow
 
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
@@ -22,10 +23,12 @@ import Types.Parser
 import Types.Processing
 import Types.Comparing ( compareTypes )
 import Types.TypeExpression
+import Types.Arguments
+import Types.Formating ( formatType )
 import Files
 import Result
 import Config
-import Teacher.Test
+import Testing.Test ( qcRunProperties, TestConfig ( .. ), Test ( .. ), ExpectedType ( .. ) )
 
 deriving instance Typeable QC.Result
 
@@ -72,9 +75,8 @@ setupInterpreter mod imports = do
     loadModules mod
     setImportsQ $ [ ("Prelude", Nothing)
                   , ("Test.QuickCheck", Nothing)
-                  , ("Test.QuickCheck.Property", Just "Prop")
-                  , ("InteractiveImports.Limiting", Nothing)
-                  , ("Teacher.Test", Nothing)
+                  , ("Testing.Limiting", Nothing)
+                  , ("Testing.Test", Nothing)
                   ] ++ imports
 
 -- | Function testLimitedExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
@@ -88,29 +90,46 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
     solutionType <- typeOf ("Solution." ++ expression)
     studentType <- typeOf ("Student." ++ expression)
     case testTypeEquality solutionType studentType of
-        TypesEqual resultType ->
-            case (getTestableArguments resultType) of
-                Just n -> do
-                    let testExpression = createTestExpression expression n limits
-                    action <- interpret
-                        ("quickCheckWithResult (stdArgs { chatty = False}) (" ++ testExpression ++ ")")
-                        (as :: (IO QCT.Result))
+        TypesEqual resultType -> do
+            rta <- getTestableArguments resultType 
+            case rta of
+                Right ta -> do
+                    let testExpression = createTestExpression expression ta limits
+                    liftIO $ putStrLn testExpression
+                    interpret
+                        ("qcRunProperties (" ++ testExpression ++ ")")
+                        (as :: (IO TestingResult))
                             >>= liftIO
-                    return (getTestingResult action)
-                Nothing -> return NotTestable
+                Left msg -> return NotTestable
         r -> return (TypesNotEqual r)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
 -- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> Int -> [Maybe String] -> String
-createTestExpression expression argumentsCount limits =
+createTestExpression :: String -> [ TestableArgument ] -> [ Maybe String ] -> String
+createTestExpression expression arguments limits = wrap . map property $ degeneralize arguments
+  where
+    wrap = ('[' :) . (++ "]") . intercalate ", "
+    property :: [ TestableArgument ] -> String
+    property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
+                           , "((", intercalate ", " (params args), ") :: ", types args, ")"
+                           , " `seq` (Solution.", expr args, " == Student.", expr args, ") )"
+                           ]
+
+    params = flip (zipWith bindGen) [1..]
+    expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]
+    types = map qualifiedType >>>
+            foldr (\(TypeExpression (TypeContext []) ty1) tys -> ty1 : tys) [] >>>
+            TupleType >>>
+            formatType
+{-
         printf ("\\%s -> within %s (Solution.%s %s == Student.%s %s)") argumentsExpression limitExpression expression argumentsExpression expression argumentsExpression
             where
                 arguments = (map (('x':) . show) [1..argumentsCount])
                 limitedArguments = if (null limits) then [] else zip arguments (limits ++ repeat Nothing)
                 limitExpression = createLimits limitedArguments
                 argumentsExpression = concat $ intersperse " " arguments
+-}
 
 -- | Function createLimits creates limiting expression by applying complexity functions to respective aruguments and taking minimum of results.
 -- | It multiplies result with given constant and adds another constant to the result, to convert complexity bounds to time bounds and to represent Big-O notation correctly.
@@ -122,13 +141,6 @@ createLimits limits = "(" ++ show Config.additionConstant ++ " + " ++ show Confi
         process (_, Nothing) = ""
         process (argument, Just limitExpression) = limitExpression ++ " $ fromIntegral(parameter " ++ argument ++ ")"
         limitsExpression = concat (intersperse ", "  (map process limits))
-
-getTestingResult :: QCT.Result -> TestingResult
-getTestingResult QCT.Success {} = Result.Success
-getTestingResult QCT.GaveUp {} = Result.Success
-getTestingResult QCT.Failure { QCT.reason = r, QCT.output = o }
-    = if "<<timeout>>" `isInfixOf` r then Result.Timeout else Result.DifferentValues o
-getTestingResult QCT.NoExpectedFailure { QCT.output = o } = Result.DifferentValues o
 
 runTestfile :: FilePath -> String -> IO TestingResult
 runTestfile testfile student = do
@@ -157,13 +169,7 @@ runTest :: TestConfig -> Interpreter TestingResult
 runTest TestConfig { test = TestEntry entry }  = typeOf entry >>= \t ->
     if | t == showType (infer :: TestingResult)    -> interpret entry (as :: TestingResult)
        | t == showType (infer :: IO TestingResult) -> interpret entry (as :: IO TestingResult) >>= liftIO
-runTest TestConfig { test = Properties props } = liftIO $
-    mapM applyQC props >>= return . qcFirstFailed
-  where applyQC (AnyProperty p) = QCT.quickCheckWithResult (QCT.stdArgs { QCT.chatty = False }) p
-  {-
-    interpret "qcRunProperties ((tProperties . test) testConfig)" (as :: IO TestingResult) >>=
-    liftIO
-  -}
+runTest TestConfig { test = Properties props } = liftIO $ qcRunProperties props
 
 showType :: Typeable a => a -> String
 showType = show . T.typeOf

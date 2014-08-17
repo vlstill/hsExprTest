@@ -4,10 +4,10 @@
 module Types.Arguments
     ( getTestableArguments
     , degeneralize
+    , TestableArgument ( .. )
     ) where
 
 import Control.Monad
-import Control.Monad.IO.Class
 import Types.TypeExpression
 import Types.Formating 
 import Types.Processing
@@ -94,13 +94,13 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
     argument (FunctionType a b) = let
         qualifiedType = normalize $ TypeExpression con 
                           ((TypeConstructor "Fun" `TypeApplication` a) `TypeApplication` b)
-        bindGen i = "Fun _ " ++ varGen i
+        bindGen i = parens $ "Fun _" ++ show i ++ " " ++ varGen i
         varGen  i = "f" ++ show i
         in TestableArgument { qualifiedType, bindGen, varGen }
 
     argument typ = let
         qualifiedType = normalize $ TypeExpression con typ
-        bindGen = varGen
+        bindGen = parens . varGen
         varGen i = "x" ++ show i
         in TestableArgument { qualifiedType, bindGen, varGen }
 
@@ -108,6 +108,8 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
 
     fix (Right xs) = Right $ reverse xs
     fix l          = l
+
+    parens = ('(' :) . (++ ")")
 
 foldType :: (b -> b -> b) -- ^ TypeApplication
          -> (String -> b) -- ^ TypeConstructor

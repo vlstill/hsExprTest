@@ -9,7 +9,7 @@ createCodeFile fileName moduleName code = do
     (createdFileName, handle) <- openTempFile "." fileName
     if (moduleName == "Student") then hPutStr handle ("{-# LANGUAGE Safe #-}\n")
                                  else hPutStr handle ("{-# LANGUAGE Unsafe #-}\n")
-    hPutStr handle ("module " ++ moduleName ++ " where \n\nimport InteractiveImports.DataTypes \n\n")
+    hPutStr handle ("module " ++ moduleName ++ " where \n\nimport Testing.DataTypes \n\n")
     hPutStr handle code
     return createdFileName
 
