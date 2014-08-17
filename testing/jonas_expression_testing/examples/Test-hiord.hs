@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables
            , Unsafe #-}
 -- language extensions: you should specify Unsafe for the sake of clarity
--- but it should be implied by importing Teacher.Test (which is unsafe)
+-- but it should be implied by importing Testing.Test (which is unsafe)
 -- you must not specify Trustworthy or student's might be able to import
 -- this module
 
@@ -16,7 +16,7 @@
 module Test where
 
 -- you must import this and have testConfig
-import Teacher.Test
+import Testing.Test
 
 -- you can of course import more QuickCheck
 import Test.QuickCheck.Function
@@ -25,7 +25,7 @@ import Test.QuickCheck.Function
 -- is safe Haskell verified, you don't actually need to inport qualified
 import safe qualified Student
 
--- this is configuration of test, see Teacher.Test for deails
+-- this is configuration of test, see Testing.Test for deails
 -- other examples can be find in other files in examples/ folder
 testConfig = defaultConfig
     -- specify that students function must have concrete type
