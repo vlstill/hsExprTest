@@ -100,7 +100,7 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
                         ("qcRunProperties (" ++ testExpression ++ ")")
                         (as :: (IO TestingResult))
                             >>= liftIO
-                Left msg -> return NotTestable
+                Left msg -> return $ NotTestable msg
         r -> return (TypesNotEqual r)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.

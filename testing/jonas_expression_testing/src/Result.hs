@@ -11,7 +11,7 @@ import Data.Typeable ( Typeable )
 
 data TestingResult
     = WontCompile String
-    | NotTestable
+    | NotTestable String
     | TypesNotEqual TypingResult
     | DifferentValues String
     | Success
