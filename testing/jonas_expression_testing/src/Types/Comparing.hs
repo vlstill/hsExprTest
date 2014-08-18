@@ -24,11 +24,15 @@ compareTypes a b = compareTypes' (normalize a) (normalize b)
 compareTypes' :: TypeExpression -> TypeExpression -> TypingResult
 compareTypes' a@(TypeExpression c1 t1) (TypeExpression c2 t2)
     = case (c1 == c2, t1 == t2) of
-        (False, _) -> NotEqual $ "Type contex mismatch: " ++ formatContext c1
+        (False, True)  -> NotEqual tconmsg
+        (False, False) -> NotEqual $ tconmsg ++ " " ++ tmismsg
+        (True, False)  -> NotEqual tmismsg
+        (True, True)   -> TypesEqual a
+  where
+    tconmsg = "Type contex mismatch: " ++ formatContext c1
                             ++ " /= " ++ formatContext c2 ++ "."
-        (True, False) -> NotEqual $ "Type mismatch: " ++ formatType t1 ++ " /= " ++ formatType t2
-                            ++ ", could not match " ++ _mismatch t1 t2
-        (True, True) -> TypesEqual a
+    tmismsg = "Type mismatch: " ++ formatType t1 ++ " /= " ++ formatType t2
+                            ++ ", could not match " ++ _mismatch t1 t2 ++ "."
 
 _mismatch (TypeApplication t11 t12) (TypeApplication t21 t22) = _mismatch2 t11 t12 t21 t22
 _mismatch (FunctionType t11 t12) (FunctionType t21 t22) = _mismatch2 t11 t12 t21 t22
