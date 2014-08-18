@@ -180,7 +180,7 @@ showType = show . T.typeOf
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult
 run interpreter = do
-    r <- unsafeRunInterpreterWithArgs pkgs interpreter
+    r <- unsafeRunInterpreterWithArgs args interpreter
     case r of
         (Left error) -> case error of
             I.UnknownError str -> ce $ "Unknown error: " ++ str
@@ -190,5 +190,12 @@ run interpreter = do
         (Right result) -> return result
   where
     ce = return . WontCompile
+    args = pkgs ++ exts
+    -- NOTE: it would seem better to use HINT's set feature to set language
+    -- extensions (and it would be type safe) but there is bug somewhere
+    -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
+    -- if set [ languageExtensions := ... ] is used and prelude is not imported
+    -- explicitly (which is kind of pain to do), so we do it here.
+    exts = [ "-XNoMonomorphismRestriction" ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "expressionTesting" ]
 
