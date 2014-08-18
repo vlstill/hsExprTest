@@ -1,6 +1,5 @@
 {-# LANGUAGE StandaloneDeriving
            , DeriveDataTypeable
-           , MultiWayIf
            #-}
 
 module Testing where
@@ -168,8 +167,9 @@ runTestfile' test student = do
 
 runTest :: TestConfig -> Interpreter TestingResult
 runTest TestConfig { test = TestEntry entry }  = typeOf entry >>= \t ->
-    if | t == showType (infer :: TestingResult)    -> interpret entry (as :: TestingResult)
-       | t == showType (infer :: IO TestingResult) -> interpret entry (as :: IO TestingResult) >>= liftIO
+    case (t == showType (infer :: TestingResult), t == showType (infer :: IO TestingResult) ) of
+        (True, _) -> interpret entry (as :: TestingResult)
+        (_, True) -> interpret entry (as :: IO TestingResult) >>= liftIO
 runTest TestConfig { test = Properties props } = liftIO $ qcRunProperties props
 
 showType :: Typeable a => a -> String
