@@ -110,6 +110,7 @@ createTestExpression expression arguments limits = wrap . map property $ degener
   where
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
+    property []   = "AnyProperty (Solution.f == Student.f)"
     property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
                            , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " == Student.", expr args, ") )"
