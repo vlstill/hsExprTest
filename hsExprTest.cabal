@@ -1,15 +1,15 @@
-name:                expressionTesting
-version:             0.1.3
+name:                hsExprTest
+version:             0.1.4
 description:
         This application allows to compare two types and compare two expressions by testing.
 synopsis:           Expression Testing
 category:           Testing
 author:             Martin Jonáš <359542@mail.muni.cz>, Vladimír Štill <xstill@mail.muni.cz>
-maintainer:         359542@mail.muni.cz, xstill@mail.muni.cz
+maintainer:         xstill@mail.muni.cz
 
 cabal-version:      >= 1.9.2
 build-type:         Simple
-tested-with:        GHC==7.8.3
+tested-with:        GHC == 7.8.3
 
 flag service
     default: False
@@ -45,10 +45,10 @@ Library
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
-Executable expressionTesting
+Executable hsExprTest
   hs-source-dirs:   exec
 
-  build-depends:    expressionTesting == 0.1.3,
+  build-depends:    hsExprTest == 0.1.4,
                     base,
                     cmdlib >= 0.3.5
 
@@ -56,11 +56,11 @@ Executable expressionTesting
   main-is:          Main.hs
   other-modules:    UI
 
-Executable expressionTestingService
+Executable hsExprTestService
   if !flag( service )
     buildable: False
   else
-    build-depends:    expressionTesting == 0.1.3,
+    build-depends:    hsExprTest == 0.1.4,
                       base >= 4.6,
                       directory,
                       cmdlib >= 0.3.5,
@@ -78,5 +78,5 @@ Test-Suite test-old-bugs
   main-is:          OldBugs.hs
 
   build-depends:    base,
-                    expressionTesting == 0.1.3,
+                    hsExprTest == 0.1.4,
                     Cabal >= 1.9.2

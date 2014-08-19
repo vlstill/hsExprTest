@@ -2,13 +2,13 @@
 
 { cabal, cmdlib, extensibleExceptions, hint, network, parsec
 , QuickCheck, random
-, expressionTestingSrc
+, hsExprTestSrc
 }:
 
 cabal.mkDerivation (self: {
-  pname = "expressionTesting";
+  pname = "hsExprTest";
   version = "0.1.2";
-  src = expressionTestingSrc;
+  src = hsExprTestSrc;
   isLibrary = true;
   isExecutable = true;
   buildDepends = [

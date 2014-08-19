@@ -2,8 +2,8 @@ all : build
 
 build: sandbox
 	cabal install
-	chmod +x wrap/expressionTesting.sh
-	ln -s wrap/expressionTesting.sh expressionTesting || true
+	chmod +x wrap/hsExprTest.sh
+	ln -s wrap/hsExprTest.sh hsExprTest || true
 
 sandbox : .cabal-sandbox
 
@@ -16,7 +16,7 @@ install:
 clean:
 	cabal clean
 	rm -rf dist || true
-	rm expressionTesting || true
+	rm hsExprTest || true
 
 clean-all: clean
 	find -name '*.hi' -exec rm {} \;
