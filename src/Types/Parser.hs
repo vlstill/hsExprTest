@@ -1,5 +1,7 @@
 module Types.Parser (parseType) where 
 
+-- (c) 2012 Martin Jonáš
+
 import Types.TypeExpression
 import Text.Parsec
 import Text.Parsec.String

@@ -1,3 +1,5 @@
+-- (c) 2012 Martin Jonáš
+
 module Config where
 
 -- | Value representing constant, by which is multiplied every computed time limit

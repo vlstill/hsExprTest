@@ -1,3 +1,5 @@
+-- (c) 2014 Vladimír Štill
+
 module Types.Formating ( FormatType ( formatType ), formatContext ) where
 
 import Types.TypeExpression

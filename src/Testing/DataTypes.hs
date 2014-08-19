@@ -1,5 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 
+-- (c) 2012 Martin Jonáš
+
 module Testing.DataTypes (Nat(..), BinaryTree(..)) where
 
 import Test.QuickCheck

@@ -4,6 +4,9 @@
            , StandaloneDeriving
            , ExistentialQuantification
            #-}
+
+-- (c) 2014 Vladimír Štill
+
 -- | Simple interface to testing
 module Testing.Test (
     -- * Result re-exports

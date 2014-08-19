@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+
+-- (c) 2012 Martin Jonáš
+
 module Types.TypeExpression 
     ( TypeExpression(..)
     , TypeContext(..)

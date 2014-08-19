@@ -1,6 +1,9 @@
 {-# LANGUAGE TupleSections
            , NamedFieldPuns
            #-}
+
+-- (c) 2014 Vladimír Štill
+
 module Types.Arguments
     ( getTestableArguments
     , degeneralize

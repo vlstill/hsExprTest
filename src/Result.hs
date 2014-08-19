@@ -1,4 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+
+-- (c) 2012 Martin Jonáš
+-- (c) 2014 Vladimír Štill
+
 module Result
     ( CResult ( .. )
     , TestingResult ( .. )
