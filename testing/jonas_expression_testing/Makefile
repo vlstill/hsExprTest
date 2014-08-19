@@ -33,3 +33,8 @@ sdist :
 nixcheck : sdist
 	chmod +x nixcheck.sh
 	./nixcheck.sh
+
+test : sandbox
+	cabal configure --enable-tests
+	chmod +x wrap/env.sh
+	./wrap/env.sh -c "cabal test --show-details=always"
