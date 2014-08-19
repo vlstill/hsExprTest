@@ -3,3 +3,10 @@ ghc:
   - 7.8
   - 7.6
   - 7.4
+
+notifications:
+  email:
+    recipients:
+      - xstill@fi.muni.cz
+    on_success: always # default: change
+    on_failure: always # default: always
