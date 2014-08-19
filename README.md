@@ -10,6 +10,8 @@ in the course IB015 Non-Imperative Programming on the same faculty.
 
 It is currently in alpha state, so don't expect everything to be perfect.
 
+[![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
+
 ## Description
 
 A tool for simple randomized testing of Haskell expressions based on the
