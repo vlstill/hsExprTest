@@ -60,9 +60,7 @@ getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> case 
     False -> return . Left $ "Return type `" ++ formatType returnType ++ "' not member of Eq"
   where
     returnType = normalize . TypeExpression con $ returnType'
-    returnType' = rt typ
-    rt (FunctionType _ t) = rt t
-    rt t                  = t
+    (arguments, returnType') = functionTypes typ
 
     -- add extra Eq quantification for any type variable in result type
     con :: TypeContext
@@ -73,9 +71,14 @@ getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> case 
     getVars :: Type -> [ TypeVariable ]
     getVars = extract (++) [] (:[])
 
-    arguments = as typ
+functionTypes :: Type -> ([Type], Type)
+functionTypes typ@(FunctionType _ _) = (as typ, rt typ)
+  where
+    rt (FunctionType _ t) = rt t
+    rt t                  = t
     as (FunctionType a b) = a : as b
     as return             = []
+functionTypes x                      = ([], x)
 
 isPoly :: Type -> Bool
 isPoly = extract (||) False (const True)
@@ -102,12 +105,20 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
         varGen i  = "b" ++ show i
         in TestableArgument { qualifiedType, bindGen, varGen }
 
-    argument (FunctionType a b) = let
-        qualifiedType = normalize $ TypeExpression con 
-                          ((TypeConstructor "Fun" `TypeApplication` a) `TypeApplication` b)
-        bindGen i = parens $ "Fun _" ++ show i ++ " " ++ varGen i
-        varGen  i = "f" ++ show i
-        in TestableArgument { qualifiedType, bindGen, varGen }
+    argument typ@(FunctionType a b) = let 
+        (par, re) = functionTypes typ
+        bindGen i = parens $ "Fun _" ++ show i ++ " f" ++ show i
+        in if length par == 1
+            then let
+                qualifiedType = normalize $ TypeExpression con 
+                    ((TypeConstructor "Fun" `TypeApplication` a) `TypeApplication` b)
+                varGen i = "f" ++ show i
+                in TestableArgument { qualifiedType, bindGen, varGen }
+            else let
+                qualifiedType = normalize $ TypeExpression con
+                    ((TypeConstructor "Fun" `TypeApplication` TupleType par) `TypeApplication` re)
+                varGen i = "(gcurry f" ++ show i ++ ")"
+                in TestableArgument { qualifiedType, bindGen, varGen }
 
     argument typ = let
         qualifiedType = normalize $ TypeExpression con typ

@@ -76,6 +76,7 @@ setupInterpreter mod imports = do
                   , ("Test.QuickCheck", Nothing)
                   , ("Testing.Limiting", Nothing)
                   , ("Testing.Test", Nothing)
+                  , ("Types.Curry", Nothing)
                   ] ++ imports
 
 -- | Function testLimitedExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
