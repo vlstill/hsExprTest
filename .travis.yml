@@ -4,8 +4,8 @@ ghc:
   - 7.6
   - 7.4
 
-install:
-  - cabal install
+script:
+  - cabal install --enable-tests
 
 notifications:
   email:
