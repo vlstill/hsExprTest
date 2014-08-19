@@ -32,6 +32,7 @@ Library
                       Types.Comparing
                       Types.Formating
                       Types.Arguments
+                      Types.Curry
                       Config
                       Testing
                       Testing.Test
