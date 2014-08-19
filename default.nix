@@ -1,8 +1,8 @@
-{ expressionTestingSrc }:
+{ hsExprTestSrc }:
 
 let pkgs = import <nixpkgs> {};
-    make = haskell : haskell.callPackage ./expressionTesting.nix {
-        inherit expressionTestingSrc;
+    make = haskell : haskell.callPackage ./hsExprTest.nix {
+        inherit hsExprTestSrc;
     };
 in rec {
     current = make pkgs.haskellPackages;

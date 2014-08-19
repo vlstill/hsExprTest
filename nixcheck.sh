@@ -3,12 +3,12 @@
 working=""
 failed=""
 
-src=$(ls dist/expressionTesting-0.1.* | tail -n1)
+src=$(ls dist/hsExprTest-* | tail -n1)
 
 for i in current ghc783 ghc763 ghc742 ghc722 ghc704; do
     echo "Making $i"
 
-    if nix-build -A $i --arg expressionTestingSrc $src; then
+    if nix-build -A $i --arg hsExprTestSrc $src; then
         working="$working $i"
         mv result $i
     else
