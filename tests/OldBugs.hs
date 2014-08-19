@@ -12,8 +12,8 @@ import Control.Monad
 main :: IO ()
 main = do
     r@(_, failed) <- foldM test (0, 0)
-              [ ("f x = x . ((.).)", "f = (.((.).))", "f", Success)
-              , ("f = 2^2^2", "f = (2^2)^2", "f", Success)
+              [ ("f = 2^2^2", "f = (2^2)^2", "f", Success)
+              -- , ("f x = x . ((.).)", "f = (.((.).))", "f", Success)
               , ("f m n = m `mod` n", "f = mod", "f", Success)
               , ("f _ 0 = 0; f m n = m `mod` n", "f = mod", "f", DifferentValues "" )
               ]
