@@ -43,7 +43,7 @@ isTypeclass typ typeclass = do
 
 
 isEq = (`isTypeclass` "Eq")
-isArbitrary = (`isTypeclass` "Arbitrary")
+isArbitrary x = liftM2 (&&) (x `isTypeclass` "Arbitrary")  (x `isTypeclass` "Show")
 
 
 -- | This function creates list of TestableArguments from (qualified, polymorphic)
@@ -84,13 +84,24 @@ getTestableArguments' :: TypeContext -> [ Type ] -> Interpreter (Either String [
 getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
   where
     accum done now =
-        let a = argument now
+        let a  = argument now
             at = qualifiedType a
-        in isArbitrary at >>= \arb -> return $ case (arb, done) of
-            (True,  Right as) -> Right $ a : as
-            (True,  Left msg) -> Left msg
-            (False, Right _)  -> Left $ msgof at
-            (False, Left msg) -> Left $ msg ++ ", " ++ msgof at
+            b  = blind now
+            bt = qualifiedType b
+        in isArbitrary at >>= \arb -> isArbitrary bt >>= \bl ->
+            return $ case (arb || bl, arb, done) of
+                (True, True,  Right as) -> Right $ a : as
+                (True, False, Right as) -> Right $ b : as
+                (True,  _, Left msg) -> Left msg
+                (False, _, Right _)  -> Left $ msgof at
+                (False, _, Left msg) -> Left $ msg ++ ", " ++ msgof at
+    blind typ = let
+        qualifiedType = normalize $ TypeExpression con
+                          (TypeConstructor "Blind" `TypeApplication` typ)
+        bindGen i = parens $ "Blind " ++ varGen i
+        varGen i  = "b" ++ show i
+        in TestableArgument { qualifiedType, bindGen, varGen }
+
     argument (FunctionType a b) = let
         qualifiedType = normalize $ TypeExpression con 
                           ((TypeConstructor "Fun" `TypeApplication` a) `TypeApplication` b)
