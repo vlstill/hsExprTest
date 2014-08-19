@@ -201,5 +201,5 @@ run interpreter = do
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
     exts = [ "-XNoMonomorphismRestriction" ]
-    pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "expressionTesting" ]
+    pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 
