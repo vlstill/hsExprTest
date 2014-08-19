@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns
            , Unsafe
            , DeriveDataTypeable
-           , StandaloneDeriving
            , ExistentialQuantification
            #-}
 
@@ -111,9 +110,6 @@ x <==> y = wrap x QC.=== wrap y
 data Wrapper a
     = OK a
     | forall e. Exception e => Exc e
-
--- inline deriving does not work for existential types :-(
-deriving instance Typeable Wrapper
 
 instance Eq a => Eq (Wrapper a) where
     (OK x)  == (OK y)  = x == y
