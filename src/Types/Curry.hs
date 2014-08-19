@@ -3,7 +3,7 @@
 -- (c) 2014 Vladimír Štill
 
 -- | Generic curry for 2 to 7 tuples
-module Types.Curry ( GCurry( Curry, guncurry, gcurry ) ) where
+module Types.Curry ( GCurry( guncurry, gcurry ), Curry ) where
 
 class GCurry a where
     type Curry p r :: *
