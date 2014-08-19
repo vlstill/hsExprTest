@@ -92,7 +92,11 @@ qcFirstFailed = firstFailed . map qcToResult
 
 qcRunProperties :: [ AnyProperty ] -> IO TestingResult
 qcRunProperties props = mapM applyQC props >>= return . qcFirstFailed
-  where applyQC (AnyProperty p) = QCT.quickCheckWithResult (QCT.stdArgs { QCT.chatty = False }) p
+  where
+    applyQC (AnyProperty p) = QCT.quickCheckWithResult args p
+    args = QCT.stdArgs { QCT.chatty = False
+                       , QCT.maxSuccess = 1000
+                       }
 
 (<==>) :: (Eq a, Show a) => a -> a -> QC.Property
 infix 4 <==>
