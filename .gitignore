@@ -9,3 +9,8 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+
+# vim temporaries & spol
+*~
+.*.swp
+.*.swo
