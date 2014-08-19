@@ -8,6 +8,7 @@ module Result
 import Data.Monoid
 import Types.TypeExpression ( TypeExpression )
 import Data.Typeable ( Typeable )
+import Data.Data ( Data )
 
 data TestingResult
     = WontCompile String
@@ -17,13 +18,13 @@ data TestingResult
     | Success
     | Timeout
     | TestError String
-    deriving ( Show, Typeable )
+    deriving ( Show, Typeable, Data )
 
 data TypingResult
     = TypesEqual TypeExpression
     | CannotParse String
     | NotEqual String
-    deriving ( Show, Typeable )
+    deriving ( Show, Typeable, Data )
 
 class CResult r where
     isSuccess :: r -> Bool

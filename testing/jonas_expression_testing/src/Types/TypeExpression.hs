@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Types.TypeExpression 
     ( TypeExpression(..)
     , TypeContext(..)
@@ -7,11 +8,16 @@ module Types.TypeExpression
     , TypeConstructor(..)
     ) where
 
+import Data.Data ( Data )
+import Data.Typeable ( Typeable )
+
 -- | Data type TypeExpression represents parsed type expression
-data TypeExpression = TypeExpression TypeContext Type deriving Show
+data TypeExpression = TypeExpression TypeContext Type
+    deriving ( Show, Typeable, Data )
 
 -- | Data type TypeContext represents parsed type context
-data TypeContext = TypeContext [(TypeClass, TypeVariable)] deriving Show
+data TypeContext = TypeContext [(TypeClass, TypeVariable)]
+    deriving ( Show, Typeable, Data )
 
 -- | Data type TypeExpression represents parsed type witnout the type context
 data Type 
@@ -27,7 +33,7 @@ data Type
 	| TupleType [Type]
 	-- | List with elements of given type
 	| ListType Type
-	deriving (Show, Eq)
+	deriving ( Show, Eq, Typeable, Data )
 	
 -- | Data type TypeContext represents parsed type class
 type TypeClass = String
