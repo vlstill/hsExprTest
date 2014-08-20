@@ -76,6 +76,7 @@ Test-Suite basic
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
   main-is:          Basic.hs
+  other-modules:    Harness
 
   build-depends:    base,
                     hsExprTest == 0.1.4,
@@ -85,6 +86,7 @@ Test-Suite security
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
   main-is:          Security.hs
+  other-modules:    Harness
 
   build-depends:    base,
                     hsExprTest == 0.1.4,
