@@ -3,6 +3,7 @@
 { cabal, cmdlib, extensibleExceptions, hint, network, parsec
 , QuickCheck, random
 , hsExprTestSrc
+, disable_shared ? false
 }:
 
 cabal.mkDerivation (self: {
@@ -12,6 +13,7 @@ cabal.mkDerivation (self: {
   isLibrary = true;
   isExecutable = true;
   doCheck = false; # they can't pass without wrapper
+  configureFlags = if disable_shared then "--disable-shared --disable-executable-dynamic" else "";
   buildDepends = [
     cmdlib extensibleExceptions hint network parsec QuickCheck random
   ];

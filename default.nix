@@ -1,8 +1,8 @@
-{ hsExprTestSrc }:
+{ hsExprTestSrc, disable_shared ? false }:
 
 let pkgs = import <nixpkgs> {};
     make = haskell : haskell.callPackage ./hsExprTest.nix {
-        inherit hsExprTestSrc;
+        inherit hsExprTestSrc disable_shared;
     };
 in rec {
     current = make pkgs.haskellPackages;
