@@ -72,10 +72,10 @@ Executable hsExprTestService
 
   main-is:          Service.hs
 
-Test-Suite test-old-bugs
+Test-Suite basic
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
-  main-is:          OldBugs.hs
+  main-is:          Basic.hs
 
   build-depends:    base,
                     hsExprTest == 0.1.4,
