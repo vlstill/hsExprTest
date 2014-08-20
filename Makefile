@@ -34,6 +34,9 @@ nixcheck : sdist
 	chmod +x nixcheck.sh
 	./nixcheck.sh
 
+nixbuild : sdist
+	nix-build -A current --arg hsExprTestSrc $$(ls dist/hsExprTest-*.tar.gz | tail -n1)
+
 test : sandbox
 	cabal configure --enable-tests
 	chmod +x wrap/env.sh
