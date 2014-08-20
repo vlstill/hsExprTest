@@ -5,7 +5,7 @@ ghc:
   - 7.4
 
 script:
-  - cabal install && cabal configure --enable-tests && cabal build && cabal test
+  - cabal install && cabal configure --enable-tests && cabal build && cabal test --show-details=always
 
 notifications:
   email:
