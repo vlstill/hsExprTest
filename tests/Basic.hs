@@ -52,6 +52,32 @@ main = do
                 , "f :: Maybe (a -> a) -> a -> a; f Nothing = id; f (Just g) = g"
                 , "f", Success
                 )
+              -- some equivalent functions
+              , ( "_map :: (a -> b) -> [a] -> [b]; _map g xs = [ g x | x <- xs ]"
+                , "_map = map", "_map", Success
+                )
+              , ( "_map f = foldr (\\a bs -> f a : bs) []", "_map = map", "_map", Success )
+              , ( "_map f = reverse . foldl (\\bs a -> f a : bs) []"
+                , "_map :: (a -> b) -> [a] -> [b]; _map = map", "_map", Success
+                )
+              , ( "_rev = foldl (flip (:)) []"
+                , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
+                )
+              , ( "_rev (x:xs) = _rev xs ++ [x]; _rev [] = []"
+                , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
+                )
+              , ( unlines [ "_rev xs = arev xs []"
+                          , "   where"
+                          , "     arev [] rs = rs"
+                          , "     arev (x:xs) rs = arev xs (x:rs)" ]
+                , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
+                )
+              -- and some noequivalent
+              , ( "_rev = foldr (flip (:)) []", "_rev = reverse", "_rev", WontCompile ignored )
+              , ( "_rev = foldr (:) []", "_rev = reverse", "_rev", DifferentValues ignored )
+              , ( "_rev (x:xs) = foldl (flip (:)) [x] xs"
+                , "_rev = reverse", "_rev", DifferentValues ignored
+                ) -- (exceptions for [])
               ]
     putStrLn $ banner r
     if failed > 0 then exitFailure
