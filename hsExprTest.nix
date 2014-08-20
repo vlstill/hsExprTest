@@ -11,6 +11,7 @@ cabal.mkDerivation (self: {
   src = hsExprTestSrc;
   isLibrary = true;
   isExecutable = true;
+  doCheck = false; # they can't pass without wrapper
   buildDepends = [
     cmdlib extensibleExceptions hint network parsec QuickCheck random
   ];
