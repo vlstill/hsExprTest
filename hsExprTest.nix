@@ -14,8 +14,10 @@ cabal.mkDerivation (self: {
   isExecutable = true;
   doCheck = false; # they can't pass without wrapper
   configureFlags = if disable_shared then "--disable-shared --disable-executable-dynamic" else "";
-  buildDepends = [
-    cmdlib extensibleExceptions hint network parsec QuickCheck random
+  buildDepends =  map (x: x.override {
+      cabal = cabal.override { extension = self: super: { doCheck = false; }; };
+  } )[
+      cmdlib extensibleExceptions hint network parsec QuickCheck random
   ];
   meta = {
     description = "Expression Testing";
