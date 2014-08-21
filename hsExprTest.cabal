@@ -6,6 +6,8 @@ synopsis:           Expression Testing
 category:           Testing
 author:             Martin Jonáš <359542@mail.muni.cz>, Vladimír Štill <xstill@mail.muni.cz>
 maintainer:         xstill@mail.muni.cz
+license:            BSD2
+license-file:       LICENSE
 
 cabal-version:      >= 1.9.2
 build-type:         Simple
