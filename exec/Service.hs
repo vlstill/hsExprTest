@@ -6,7 +6,7 @@ import UI ( runExpressionTester, Main )
 
 import Network.Socket
 import System.Environment ( getArgs )
-import Text.Read ( readMaybe )
+import Compat.Read ( readMaybe )
 import Prelude hiding ( catch )
 import System.IO.Error hiding ( catch )
 import System.Directory

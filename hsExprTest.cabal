@@ -12,7 +12,7 @@ build-type:         Simple
 tested-with:        GHC == 7.8.3
 
 flag service
-    default: False
+    default: True
 					
 Library
   hs-source-dirs:   src
@@ -61,7 +61,7 @@ Executable hsExprTestService
     buildable: False
   else
     build-depends:    hsExprTest == 0.1.4,
-                      base >= 4.6,
+                      base,
                       directory,
                       cmdlib >= 0.3.5,
                       network >= 2.4
@@ -71,6 +71,8 @@ Executable hsExprTestService
   ghc-options:      -O0
 
   main-is:          Service.hs
+  other-modules:    Compat.Read
+  extensions:       CPP
 
 Test-Suite basic
   hs-source-dirs:   tests
