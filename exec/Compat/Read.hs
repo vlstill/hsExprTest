@@ -12,7 +12,7 @@ module Compat.Read
 #if MIN_VERSION_base(4,6,0)
 import Text.Read
 #else
-import qualified Text.Read as TR
+import Text.Read
 import Data.Either
 import Data.Maybe
 import Text.ParserCombinators.ReadP as P
@@ -31,7 +31,7 @@ readEither s =
     _   -> Left "Prelude.read: ambiguous parse"
   where
     read' =
-      do x <- TR.readPrec
+      do x <- readPrec
          lift P.skipSpaces
          return x
 
