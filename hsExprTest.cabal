@@ -59,7 +59,7 @@ Executable hsExprTest
   other-modules:    UI
 
 Executable hsExprTestService
-  if !flag( service )
+  if !flag( service ) || os(windows)
     buildable: False
   else
     build-depends:    hsExprTest == 0.1.4,
