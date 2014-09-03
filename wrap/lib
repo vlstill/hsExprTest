@@ -1,2 +1,2 @@
-export GHC_PACKAGE_PATH=$(cabal sandbox hc-pkg list 2>/dev/null | grep \: | tac | sed 's/://' | paste -d: - -)
-export PATH=$PWD/.cabal-sandbox/bin:$PATH
+export GHC_PACKAGE_PATH="$(cabal sandbox hc-pkg list 2>/dev/null | grep \: | tac | sed 's/://' | paste -d: - -)"
+export PATH="$PWD/.cabal-sandbox/bin:$PATH"
