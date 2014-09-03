@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 . wrap/lib
-exec ./.cabal-sandbox/bin/expressionTesting "$@"
+exec ./.cabal-sandbox/bin/hsExprTest "$@"
