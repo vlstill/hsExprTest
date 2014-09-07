@@ -1,18 +1,35 @@
+{-# LANGUAGE NamedFieldPuns #-}
 -- (c) 2014 Vladimír Štill
 
 module Main ( main ) where
 
 import UI ( runExpressionTester, Main )
 
-import Network.Socket
-import System.Environment ( getArgs )
-import Compat.Read ( readMaybe )
 import Prelude hiding ( catch )
+
+import Control.Exception
+import Control.Arrow
+
+import System.Environment ( getArgs )
 import System.IO.Error hiding ( catch )
 import System.Directory
-import Control.Exception
-import Data.Typeable ( typeOf )
 import System.Exit
+import System.IO
+
+import Network.Socket
+
+import Compat.Read ( readEither )
+import Data.Char
+import Data.Typeable ( typeOf )
+import Data.Either
+import Data.Monoid
+
+data Query
+    = Query { transactId :: Integer
+            , questionId :: Integer
+            , content    :: String
+            }
+    deriving ( Eq, Show, Read )
 
 -- http://stackoverflow.com/a/8502391/1620753
 removeIfExists :: FilePath -> IO ()
@@ -22,9 +39,13 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
             | otherwise = throwIO e
 
 main :: IO ()
-main = do
-    [ sockaddr ] <- getArgs
+main = getArgs >>= \args -> case args of
+  [ sockaddr ] -> runSocket sockaddr
+  []           -> runSocket "/var/lib/checker/socket"
 
+
+runSocket :: FilePath -> IO ()
+runSocket sockaddr = do
     removeIfExists sockaddr
     listener <- socket AF_UNIX Stream defaultProtocol
     bind listener (SockAddrUnix sockaddr)
@@ -33,17 +54,13 @@ main = do
         (sock, _) <- accept listener
   
         query <- recv sock 65536
-        case readMaybe query :: Maybe Main of
-            Nothing   -> send sock "INVALID\n\n"
-            Just conf -> do
-                (ok, msg) <- runExpressionTester conf
-                send sock $ unlines
-                    [ if ok then "OK" else "FAIL"
-                    , ""
-                    , msg
-                    , ""
-                    ]
 
+        hPutStrLn stderr $ "Received: " ++ query
+        case parseQ query of
+            Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
+            Right query -> do
+                hPutStrLn stderr . ("Query: " ++ ) . show $ query
+                runQuery query sock
         close sock
   where
     loop :: IO () -> IO ()
@@ -55,5 +72,43 @@ main = do
         Nothing  -> do putStrLn $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
                        exitFailure
 
+runQuery :: Query -> Socket -> IO ()
+runQuery query sock = send sock "NOT IMPLEMENTED" >> return ()
+{-
+            do
+                (ok, msg) <- runExpressionTester conf
+                send sock $ unlines
+                    [ if ok then "OK" else "FAIL"
+                    , ""
+                    , msg
+                    , ""
+                    ]
 
+-}
+
+both :: Monoid e => (Either e a, Either e b) -> Either e (a, b)
+both (Right x, Right y) = Right (x, y)
+both (Left x, Left y)   = Left (x `mappend` y)
+both (Left x, _)        = Left x
+both (_, Left y)        = Left y
+
+-- FORMAT: "I<xid>Q<id>S<len><odp>";
+parseQ :: String -> Either String Query
+parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fmap toQuery $ qs
+  where
+    parseQuestion :: String -> Either String (Integer, String)
+    parseQuestion ('Q':qs) = span isDigit >>> readEither *** parseContent >>> both $ qs
+    parseQuestion _        = Left "Expected 'Q'. "
+
+    parseContent :: String -> Either String String
+    parseContent ('S':qs) = span isDigit >>> readEither *** Right >>> both >>> parseContentLen $ qs
+    parseContent _        = Left "Expected 'S'. "
+
+    parseContentLen (Right (len, cont)) =
+        if length cont == len then Right cont
+            else Left $ "Wrong content length, expected " ++ show len ++ " got " ++ show (length cont) ++ ". "
+    parseContentLen (Left msg) = Left msg
+
+    toQuery (transactId, (questionId, content)) = Query { transactId, questionId, content }
+parseQ _ = Left "Expected 'I' at the beginning. "
 
