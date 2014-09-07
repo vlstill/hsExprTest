@@ -103,7 +103,7 @@ parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fma
     parseQuestion _        = Left "Expected 'Q'. "
 
     parseContent :: String -> Either String String
-    parseContent ('S':qs) = span isDigit >>> readEither *** Right >>> both >>> parseContentLen $ qs
+    parseContent ('S':qs) = Right qs
     parseContent _        = Left "Expected 'S'. "
 
     parseContentLen (Right (len, cont)) =
