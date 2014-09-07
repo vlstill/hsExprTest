@@ -55,7 +55,7 @@ runSocket sockaddr = do
   
         query <- recv sock 65536
 
-        hPutStrLn stderr $ "Received: " ++ query
+        hPutStrLn stderr $ "Received: '" ++ query ++ "'"
         case parseQ query of
             Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
             Right query -> do
@@ -73,7 +73,9 @@ runSocket sockaddr = do
                        exitFailure
 
 runQuery :: Query -> Socket -> IO ()
-runQuery query sock = send sock "NOT IMPLEMENTED" >> return ()
+runQuery (Query { transactId, questionId, content }) sock = do
+    send sock $ "I" ++ show transactId ++ "P0C"
+    return ()
 {-
             do
                 (ok, msg) <- runExpressionTester conf
