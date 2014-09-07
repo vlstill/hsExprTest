@@ -15,6 +15,7 @@ import System.IO.Error hiding ( catch )
 import System.Directory
 import System.Exit
 import System.IO
+import System.Posix.Files
 
 import Network.Socket
 
@@ -23,6 +24,7 @@ import Data.Char
 import Data.Typeable ( typeOf )
 import Data.Either
 import Data.Monoid
+import Data.Bits ( (.|.) )
 
 data Query
     = Query { transactId :: Integer
@@ -49,6 +51,9 @@ runSocket sockaddr = do
     removeIfExists sockaddr
     listener <- socket AF_UNIX Stream defaultProtocol
     bind listener (SockAddrUnix sockaddr)
+    setFileMode sockaddr $ foldr1 (.|.) [ ownerReadMode, ownerWriteMode
+                                        , groupReadMode, groupWriteMode
+                                        , otherReadMode, otherWriteMode ]
     listen listener 1
     loop $ do
         (sock, _) <- accept listener
