@@ -35,27 +35,19 @@ import Testing.Test ( qcRunProperties, TestConfig ( .. ), Test ( .. ), ExpectedT
 deriving instance Typeable QC.Result
 
 -- | Function compareExpressions compares two expressions using QuickCheck and return result as IO String
-compareExpressions :: String -> String -> String -> IO TestingResult
+compareExpressions :: Maybe Int -> String -> String -> String -> IO TestingResult
 compareExpressions = testFiles testExpressionValues
 
--- | Function compareLimitedExpressions compares two expressions using QuickCheck within given time bounds and return result as IO String.
--- | First argument is list of expressions representing functions which calculate time bound given corresponding argument.
-compareLimitedExpressions :: [Maybe String] -> String -> String -> String -> IO TestingResult
-compareLimitedExpressions limits = testFiles (testLimitedExpressionValues limits)
-
 -- | Function testFiles creates two testing modules containing student and solution expressions and runs given interpreter on those modules.
-testFiles :: (String -> String -> String -> Interpreter TestingResult) -> String -> String -> String -> IO (TestingResult)
-testFiles interpreter expression solution student = do
+testFiles :: (Maybe Int -> String -> String -> String -> Interpreter TestingResult)
+          -> Maybe Int -> String -> String -> String -> IO (TestingResult)
+testFiles interpreter limit expression solution student = do
     solutionFile <- createSolutionFile solution
     studentFile <- createStudentFile student
-    result <- run $ interpreter expression solutionFile studentFile
+    result <- run $ interpreter limit expression solutionFile studentFile
     removeFile solutionFile
     removeFile studentFile
     return result
-
--- | Convinience function
-testExpressionValues :: String -> String -> String -> Interpreter TestingResult
-testExpressionValues = testLimitedExpressionValues []
 
 -- | Function testTypeEquality compares two given type expressions.
 testTypeEquality :: String -> String -> TypingResult
@@ -82,10 +74,10 @@ setupInterpreter mod imports = do
                   , ("Types.Curry", Nothing)
                   ] ++ imports
 
--- | Function testLimitedExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
+-- | Function testExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
 -- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
-testLimitedExpressionValues :: [Maybe String] -> String -> String -> String -> Interpreter TestingResult
-testLimitedExpressionValues limits expression solutionFile studentFile = do
+testExpressionValues :: (Maybe Int) -> String -> String -> String -> Interpreter TestingResult
+testExpressionValues limit expression solutionFile studentFile = do
     setupInterpreter [ solutionFile, studentFile ]
                      [ ("Student", Just "Student")
                      , ("Solution", Just "Solution")
@@ -97,7 +89,7 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
             rta <- getTestableArguments resultType 
             case rta of
                 Right ta -> do
-                    let testExpression = createTestExpression expression ta limits
+                    let testExpression = createTestExpression expression ta limit
                     liftIO $ putStrLn testExpression
                     interpret
                         ("qcRunProperties (" ++ testExpression ++ ")")
@@ -109,16 +101,19 @@ testLimitedExpressionValues limits expression solutionFile studentFile = do
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
 -- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> [ TestableArgument ] -> [ Maybe String ] -> String
-createTestExpression expression arguments limits = wrap . map property $ degeneralize arguments
+createTestExpression :: String -> [ TestableArgument ] -> Maybe Int -> String
+createTestExpression expression arguments limits = wrap . map (addLimit . property) $ degeneralize arguments
   where
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
-    property []   = "AnyProperty (Solution.f <==> Student.f)"
-    property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
+    property []   = "(Solution.f <==> Student.f)"
+    property args = concat [ "(\\", intercalate " " (params args), " -> "
                            , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " <==> Student.", expr args, ") )"
                            ]
+    addLimit = case limits of
+        Nothing  -> ("AnyProperty " ++)
+        Just lim -> \prop -> concat [ "AnyProperty (within ", show lim, " ", prop, ")" ]
 
     params = flip (zipWith bindGen) [1..]
     expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]
