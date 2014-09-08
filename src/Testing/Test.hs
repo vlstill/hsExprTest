@@ -105,9 +105,7 @@ infix 4 <==>
 x <==> y = wrap x QC.=== wrap y
   where
     wrap x = unsafePerformIO $ (x `seq` return (OK x)) `catch` handler
-    handler se@(SomeException e) = case fromException se of
-        Just (SomeAsyncException aex) -> throw aex
-        Nothing                       -> return $ Exc e
+    handler (SomeException e) = return $ Exc e
 
 data Wrapper a
     = OK a
