@@ -67,7 +67,8 @@ Executable hsExprTestService
                       directory,
                       cmdlib >= 0.3.5,
                       network >= 2.4,
-                      unix
+                      unix,
+                      filepath
 
   hs-source-dirs:   exec
 
