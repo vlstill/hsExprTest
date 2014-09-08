@@ -105,7 +105,9 @@ infix 4 <==>
 x <==> y = wrap x QC.=== wrap y
   where
     wrap x = unsafePerformIO $ (x `seq` return (OK x)) `catch` handler
-    handler (SomeException e) = return $ Exc e
+    handler (SomeException e) = if "<<timeout>>" `isInfixOf` show e
+                                    then throw e
+                                    else return (Exc e)
 
 data Wrapper a
     = OK a
