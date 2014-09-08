@@ -3,7 +3,7 @@
 
 module Main ( main ) where
 
-import UI ( runExpressionTester, Main )
+import UI
 
 import Prelude hiding ( catch )
 
@@ -16,6 +16,7 @@ import System.Directory
 import System.Exit
 import System.IO
 import System.Posix.Files
+import System.FilePath
 
 import Network.Socket
 
@@ -23,8 +24,10 @@ import Compat.Read ( readEither )
 import Data.Char
 import Data.Typeable ( typeOf )
 import Data.Either
+import Data.Maybe
 import Data.Monoid
 import Data.Bits ( (.|.) )
+import Data.List
 
 data Query
     = Query { transactId :: Integer
@@ -40,14 +43,18 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
             | isDoesNotExistError e = return ()
             | otherwise = throwIO e
 
+defaultsock = "/var/lib/checker/socket"
+defaultqdir = "/var/lib/checker/qdir"
+
 main :: IO ()
 main = getArgs >>= \args -> case args of
-  [ sockaddr ] -> runSocket sockaddr
-  []           -> runSocket "/var/lib/checker/socket"
+  [ sockaddr, qdir ] -> runSocket sockaddr qdir
+  [ sockaddr ]       -> runSocket sockaddr defaultqdir
+  []                 -> runSocket defaultsock defaultqdir
 
 
-runSocket :: FilePath -> IO ()
-runSocket sockaddr = do
+runSocket :: FilePath -> FilePath -> IO ()
+runSocket sockaddr qdir = do
     removeIfExists sockaddr
     listener <- socket AF_UNIX Stream defaultProtocol
     bind listener (SockAddrUnix sockaddr)
@@ -65,7 +72,7 @@ runSocket sockaddr = do
             Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
             Right query -> do
                 hPutStrLn stderr . ("Query: " ++ ) . show $ query
-                runQuery query sock
+                runQuery qdir query sock
         close sock
   where
     loop :: IO () -> IO ()
@@ -77,10 +84,37 @@ runSocket sockaddr = do
         Nothing  -> do putStrLn $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
                        exitFailure
 
-runQuery :: Query -> Socket -> IO ()
-runQuery (Query { transactId, questionId, content }) sock = do
-    send sock $ "I" ++ show transactId ++ "P0C"
-    return ()
+runQuery :: FilePath -> Query -> Socket -> IO ()
+runQuery qpath (Query { transactId, questionId, content }) sock = do
+    let qfile = qpath </> show questionId `addExtension` "qhs"
+    fe <- doesFileExist qfile
+    if not fe then send sock "FATAL: Question does not exits" >> return () else do
+        question <- fmap (decodeQ content) $ readFile qfile
+        case question of
+            Left emsg -> send sock ("FATAL: Invalid question: " ++ emsg) >> return ()
+            Right q   -> do
+                (ok, msg) <- runExpressionTester q
+                send sock $ concat [ "I", show transactId
+                                   , "P", show (fromEnum ok)
+                                   , "C", msg ]
+                return ()
+  where
+    decodeQ :: String -> String -> Either String Main
+    decodeQ student q = case span ("-- @ " `isPrefixOf`) (lines q) of
+        ([], _)           -> Left "Missing instructions"
+        (instr, solution) -> fromInstr student (unlines solution) (map (drop 5) instr)
+
+    fromInstr student solution instrs0 = do
+        let instrs = map (span (/= ':') >>> second (drop 2)) instrs0
+        case (lookup "type" instrs, lookup "expr" instrs) of
+            (Just _, Nothing) -> return $ CompareTypes { student, solution }
+            (Nothing, Just expressionName) -> case lookup "limit" instrs of
+                Nothing -> return $ CompareExpressions { student, solution, expressionName, limit = Nothing }
+                Just sLim -> do
+                    lim <- readEither sLim
+                    return $ CompareExpressions { student, solution, expressionName, limit = Just lim }
+            _ -> Left "Invalid instructions"
+
 {-
             do
                 (ok, msg) <- runExpressionTester conf
