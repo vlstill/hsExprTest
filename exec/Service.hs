@@ -86,7 +86,7 @@ runSocket sockaddr qdir = do
 
 runQuery :: FilePath -> Query -> Socket -> IO ()
 runQuery qpath (Query { transactId, questionId, content }) sock = do
-    let qfile = qpath </> show questionId `addExtension` "qhs"
+    let qfile = qpath </> show questionId `addExtension` "q.hs"
     fe <- doesFileExist qfile
     if not fe then send sock "FATAL: Question does not exits" >> return () else do
         question <- fmap (decodeQ content) $ readFile qfile
