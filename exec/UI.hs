@@ -30,7 +30,7 @@ data Main
     | CompareExpressions { student        :: String
                          , solution       :: String
                          , expressionName :: String
-                         , limits         :: String
+                         , limit          :: Maybe Int
                          }
     | Testfile { student  :: String
                , testfile :: FilePath
@@ -54,14 +54,16 @@ instance RecordCommand Main where
         student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
         solution           %> [ Help "teacher's solution", ArgHelp "CODE", Required True ],
         expressionName     %> [ Help "name of expression", ArgHelp "NAME", Required True ],
-        limits             %> [ Help "time limits", ArgHelp "function1;function2;...", Required False ]
+        limit              %> [ Help "time limit, in microseconds"
+                              , Default (Nothing :: Maybe Int)
+                              , Required False ]
       ]
     rec_options (Testfile { }) = group "Run testfile" [
         student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
         testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
       ]
 
-    run' conf _ = runExpressionTester conf >>= \(success, msg) -> do
+    run' conf _ = print conf >> runExpressionTester conf >>= \(success, msg) -> do
         putStrLn msg
         if success then exitSuccess else exitWith (ExitFailure 32)
 
@@ -70,12 +72,8 @@ runExpressionTester (CompareTypes { student, solution }) = do
     let result = Testing.testTypeEquality solution student
     return (isSuccess result, if isSuccess result then "OK" else "FAILED: " ++ show result)
 
-runExpressionTester (CompareExpressions { student, solution, expressionName, limits = [] }) =
-    Testing.compareExpressions expressionName solution student >>= return . formatResult
-
-runExpressionTester (CompareExpressions { student, solution, expressionName, limits }) =
-    Testing.compareLimitedExpressions (parseLimits limits) expressionName solution student >>=
-    return . formatResult
+runExpressionTester (CompareExpressions { student, solution, expressionName, limit }) =
+    Testing.compareExpressions limit expressionName solution student >>= return . formatResult
 
 runExpressionTester (Testfile { student, testfile }) =
     Testing.runTestfile testfile student >>= return . formatResult
