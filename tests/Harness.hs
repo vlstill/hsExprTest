@@ -25,7 +25,7 @@ banner (passed, failed) = "FAIL: Passed " ++ show passed ++ " out of " ++ show (
 test :: (Integer, Integer) -> (String, String, String, TestingResult) -> IO (Integer, Integer)
 test (passed, failed) (student, solution, expr, expected) = do
     putStrLn $ concat [ "Testing ", student, " =?= ", solution, " ..." ]
-    res <- compareExpressions expr solution student
+    res <- compareExpressions Nothing expr solution student
     if toConstr res == toConstr expected
         then do
           putStrLn "OK"
