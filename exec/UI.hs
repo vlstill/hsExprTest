@@ -63,7 +63,7 @@ instance RecordCommand Main where
         testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
       ]
 
-    run' conf _ = print conf >> runExpressionTester conf >>= \(success, msg) -> do
+    run' conf _ = runExpressionTester conf >>= \(success, msg) -> do
         putStrLn msg
         if success then exitSuccess else exitWith (ExitFailure 32)
 
