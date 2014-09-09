@@ -17,6 +17,7 @@ import System.Exit
 import System.IO
 import System.Posix.Files
 import System.FilePath
+import System.Clock
 
 import Network.Socket
 
@@ -69,6 +70,7 @@ runSocket sockaddr qdir = do
         (sock, _) <- accept listener
   
         query <- recv sock 65536
+        start <- getTime Monotonic
 
         hPutStrLn stderr $ "Received: '" ++ query ++ "'"
         case parseQ query of
@@ -76,7 +78,10 @@ runSocket sockaddr qdir = do
             Right query -> do
                 hPutStrLn stderr . ("Query: " ++ ) . show $ query
                 runQuery qdir query sock
+
         close sock
+        end <- getTime Monotonic
+        putStrLn $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
   where
     loop :: IO () -> IO ()
     loop x = x `catch` ignore >> loop x
@@ -86,6 +91,12 @@ runSocket sockaddr qdir = do
         Just ioe -> do putStrLn $ "WARNING: Exception: " ++ show ioe
         Nothing  -> do putStrLn $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
                        exitFailure
+
+    diffTime :: Integer -> TimeSpec -> TimeSpec -> Integer
+    diffTime prec a b = ndiff + sdiff
+      where
+        ndiff = (`div` (10^9 `div` prec)) . fromIntegral $ nsec a - nsec b
+        sdiff = (* prec) . fromIntegral $ sec a - sec b
 
 runQuery :: FilePath -> Query -> Socket -> IO ()
 runQuery qpath (Query { transactId, questionId, content }) sock = do
