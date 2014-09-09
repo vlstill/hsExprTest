@@ -46,6 +46,9 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
 defaultsock = "/var/lib/checker/socket"
 defaultqdir = "/var/lib/checker/qdir"
 
+deflimit :: Int
+deflimit = 1000 * 1000 -- 1 microsecond
+
 main :: IO ()
 main = getArgs >>= \args -> case args of
   [ sockaddr, qdir ] -> runSocket sockaddr qdir
@@ -109,7 +112,7 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
         case (lookup "type" instrs, lookup "expr" instrs) of
             (Just _, Nothing) -> return $ CompareTypes { student, solution }
             (Nothing, Just expressionName) -> case lookup "limit" instrs of
-                Nothing -> return $ CompareExpressions { student, solution, expressionName, limit = Nothing }
+                Nothing -> return $ CompareExpressions { student, solution, expressionName, limit = Just deflimit }
                 Just sLim -> do
                     lim <- readEither sLim
                     return $ CompareExpressions { student, solution, expressionName, limit = Just lim }
