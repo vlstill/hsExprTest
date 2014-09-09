@@ -7,12 +7,17 @@
 
 module Testing where
 
+import Control.Arrow
+
 import System.Directory
+import System.Timeout
+
 import Data.List
-import Text.Printf
+import Data.Maybe
 import Data.Typeable hiding (typeOf)
 import qualified Data.Typeable as T
-import Control.Arrow
+
+import Text.Printf
 
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
@@ -20,6 +25,7 @@ import qualified Test.QuickCheck.Test as QCT
 import Language.Haskell.Interpreter hiding ( WontCompile )
 import qualified Language.Haskell.Interpreter as I
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
+
 
 import Types.Parser
 import Types.Processing
@@ -36,15 +42,18 @@ deriving instance Typeable QC.Result
 
 -- | Function compareExpressions compares two expressions using QuickCheck and return result as IO String
 compareExpressions :: Maybe Int -> String -> String -> String -> IO TestingResult
-compareExpressions = testFiles testExpressionValues
+compareExpressions lim a b c = 
+    timeout (fromMaybe (-1) lim) (testFiles testExpressionValues a b c) >>= \r -> case r of
+          Just x  -> return $ x
+          Nothing -> return $ Timeout
 
 -- | Function testFiles creates two testing modules containing student and solution expressions and runs given interpreter on those modules.
-testFiles :: (Maybe Int -> String -> String -> String -> Interpreter TestingResult)
-          -> Maybe Int -> String -> String -> String -> IO (TestingResult)
-testFiles interpreter limit expression solution student = do
+testFiles :: (String -> String -> String -> Interpreter TestingResult)
+          -> String -> String -> String -> IO (TestingResult)
+testFiles interpreter expression solution student = do
     solutionFile <- createSolutionFile solution
     studentFile <- createStudentFile student
-    result <- run $ interpreter limit expression solutionFile studentFile
+    result <- run $ interpreter expression solutionFile studentFile
     removeFile solutionFile
     removeFile studentFile
     return result
@@ -76,8 +85,8 @@ setupInterpreter mod imports = do
 
 -- | Function testExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
 -- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
-testExpressionValues :: (Maybe Int) -> String -> String -> String -> Interpreter TestingResult
-testExpressionValues limit expression solutionFile studentFile = do
+testExpressionValues :: String -> String -> String -> Interpreter TestingResult
+testExpressionValues expression solutionFile studentFile = do
     setupInterpreter [ solutionFile, studentFile ]
                      [ ("Student", Just "Student")
                      , ("Solution", Just "Solution")
@@ -89,7 +98,7 @@ testExpressionValues limit expression solutionFile studentFile = do
             rta <- getTestableArguments resultType 
             case rta of
                 Right ta -> do
-                    let testExpression = createTestExpression expression ta limit
+                    let testExpression = createTestExpression expression ta
                     liftIO $ putStrLn testExpression
                     interpret
                         ("qcRunProperties (" ++ testExpression ++ ")")
@@ -101,19 +110,16 @@ testExpressionValues limit expression solutionFile studentFile = do
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
 -- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> [ TestableArgument ] -> Maybe Int -> String
-createTestExpression expression arguments limits = wrap . map (addLimit . property) $ degeneralize arguments
+createTestExpression :: String -> [ TestableArgument ] -> String
+createTestExpression expression arguments = wrap . map property $ degeneralize arguments
   where
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
-    property []   = "(Solution.f <==> Student.f)"
-    property args = concat [ "(\\", intercalate " " (params args), " -> "
+    property []   = "AnyProperty (Solution.f <==> Student.f)"
+    property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
                            , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " <==> Student.", expr args, ") )"
                            ]
-    addLimit = case limits of
-        Nothing  -> ("AnyProperty " ++)
-        Just lim -> \prop -> concat [ "AnyProperty (within ", show lim, " ", prop, ")" ]
 
     params = flip (zipWith bindGen) [1..]
     expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]
@@ -122,25 +128,6 @@ createTestExpression expression arguments limits = wrap . map (addLimit . proper
             TupleType >>>
             TypeApplication (TypeConstructor "Maybe") >>>
             formatType
-{-
-        printf ("\\%s -> within %s (Solution.%s %s == Student.%s %s)") argumentsExpression limitExpression expression argumentsExpression expression argumentsExpression
-            where
-                arguments = (map (('x':) . show) [1..argumentsCount])
-                limitedArguments = if (null limits) then [] else zip arguments (limits ++ repeat Nothing)
-                limitExpression = createLimits limitedArguments
-                argumentsExpression = concat $ intersperse " " arguments
--}
-
--- | Function createLimits creates limiting expression by applying complexity functions to respective aruguments and taking minimum of results.
--- | It multiplies result with given constant and adds another constant to the result, to convert complexity bounds to time bounds and to represent Big-O notation correctly.
-createLimits :: [(String, Maybe String)] -> String
-createLimits [] = show Config.defaultLimit
-createLimits [(_, Nothing)] = show Config.defaultLimit
-createLimits limits = "(" ++ show Config.additionConstant ++ " + " ++ show Config.multiplicationConstant ++" * (minimum [" ++ limitsExpression ++ "]))"
-    where
-        process (_, Nothing) = ""
-        process (argument, Just limitExpression) = limitExpression ++ " $ fromIntegral(parameter " ++ argument ++ ")"
-        limitsExpression = concat (intersperse ", "  (map process limits))
 
 runTestfile :: FilePath -> String -> IO TestingResult
 runTestfile testfile student = do
