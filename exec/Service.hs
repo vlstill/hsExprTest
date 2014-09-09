@@ -98,7 +98,7 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
             Right q   -> do
                 (ok, msg) <- runExpressionTester q
                 send sock $ concat [ "I", show transactId
-                                   , "P", show (fromEnum ok)
+                                   , "P", if ok then "ok" else "nok"
                                    , "C", msg ]
                 return ()
   where
