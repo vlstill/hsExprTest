@@ -8,6 +8,7 @@
 module Testing where
 
 import Control.Arrow
+import Control.Exception ( bracket )
 
 import System.Directory
 import System.Timeout
@@ -50,13 +51,10 @@ compareExpressions lim a b c =
 -- | Function testFiles creates two testing modules containing student and solution expressions and runs given interpreter on those modules.
 testFiles :: (String -> String -> String -> Interpreter TestingResult)
           -> String -> String -> String -> IO (TestingResult)
-testFiles interpreter expression solution student = do
-    solutionFile <- createSolutionFile solution
-    studentFile <- createStudentFile student
-    result <- run $ interpreter expression solutionFile studentFile
-    removeFile solutionFile
-    removeFile studentFile
-    return result
+testFiles interpreter expression solution student =
+    bracket (createSolutionFile solution) removeFile $ \solutionFile ->
+        bracket (createStudentFile student) removeFile $ \studentFile ->
+            run $ interpreter expression solutionFile studentFile
 
 -- | Function testTypeEquality compares two given type expressions.
 testTypeEquality :: String -> String -> TypingResult
