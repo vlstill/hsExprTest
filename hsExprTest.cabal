@@ -68,7 +68,8 @@ Executable hsExprTestService
                       cmdlib >= 0.3.5,
                       network >= 2.4,
                       unix,
-                      filepath
+                      filepath,
+                      clock >= 0.4
 
   hs-source-dirs:   exec
 
