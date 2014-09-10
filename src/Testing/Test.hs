@@ -47,6 +47,8 @@ import Data.List
 import Data.Typeable
 import Testing.DataTypes
 import Testing.Limiting
+import Control.Concurrent
+import Control.Exception
 
 import Prelude hiding ( catch )
 import System.IO.Unsafe ( unsafePerformIO )
@@ -96,10 +98,21 @@ firstFailed = mconcat
 qcFirstFailed :: [ QCT.Result ] -> TestingResult
 qcFirstFailed = firstFailed . map qcToResult
 
-qcRunProperties :: [ AnyProperty ] -> IO TestingResult
-qcRunProperties props = mapM applyQC props >>= return . qcFirstFailed
+
+qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestingResult
+qcRunProperties lim props = mapM applyQC props >>= return . qcFirstFailed
   where
-    applyQC (AnyProperty p) = QCT.quickCheckWithResult args p
+    applyQC (AnyProperty p) = case lim of
+        Nothing -> QCT.quickCheckWithResult args p
+        Just limit -> do
+            -- we are throwing UserInterrupt because it is the only exception
+            -- which does not allow shrinking in QuickCheck (which is very
+            -- important, as shirinking for example f = f will never end)
+            -- also QuickCheck's within does not work either
+            pid <- myThreadId
+            bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
+                    (killThread)
+                    (const (QCT.quickCheckWithResult args p))
     args = QCT.stdArgs { QCT.chatty = False
                        , QCT.maxSuccess = 1000
                        }

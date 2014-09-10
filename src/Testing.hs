@@ -16,7 +16,6 @@ import Data.List
 import Text.Printf
 import Data.Typeable hiding (typeOf)
 import qualified Data.Typeable as T
-import Control.Arrow
 
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
@@ -92,23 +91,8 @@ testExpressionValues limit expression solutionFile studentFile = do
                 Right ta -> do
                     let testExpression = createTestExpression expression ta
                     liftIO $ putStrLn testExpression
-                    props <- interpret testExpression (as :: [AnyProperty])
-                    let check = liftIO $ qcRunProperties props
-                    case limit of
-                        Just lim -> do
-                            -- this is kind of messy, but we can't use bracket inside
-                            -- Interpreter monad
-                            -- also we are throwing UserInterrupt because it is the
-                            -- only exception which does not cause shrinking in
-                            -- QuickCheck (which is very important, as shirinking for
-                            -- example f = f will never end)
-                            -- also QuickCheck's within does not work either
-                            pid <- liftIO $ myThreadId
-                            tpid <- liftIO $ forkIO (threadDelay lim >> throwTo pid UserInterrupt)
-                            res <- check
-                            liftIO $ killThread tpid
-                            return res
-                        Nothing  -> check
+                    props <- interpret testExpression (as :: [ AnyProperty ])
+                    liftIO $ qcRunProperties limit props
                 Left msg -> return $ NotTestable msg
         r -> return (TypesNotEqual r)
 
@@ -133,14 +117,6 @@ createTestExpression expression arguments = wrap . map property $ degeneralize a
             TupleType >>>
             TypeApplication (TypeConstructor "Maybe") >>>
             formatType
-{-
-        printf ("\\%s -> within %s (Solution.%s %s == Student.%s %s)") argumentsExpression limitExpression expression argumentsExpression expression argumentsExpression
-            where
-                arguments = (map (('x':) . show) [1..argumentsCount])
-                limitedArguments = if (null limits) then [] else zip arguments (limits ++ repeat Nothing)
-                limitExpression = createLimits limitedArguments
-                argumentsExpression = concat $ intersperse " " arguments
--}
 
 -- | Function createLimits creates limiting expression by applying complexity functions to respective aruguments and taking minimum of results.
 -- | It multiplies result with given constant and adds another constant to the result, to convert complexity bounds to time bounds and to represent Big-O notation correctly.
@@ -181,7 +157,7 @@ runTest TestConfig { test = TestEntry entry }  = typeOf entry >>= \t ->
     case (t == showType (infer :: TestingResult), t == showType (infer :: IO TestingResult) ) of
         (True, _) -> interpret entry (as :: TestingResult)
         (_, True) -> interpret entry (as :: IO TestingResult) >>= liftIO
-runTest TestConfig { test = Properties props } = liftIO $ qcRunProperties props
+runTest TestConfig { test = Properties props } = liftIO $ qcRunProperties Nothing props -- TODO: limit
 
 showType :: Typeable a => a -> String
 showType = show . T.typeOf
