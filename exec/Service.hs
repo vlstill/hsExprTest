@@ -48,7 +48,10 @@ defaultsock = "/var/lib/checker/socket"
 defaultqdir = "/var/lib/checker/qdir"
 
 deflimit :: Int
-deflimit = 1000 * 1000 -- 1 microsecond
+deflimit = 1000 * 1000 -- 1 second
+
+do_log :: String -> IO ()
+do_log = hPutStrLn stderr 
 
 main :: IO ()
 main = getArgs >>= \args -> case args of
@@ -67,17 +70,22 @@ runSocket sockaddr qdir = do
                                         , otherReadMode, otherWriteMode ]
     listen listener 1
     loop $ do
+        do_log "accepting socket..."
         (sock, _) <- accept listener
+        do_log "accepted"
   
+        do_log "receiving query..."
         query <- recv sock 65536
         start <- getTime Monotonic
+        do_log "done"
 
         hPutStrLn stderr $ "Received: '" ++ query ++ "'"
         case parseQ query of
             Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
             Right query -> do
-                hPutStrLn stderr . ("Query: " ++ ) . show $ query
+                do_log . ("Running query: " ++ ) . show $ query
                 runQuery qdir query sock
+                do_log "query done"
 
         close sock
         end <- getTime Monotonic
@@ -107,10 +115,14 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
         case question of
             Left emsg -> send sock ("FATAL: Invalid question: " ++ emsg) >> return ()
             Right q   -> do
+                do_log "running expressionTester"
                 (ok, msg) <- runExpressionTester q
+                do_log "done"
+                do_log "replying on socket"
                 send sock $ concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
                                    , "C", msg ]
+                do_log "reply sent"
                 return ()
   where
     decodeQ :: String -> String -> Either String Main
