@@ -190,14 +190,15 @@ showType = show . T.typeOf
 -- | Function run is convinience function which executes the interpreter and returns the result.
 run :: Interpreter TestingResult -> IO TestingResult
 run interpreter = do
-    r <- unsafeRunInterpreterWithArgs args interpreter
+    r <- try $ unsafeRunInterpreterWithArgs args interpreter
     case r of
-        (Left error) -> case error of
+        Left (SomeException se) -> return $ ExceptionWhileTesting (show se)
+        Right (Left error) -> case error of
             I.UnknownError str -> ce $ "Unknown error: " ++ str
             I.NotAllowed  str  -> ce $ "Not allowed: " ++ str
             I.GhcException str -> ce $ "GHC exception: " ++ str
             I.WontCompile list -> ce $ "Compilation error:\n" ++ (unlines . nub . map I.errMsg) list
-        (Right result) -> return result
+        Right (Right result) -> return result
   where
     ce = return . WontCompile
     args = pkgs ++ exts

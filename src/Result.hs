@@ -16,6 +16,7 @@ import Data.Data ( Data )
 
 data TestingResult
     = WontCompile String
+    | ExceptionWhileTesting String
     | NotTestable String
     | TypesNotEqual TypingResult
     | DifferentValues String
