@@ -81,6 +81,7 @@ runExpressionTester (Testfile { student, testfile }) =
 formatResult :: TestingResult -> (Bool, String)
 formatResult (WontCompile m)     = (False, m)
 formatResult (DifferentValues v) = (False, "DifferentValues: " ++ v)
+formatResult (ExceptionWhileTesting ex) = (False, "ExceptionWhileTesting: " ++ ex)
 formatResult Success             = (True, "OK")
 formatResult result              = (isSuccess result, show result)
 
