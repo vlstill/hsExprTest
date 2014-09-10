@@ -43,7 +43,7 @@ Library
                       Result
                       Files
 					  
-  ghc-options:        -O0
+  ghc-options:        -O0 -threaded
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
@@ -54,7 +54,7 @@ Executable hsExprTest
                     base,
                     cmdlib >= 0.3.5
 
-  ghc-options:      -O0
+  ghc-options:      -O0 -threaded
   main-is:          Main.hs
   other-modules:    UI
 
@@ -73,7 +73,7 @@ Executable hsExprTestService
 
   hs-source-dirs:   exec
 
-  ghc-options:      -O0
+  ghc-options:      -O0 -threaded
 
   main-is:          Service.hs
   other-modules:    Compat.Read
@@ -98,3 +98,5 @@ Test-Suite security
   build-depends:    base,
                     hsExprTest == 0.1.4,
                     Cabal >= 1.9.2
+
+  ghc-options:      -O0 -threaded
