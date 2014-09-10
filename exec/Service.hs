@@ -118,10 +118,11 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
                 do_log "running expressionTester"
                 (ok, msg) <- runExpressionTester q
                 do_log "done"
-                do_log "replying on socket"
-                send sock $ concat [ "I", show transactId
+                let reply = concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
                                    , "C", msg ]
+                do_log $ "replying on socket, reply = " ++ reply
+                send sock reply
                 do_log "reply sent"
                 return ()
   where
