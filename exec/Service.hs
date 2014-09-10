@@ -48,7 +48,7 @@ defaultsock = "/var/lib/checker/socket"
 defaultqdir = "/var/lib/checker/qdir"
 
 deflimit :: Int
-deflimit = 1000 * 1000 -- 1 second
+deflimit = 2000 * 1000 -- 1 seconds
 
 do_log :: String -> IO ()
 do_log = hPutStrLn stderr 
