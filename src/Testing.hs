@@ -201,12 +201,12 @@ run interpreter = do
         Right (Right result) -> return result
   where
     ce = return . WontCompile
-    args = pkgs ++ exts
+    args = pkgs ++ extra
     -- NOTE: it would seem better to use HINT's set feature to set language
     -- extensions (and it would be type safe) but there is bug somewhere
     -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
-    exts = [ "-XNoMonomorphismRestriction" ]
+    extra = [ "-XNoMonomorphismRestriction", "-Werror" ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 
