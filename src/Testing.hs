@@ -8,7 +8,8 @@
 module Testing where
 
 import Control.Arrow
-import Control.Exception ( bracket )
+import Control.Concurrent
+import Control.Exception
 
 import System.Directory
 import Data.List
@@ -33,7 +34,7 @@ import Types.Formating ( formatType )
 import Files
 import Result
 import Config
-import Testing.Test ( qcRunProperties, TestConfig ( .. ), Test ( .. ), ExpectedType ( .. ) )
+import Testing.Test ( qcRunProperties, AnyProperty, TestConfig ( .. ), Test ( .. ), ExpectedType ( .. ) )
 
 deriving instance Typeable QC.Result
 
@@ -89,31 +90,41 @@ testExpressionValues limit expression solutionFile studentFile = do
             rta <- getTestableArguments resultType 
             case rta of
                 Right ta -> do
-                    let testExpression = createTestExpression expression ta limit
+                    let testExpression = createTestExpression expression ta
                     liftIO $ putStrLn testExpression
-                    interpret
-                        ("qcRunProperties (" ++ testExpression ++ ")")
-                        (as :: (IO TestingResult))
-                            >>= liftIO
+                    props <- interpret testExpression (as :: [AnyProperty])
+                    let check = liftIO $ qcRunProperties props
+                    case limit of
+                        Just lim -> do
+                            -- this is kind of messy, but we can't use bracket inside
+                            -- Interpreter monad
+                            -- also we are throwing UserInterrupt because it is the
+                            -- only exception which does not cause shrinking in
+                            -- QuickCheck (which is very important, as shirinking for
+                            -- example f = f will never end)
+                            -- also QuickCheck's within does not work either
+                            pid <- liftIO $ myThreadId
+                            tpid <- liftIO $ forkIO (threadDelay lim >> throwTo pid UserInterrupt)
+                            res <- check
+                            liftIO $ killThread tpid
+                            return res
+                        Nothing  -> check
                 Left msg -> return $ NotTestable msg
         r -> return (TypesNotEqual r)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
 -- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> [ TestableArgument ] -> Maybe Int -> String
-createTestExpression expression arguments limits = wrap . map (addLimit . property) $ degeneralize arguments
+createTestExpression :: String -> [ TestableArgument ] -> String
+createTestExpression expression arguments = wrap . map property $ degeneralize arguments
   where
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
-    property []   = "(Solution.f <==> Student.f)"
-    property args = concat [ "(\\", intercalate " " (params args), " -> "
+    property []   = "AnyProperty (Solution.f <==> Student.f)"
+    property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
                            , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " <==> Student.", expr args, ") )"
                            ]
-    addLimit = case limits of
-        Nothing  -> ("AnyProperty " ++)
-        Just lim -> \prop -> concat [ "AnyProperty (within ", show lim, " ", prop, ")" ]
 
     params = flip (zipWith bindGen) [1..]
     expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]

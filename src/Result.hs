@@ -20,7 +20,7 @@ data TestingResult
     | TypesNotEqual TypingResult
     | DifferentValues String
     | Success
-    | Timeout
+    | TimeoutOrUserInterrupt
     | TestError String
     deriving ( Show, Typeable, Data )
 

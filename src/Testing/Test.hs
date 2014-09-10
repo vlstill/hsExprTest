@@ -2,6 +2,7 @@
            , Unsafe
            , DeriveDataTypeable
            , ExistentialQuantification
+           , Rank2Types
            #-}
 
 -- (c) 2014 Vladimír Štill
@@ -9,7 +10,7 @@
 -- | Simple interface to testing
 module Testing.Test (
     -- * Result re-exports
-      TestingResult ( DifferentValues, Success, Timeout )
+      TestingResult ( DifferentValues, Success, TimeoutOrUserInterrupt )
     -- * Configuration
     , Expression
     , ExpectedType ( .. )
@@ -82,8 +83,11 @@ defaultConfig = TestConfig { expectedType = None
 qcToResult :: QCT.Result -> TestingResult
 qcToResult (QCT.Success {}) = Success
 qcToResult (QCT.GaveUp {})  = Success
-qcToResult (QCT.Failure { QCT.reason = r, QCT.output = o })
-    = if "<<timeout>>" `isInfixOf` r then Timeout else DifferentValues o
+qcToResult (QCT.Failure { QCT.reason = r, QCT.output = o, QCT.theException = exc }) = case exc of
+    Just se -> case fromException se of
+                 Just ex -> (ex :: AsyncException) `seq` TimeoutOrUserInterrupt
+                 _       -> DifferentValues o
+    Nothing -> DifferentValues o
 qcToResult (QCT.NoExpectedFailure { QCT.output = o }) = DifferentValues o
 
 firstFailed :: [ TestingResult ] -> TestingResult
