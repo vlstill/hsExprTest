@@ -35,7 +35,6 @@ Library
                       Types.Formating
                       Types.Arguments
                       Types.Curry
-                      Config
                       Testing
                       Testing.Test
                       Testing.Limiting

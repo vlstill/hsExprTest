@@ -32,7 +32,6 @@ import Types.Arguments
 import Types.Formating ( formatType )
 import Files
 import Result
-import Config
 import Testing.Test ( qcRunProperties, AnyProperty, TestConfig ( .. ), Test ( .. ), ExpectedType ( .. ) )
 
 deriving instance Typeable QC.Result
@@ -117,17 +116,6 @@ createTestExpression expression arguments = wrap . map property $ degeneralize a
             TupleType >>>
             TypeApplication (TypeConstructor "Maybe") >>>
             formatType
-
--- | Function createLimits creates limiting expression by applying complexity functions to respective aruguments and taking minimum of results.
--- | It multiplies result with given constant and adds another constant to the result, to convert complexity bounds to time bounds and to represent Big-O notation correctly.
-createLimits :: [(String, Maybe String)] -> String
-createLimits [] = show Config.defaultLimit
-createLimits [(_, Nothing)] = show Config.defaultLimit
-createLimits limits = "(" ++ show Config.additionConstant ++ " + " ++ show Config.multiplicationConstant ++" * (minimum [" ++ limitsExpression ++ "]))"
-    where
-        process (_, Nothing) = ""
-        process (argument, Just limitExpression) = limitExpression ++ " $ fromIntegral(parameter " ++ argument ++ ")"
-        limitsExpression = concat (intersperse ", "  (map process limits))
 
 runTestfile :: FilePath -> String -> IO TestingResult
 runTestfile testfile student = do
