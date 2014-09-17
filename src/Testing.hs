@@ -67,6 +67,8 @@ setupInterpreter mod imports = do
         ]
     loadModules mod
     setImportsQ $ [ ("Prelude", Nothing)
+                  , ("Data.Word", Nothing)
+                  , ("Data.Int", Nothing)
                   , ("Test.QuickCheck", Nothing)
                   , ("Testing.Limiting", Nothing)
                   , ("Testing.Test", Nothing)
