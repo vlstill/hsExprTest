@@ -20,7 +20,7 @@ Library
   hs-source-dirs:   src
 
   build-depends:    base,
-                    hint >= 0.3.3.4,
+                    hint >= 0.3.3.4 && < 0.4.2.1,
                     parsec >= 3.1.2,
                     containers >= 0.4.2.1,
                     directory >= 1.1.0.2,
