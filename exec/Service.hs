@@ -131,15 +131,22 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
         ([], _)           -> Left "Missing instructions"
         (instr, solution) -> fromInstr student (unlines solution) (map (drop 5) instr)
 
-    fromInstr student solution instrs0 = do
+    fromInstr student0 solution instrs0 = do
         let instrs = map (span (/= ':') >>> second (drop 2)) instrs0
         case (lookup "type" instrs, lookup "expr" instrs) of
-            (Just _, Nothing) -> return $ CompareTypes { student, solution }
-            (Nothing, Just expressionName) -> case lookup "limit" instrs of
-                Nothing -> return $ CompareExpressions { student, solution, expressionName, limit = Just deflimit }
-                Just sLim -> do
-                    lim <- readEither sLim
-                    return $ CompareExpressions { student, solution, expressionName, limit = Just lim }
+            (Just _, Nothing) -> return $ CompareTypes { student = student0, solution }
+            (Nothing, Just expressionName) -> do
+                limit <- fmap Just $ case lookup "limit" instrs of
+                    Nothing   -> Right deflimit
+                    Just sLim -> readEither sLim
+                student <- if isJust (lookup "inject" instrs)
+                    then do
+                        let toInject = unlines . takeWhile (/= "-- @ INJECT END")
+                                               . dropWhile (/= "-- @ INJECT BEGIN")
+                                               . lines $ solution
+                        Right $ toInject ++ "\n" ++ student0
+                    else Right student0
+                return $ CompareExpressions { student, solution, expressionName, limit }
             _ -> Left "Invalid instructions"
 
 {-
