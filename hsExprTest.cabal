@@ -77,7 +77,6 @@ Executable hsExprTestService
   ghc-options:      -O0 -threaded
 
   main-is:          Service.hs
-  other-modules:    Compat.Read
   extensions:       CPP
 
 Test-Suite basic

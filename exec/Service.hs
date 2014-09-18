@@ -21,7 +21,7 @@ import System.Clock
 
 import Network.Socket
 
-import Compat.Read ( readEither )
+import Text.Read ( readEither )
 import Data.Char
 import Data.Typeable ( typeOf )
 import Data.Either
