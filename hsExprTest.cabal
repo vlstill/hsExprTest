@@ -17,7 +17,7 @@ flag service
     default: True
 					
 Library
-  hs-source-dirs:   src
+  hs-source-dirs:   src, qce
 
   build-depends:    base >= 4.7,
                     hint >= 0.3.3.4 && < 0.4.2.1,
@@ -43,6 +43,7 @@ Library
                       Testing.Data
                       Result
                       Files
+                      Modifiers
 					  
   ghc-options:        -O0 -threaded
   extensions:         StandaloneDeriving
