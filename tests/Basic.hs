@@ -68,4 +68,12 @@ main = runTests $
     , ( "_rev (x:xs) = foldl (flip (:)) [x] xs"
       , "_rev = reverse", "_rev", DifferentValues ignored
       ) -- (exceptions for [])
+    -- exception handling
+    , ( unlines [ "binmap :: (a -> a -> b) -> [a] -> [b]"
+                , "binmap _ []       = []"
+                , "binmap _ [_]      = []"
+                , "binmap f (x:y:xs) = f x y : binmap f xs" ]
+      , unlines [ "binmap :: (a -> a -> b) -> [a] -> [b]"
+                , "binmap f (x:y:xs) = f x y : binmap f xs" ]
+      , "binmap", DifferentValues ignored )
     ]
