@@ -119,7 +119,7 @@ qcRunProperties lim props = mapM applyQC props >>= return . qcFirstFailed
 
 (<==>) :: (Eq a, Show a) => a -> a -> QC.Property
 infix 4 <==>
-x <==> y = wrap x QC.=== wrap y
+x <==> y = x `comp` y
   where
     wrap x = unsafePerformIO $ (x `seq` return (OK x)) `catch` handler
     handler se@(SomeException e) = case fromException se of
@@ -127,6 +127,12 @@ x <==> y = wrap x QC.=== wrap y
         Nothing -> if "<<timeout>>" `isInfixOf` show e
                         then throw e
                         else return (Exc e)
+    comp x0 y0 = QC.counterexample (sx ++ " /= " ++ sy) (x == y)
+      where
+        x = wrap x0
+        y = wrap y0
+        sx = show . wrap $ show x
+        sy = show . wrap $ show y
 
 data Wrapper a
     = OK a
