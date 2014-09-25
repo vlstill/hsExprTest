@@ -131,8 +131,10 @@ x <==> y = x `comp` y
       where
         x = wrap x0
         y = wrap y0
-        sx = show . wrap $ show x
-        sy = show . wrap $ show y
+        sx = unwrap . wrap $ show x
+        sy = unwrap . wrap $ show y
+    unwrap  (OK str) = str
+    unwrap x@(Exc _) = show x
 
 data Wrapper a
     = OK a
