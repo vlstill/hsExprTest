@@ -3,6 +3,7 @@
            , DeriveDataTypeable
            , ExistentialQuantification
            , Rank2Types
+           , BangPatterns
            #-}
 
 -- (c) 2014 Vladimír Štill
@@ -52,6 +53,7 @@ import Control.Exception
 
 import Prelude hiding ( catch )
 import System.IO.Unsafe ( unsafePerformIO )
+import Control.DeepSeq
 import Control.Exception
 
 data AnyProperty = forall a. Testable a => AnyProperty a
@@ -117,11 +119,11 @@ qcRunProperties lim props = mapM applyQC props >>= return . qcFirstFailed
                        , QCT.maxSuccess = 1000
                        }
 
-(<==>) :: (Eq a, Show a) => a -> a -> QC.Property
+(<==>) :: (Eq a, Show a, NFData a) => a -> a -> QC.Property
 infix 4 <==>
 x <==> y = x `comp` y
   where
-    wrap x = unsafePerformIO $ (x `seq` return (OK x)) `catch` handler
+    wrap x = unsafePerformIO $ (return . OK $!! x) `catch` handler
     handler se@(SomeException e) = case fromException se of
         Just ae -> throw (ae :: AsyncException)
         Nothing -> if "<<timeout>>" `isInfixOf` show e
@@ -148,3 +150,7 @@ instance Eq a => Eq (Wrapper a) where
 instance Show a => Show (Wrapper a) where
     show (OK a)  = show a
     show (Exc e) = "{ EXCEPTION THROWN (" ++ show (typeOf e) ++ "): " ++ show e ++ " }"
+
+instance NFData a => NFData (Wrapper a) where
+    rnf (OK a)  = rnf a
+    rnf (Exc !e) = ()
