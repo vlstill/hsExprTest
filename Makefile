@@ -38,6 +38,8 @@ nixbuild : sdist
 	nix-build -A current --arg hsExprTestSrc $$(ls dist/hsExprTest-*.tar.gz | tail -n1)
 
 test : sandbox
+	cabal install --only-dependencies --enable-tests
 	cabal configure --enable-tests
+	cabal install
 	chmod +x wrap/env.sh
 	./wrap/env.sh -c "cabal test --show-details=always"
