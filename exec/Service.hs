@@ -144,7 +144,12 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
                         let toInject = unlines . takeWhile (/= "-- @ INJECT END")
                                                . dropWhile (/= "-- @ INJECT BEGIN")
                                                . lines $ solution
-                        Right $ toInject ++ "\n" ++ student0
+                        Right $ unlines [ "{-# LINE 1 \"Inject.hs\" #-}"
+                                        , toInject
+                                        , ""
+                                        , "{-# LINE 1 \"Student.hs\" #-}"
+                                        , student0
+                                        ]
                     else Right student0
                 return $ CompareExpressions { student, solution, expressionName, limit }
             _ -> Left "Invalid instructions"
