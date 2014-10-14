@@ -71,25 +71,23 @@ runSocket sockaddr qdir = do
     listen listener 1
     loop $ do
         do_log "accepting socket..."
-        (sock, _) <- accept listener
-        do_log "accepted"
-  
-        do_log "receiving query..."
-        query <- recv sock 65536
-        start <- getTime Monotonic
-        do_log "done"
+        bracket (accept listener >>= return . fst) (close) $ \sock -> do
+            do_log $ "accepted fd=" ++ show ((\(MkSocket fd _ _ _ _) -> fd) sock)
 
-        hPutStrLn stderr $ "Received: '" ++ query ++ "'"
-        case parseQ query of
-            Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
-            Right query -> do
-                do_log . ("Running query: " ++ ) . show $ query
-                runQuery qdir query sock
-                do_log "query done"
+            do_log "receiving query..."
+            query <- recv sock 65536
+            start <- getTime Monotonic
+            do_log "done"
 
-        close sock
-        end <- getTime Monotonic
-        putStrLn $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
+            hPutStrLn stderr $ "Received: '" ++ query ++ "'"
+            case parseQ query of
+                Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
+                Right query -> do
+                    do_log . ("Running query: " ++ ) . show $ query
+                    runQuery qdir query sock
+                    do_log "query done"
+            end <- getTime Monotonic
+            putStrLn $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
   where
     loop :: IO () -> IO ()
     loop x = x `catch` ignore >> loop x
