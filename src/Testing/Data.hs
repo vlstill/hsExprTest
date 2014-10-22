@@ -43,7 +43,8 @@ showData (DataDecl tyCon daCons) = unwords [ "data", tyCon, "= " ]
                                    ++ intercalate " | " (map showCon daCons)
 
 showCon :: DataCon -> String
-showCon (DataCon daCon args) = unwords (daCon : args)
+showCon (DataCon daCon args) = unwords (daCon : map paren args)
+  where paren x = if ' ' `elem` x then '(' : x ++ ")" else x
 
 conArgs :: Data a => a -> [TypeRep]
 conArgs = gmapQ typeOf
@@ -61,8 +62,7 @@ reflectCtor :: Data a => a -> DataCon
 reflectCtor witness = DataCon (showConstr (toConstr witness)) (conArgsNames witness)
 
 showCtorDecl :: Data a => a -> String
-showCtorDecl witness = case reflectCtor witness of
-                        DataCon name args -> unwords $ name : args
+showCtorDecl witness = showCon $ reflectCtor witness
 
 
 canonizeData :: DataDecl -> DataDecl
