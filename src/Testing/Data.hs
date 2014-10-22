@@ -4,6 +4,7 @@
            #-}
 module Testing.Data
     ( showData
+    , reflectData
     , conArgs
     , conArgsNames
     , constrArgs
