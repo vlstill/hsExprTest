@@ -173,6 +173,7 @@ run interpreter = do
     -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
-    extra = [ "-XNoMonomorphismRestriction", "-Werror" ]
+    extra = [ "-XNoMonomorphismRestriction", "-XDeriveDataTypeable"
+            , "-XStandaloneDeriving", "-Werror" ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 
