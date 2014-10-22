@@ -19,7 +19,7 @@ import Data.List
 -- For records it ommits record fields
 -- For non-ADT types results will be wrong most likely
 showData :: forall a. Data a => a -> String
-showData witness = unwords [ "data", name ] ++ constring
+showData witness = unwords [ "data", name, " = " ] ++ constring
   where
     typ = dataTypeOf witness
     rep = dataTypeRep typ
@@ -27,9 +27,8 @@ showData witness = unwords [ "data", name ] ++ constring
     constring = case rep of
         AlgRep ctors -> ($ ctors) $ map (fromConstr :: Constr -> a) >>>
                         map showCtorDecl >>>
-                        intercalate "\n    | " >>>
-                        ("\n    = " ++)
-        other        -> " = " ++ show other
+                        intercalate " | "
+        other        -> show other
     indent = ("    " :)
 
     conVal :: Constr -> a
