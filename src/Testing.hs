@@ -70,6 +70,7 @@ setupInterpreter mod imports = do
                   , ("Data.Word", Nothing)
                   , ("Data.Int", Nothing)
                   , ("Test.QuickCheck", Nothing)
+                  , ("Test.QuickCheck.Modifiers", Nothing)
                   , ("Testing.Limiting", Nothing)
                   , ("Testing.Test", Nothing)
                   , ("Types.Curry", Nothing)
