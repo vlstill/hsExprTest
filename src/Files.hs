@@ -12,7 +12,8 @@ createCodeFile fileName moduleName code = do
     (createdFileName, handle) <- openTempFile "." fileName
     if (moduleName == "Student") then hPutStr handle ("{-# LANGUAGE Safe #-}\n")
                                  else hPutStr handle ("{-# LANGUAGE Unsafe #-}\n")
-    hPutStr handle $ unlines [ "module " ++ moduleName ++ " where"
+    hPutStr handle $ unlines [ "{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}"
+                             , "module " ++ moduleName ++ " where"
                              , ""
                              , ""
                              , "import Testing.DataTypes"
