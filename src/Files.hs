@@ -17,10 +17,6 @@ createCodeFile fileName moduleName code = do
     hPutStr handle $ unlines [ "{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}"
                              , "module " ++ moduleName ++ " where"
                              , ""
-                             , ""
-                             , "import Testing.DataTypes"
-                             , ""
-                             , ""
                              , "{-# LINE 1 \"" ++ moduleName ++ ".hs\" #-}"
                              ]
     hPutStr handle code
