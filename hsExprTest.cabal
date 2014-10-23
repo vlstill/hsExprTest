@@ -27,8 +27,7 @@ Library
                     random >= 1.0.1.1,
                     extensible-exceptions >= 0.1.1.4,
                     QuickCheck >= 2.7,
-                    deepseq >= 1.2,
-                    filepath
+                    deepseq >= 1.2
 
   exposed-modules:    Types.TypeExpression
                       Types.Processing
