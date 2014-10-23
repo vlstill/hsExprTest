@@ -9,6 +9,10 @@ module Testing.Data
     , conArgsNames
     , constrArgs
     , constrArgsNames
+    , DataDecl (DataDecl)
+    , DataCon (DataCon)
+    , canonizeData
+    , deepCanonizeData
     ) where
 
 import Data.Data
@@ -68,3 +72,8 @@ showCtorDecl witness = showCon $ reflectCtor witness
 
 canonizeData :: DataDecl -> DataDecl
 canonizeData (DataDecl tyCon daCons) = DataDecl tyCon (sort daCons)
+
+deepCanonizeData :: DataDecl -> DataDecl
+deepCanonizeData (DataDecl tyCon daCons) = canonizeData $ DataDecl tyCon (map sortCtor daCons)
+  where
+    sortCtor (DataCon name types) = DataCon name (sort types)
