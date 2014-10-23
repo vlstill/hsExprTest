@@ -4,6 +4,8 @@
 module Files (createSolutionFile, createStudentFile) where
 
 import System.IO
+import System.Directory
+import System.FilePath
 
 -- | Function createCodeFile creates temporary file with given name containing module of given name and with given code.
 -- | Marks module as Safe or Unsafe according to the name of the module.
@@ -26,9 +28,9 @@ createCodeFile fileName moduleName code = do
 
 -- | Function createSolutionFile creates temporary file solution.hs containing module Solution containing given code.
 createSolutionFile :: String -> IO String
-createSolutionFile = createCodeFile "solution.hs" "Solution"
+createSolutionFile f = getTemporaryDirectory >>= \tmp -> createCodeFile (tmp </> "solution.hs") "Solution" f
 
 -- | Function createSolutionFile creates temporary file student.hs containing module Student containing given code.
 createStudentFile :: String -> IO String
-createStudentFile = createCodeFile "student.hs" "Student"
+createStudentFile f = getTemporaryDirectory >>= \tmp -> createCodeFile (tmp </> "student.hs") "Student" f
 
