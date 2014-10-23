@@ -32,8 +32,6 @@ module Testing.Test (
     , Function
     , Fun ( Fun )
     -- * InteractiveImports re-export
-    , module Testing.DataTypes
-    , module Testing.Limiting
     ) where
 
 import Result

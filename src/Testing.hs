@@ -71,7 +71,6 @@ setupInterpreter mod imports = do
                   , ("Data.Int", Nothing)
                   , ("Test.QuickCheck", Nothing)
                   , ("Test.QuickCheck.Modifiers", Nothing)
-                  , ("Testing.Limiting", Nothing)
                   , ("Testing.Test", Nothing)
                   , ("Types.Curry", Nothing)
                   ] ++ imports
