@@ -4,12 +4,14 @@
 module Files (createSolutionFile, createStudentFile) where
 
 import System.IO
+import System.Directory
 
 -- | Function createCodeFile creates temporary file with given name containing module of given name and with given code.
 -- | Marks module as Safe or Unsafe according to the name of the module.
 createCodeFile :: String -> String -> String -> IO String
 createCodeFile fileName moduleName code = do
-    (createdFileName, handle) <- openTempFile "." fileName
+    tmp <- getTemporaryDirectory
+    (createdFileName, handle) <- openTempFile tmp fileName
     if (moduleName == "Student") then hPutStr handle ("{-# LANGUAGE Safe #-}\n")
                                  else hPutStr handle ("{-# LANGUAGE Unsafe #-}\n")
     hPutStr handle $ unlines [ "{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}"
