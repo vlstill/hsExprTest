@@ -62,6 +62,7 @@ main = getArgs >>= \args -> case args of
 
 runSocket :: FilePath -> FilePath -> IO ()
 runSocket sockaddr qdir = do
+    setCurrentDirectory qdir
     removeIfExists sockaddr
     listener <- socket AF_UNIX Stream defaultProtocol
     bind listener (SockAddrUnix sockaddr)
