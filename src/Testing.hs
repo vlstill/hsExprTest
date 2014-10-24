@@ -63,7 +63,9 @@ setupInterpreter :: [ String ] -- ^ Modules
                  -> [ (String, Maybe String) ] -- ^ optionally qualified imports
                  -> Interpreter ()
 setupInterpreter mod imports = do
-    set [ installedModulesInScope := False -- security reasons, avoid accessing internals
+    set [ installedModulesInScope := True -- this seems to only affect interactive,
+                                          -- not solutions in file
+                                          -- also it is needed to make instances available
         ]
     loadModules mod
     setImportsQ $ [ ("Prelude", Nothing)
@@ -71,6 +73,7 @@ setupInterpreter mod imports = do
                   , ("Data.Int", Nothing)
                   , ("Test.QuickCheck", Nothing)
                   , ("Test.QuickCheck.Modifiers", Nothing)
+                  , ("Test.QuickCheck.Arbitrary", Nothing)
                   , ("Testing.Test", Nothing)
                   , ("Types.Curry", Nothing)
                   ] ++ imports
