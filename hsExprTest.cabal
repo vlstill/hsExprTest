@@ -19,7 +19,7 @@ flag service
 Library
   hs-source-dirs:   src
 
-  build-depends:    base,
+  build-depends:    base >= 4.7,
                     hint >= 0.3.3.4 && < 0.4.2.1,
                     parsec >= 3.1.2,
                     containers >= 0.4.2.1,
