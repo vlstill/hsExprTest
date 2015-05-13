@@ -12,9 +12,9 @@ import Data.List
 -- | Type expression parser.
 typeExpression :: Parser TypeExpression
 typeExpression = TypeExpression <$> 
-	(try ((parens typeContext <|> typeContext) <* spaced (string "=>")) <|> return (TypeContext [])) 
-	<*> 
-	(typeParser <* eof)
+    (try ((parens typeContext <|> typeContext) <* spaced (string "=>")) <|> return (TypeContext [])) 
+    <*> 
+    (typeParser <* eof)
 
 -- | Parser of one item of type context, for example - Num a
 typeContextItem :: Parser (TypeClass, TypeVariable)
@@ -47,12 +47,12 @@ bTypeParser = spaced $ chainl1 aTypeParser (spaces *> return TypeApplication)
 -- | Parser of other possibilities of the type syntax. Read type expression grammar for further details.
 aTypeParser :: Parser Type
 aTypeParser = spaced $ choice [ TypeConstructor <$> typeConstructor
-		, try (VariableType <$> typeVariable)
-		, try (string "()" *> return (TupleType []))
-		, try (parens typeParser)
-		, try (TupleType <$> parens (typeParser `sepBy` (char ',')))
-		, ListType <$> brackets typeParser ]
-	
+        , try (VariableType <$> typeVariable)
+        , try (string "()" *> return (TupleType []))
+        , try (parens typeParser)
+        , try (TupleType <$> parens (typeParser `sepBy` (char ',')))
+        , ListType <$> brackets typeParser ]
+    
 -- | Combinator "wrappning" given parser into parentheses with arbitrary number of spaces between parser and parentheses.
 parens :: Parser a -> Parser a
 parens = spaced . between (char '(' <* spaces) (spaces *> char ')')
