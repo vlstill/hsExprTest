@@ -6,7 +6,7 @@
 module Types.Curry ( GCurry( guncurry, gcurry ), Curry ) where
 
 class GCurry a where
-    type Curry p r :: *
+    type Curry a r :: *
     gcurry   :: (a -> r) -> Curry a r
     guncurry :: Curry a r -> a -> r
 
