@@ -1,5 +1,5 @@
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
 module Types.Comparing ( expressionsEqual, compareTypes ) where
 
@@ -9,33 +9,37 @@ import Types.Formating
 import Types.TypeExpression
 import Result ( TypingResult ( .. ) )
 
+-- | Compare type context, order does not matter, variable naming does
 instance Eq TypeContext where
-	(==) (TypeContext a) (TypeContext b) = sort a == sort b
-	
+    (==) (TypeContext a) (TypeContext b) = sort a == sort b
+
+-- | Compare type expressions after normalization (same as 'expressionsEqual')
 instance Eq TypeExpression where
-	(==) = expressionsEqual
-	
+    (==) = expressionsEqual
+
+-- | Compare type expressions for equality, normalize them (same as '(==)')
 expressionsEqual :: TypeExpression -> TypeExpression -> Bool
-expressionsEqual a b = context1 == context2 && type1 == type2
-	where 	
-		(TypeExpression context1 type1) = normalize a
-		(TypeExpression context2 type2) = normalize b
+expressionsEqual a b = isEqual $ compareTypes a b
+  where
+    isEqual (TypesEqual _) = True
+    isEqual _              = False
 
+-- | Compare type expressions, returning either canonized type, or a textual
+-- description of in case of noneqality
 compareTypes :: TypeExpression -> TypeExpression -> TypingResult
-compareTypes a b = compareTypes' (normalize a) (normalize b)
-
-compareTypes' :: TypeExpression -> TypeExpression -> TypingResult
-compareTypes' a@(TypeExpression c1 t1) (TypeExpression c2 t2)
-    = case (c1 == c2, t1 == t2) of
+compareTypes a0 b0 = case (context1 == context2, type1 == type2) of
         (False, True)  -> NotEqual tconmsg
         (False, False) -> NotEqual $ tconmsg ++ " " ++ tmismsg
         (True, False)  -> NotEqual tmismsg
         (True, True)   -> TypesEqual a
   where
-    tconmsg = "Type contex mismatch: " ++ formatContext c1
-                            ++ " /= " ++ formatContext c2 ++ "."
-    tmismsg = "Type mismatch: " ++ formatType t1 ++ " /= " ++ formatType t2
-                            ++ ", could not match " ++ _mismatch t1 t2 ++ "."
+    a@(TypeExpression context1 type1) = normalize a0
+    b@(TypeExpression context2 type2) = normalize b0
+
+    tconmsg = "Type contex mismatch: " ++ formatContext context1
+                            ++ " /= " ++ formatContext context2 ++ "."
+    tmismsg = "Type mismatch: " ++ formatType type1 ++ " /= " ++ formatType type2
+                            ++ ", could not match " ++ _mismatch type1 type2 ++ "."
 
 _mismatch (TypeApplication t11 t12) (TypeApplication t21 t22) = _mismatch2 t11 t12 t21 t22
 _mismatch (FunctionType t11 t12) (FunctionType t21 t22) = _mismatch2 t11 t12 t21 t22
