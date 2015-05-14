@@ -20,7 +20,7 @@ Library
   hs-source-dirs:   src, qce
 
   build-depends:    base >= 4.7,
-                    hint >= 0.3.3.4 && < 0.4.2.1,
+                    hint >= 0.3.3.4 && <= 0.4.2.2,
                     parsec >= 3.1.2,
                     containers >= 0.4.2.1,
                     directory >= 1.1.0.2,
@@ -56,7 +56,7 @@ Executable hsExprTest
                     base,
                     cmdlib >= 0.3.5
 
-  ghc-options:      -O0 -threaded
+  ghc-options:      -O0 -threaded -Wall
   main-is:          Main.hs
   other-modules:    UI
 
