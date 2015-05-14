@@ -10,6 +10,7 @@ module Types.Arguments
 
 import Control.Monad
 import Data.Maybe
+import Data.Either
 import Types.TypeExpression
 import Types.Formating 
 import Types.Processing
@@ -26,23 +27,15 @@ data TestableArgument = TestableArgument
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns
 -- always true.
 isTypeclass :: TypeExpression -> String -> Interpreter Bool
-isTypeclass typ typeclass = do
+isTypeclass (TypeExpression con ty) typeclass = do
     tc <- typeChecks expr
     if not tc
         then return False
-        else do
-            rtype <- typeOf expr
-            case parseType rtype of
-                Left _  -> return False
-                Right _ -> return True
+        else either (const False) plainType . parseType <$> typeOf expr
   where
-    expr = concat [ "(undefined :: ", formatType gtype, ")"
-                  , " . "
-                  , "(undefined :: ", typeclass, " a => a -> a)"
+    expr = concat [ "[ undefined :: ", formatType ty, ","
+                  , " undefined :: ", typeclass, " a => a ]"
                   ]
-    gtype = case typ of
-        TypeExpression con ty -> TypeExpression con (ty --> tupleType [])
-
 
 isEq = (`isTypeclass` "Eq")
 isArbitrary x = liftM2 (&&) (x `isTypeclass` "Arbitrary")  (x `isTypeclass` "Show")
@@ -81,7 +74,7 @@ functionTypes typ
                   Just (a, b) -> a : doargs b
 
 getTestableArguments' :: TypeContext -> [ Type ] -> Interpreter (Either String [ TestableArgument ])
-getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
+getTestableArguments' con ts = fix <$> foldM accum (Right []) ts
   where
     accum done now =
         let a  = argument now
@@ -135,10 +128,8 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
 --
 -- TODO: Actually select proper types and possibly generate more instances,
 -- not just degeneralize every type variable to Integer
-degeneralize :: [ TestableArgument ] -> [ [ TestableArgument ] ]
-degeneralize = (:[]) . map degen
+degeneralize :: TypeExpression -> [ TypeExpression ]
+degeneralize ty = [ ty // degenSubst ]
   where
-    degen t = t { qualifiedType = qualifiedType t // degenSubst }
-      where
-        degenSubst = map (\x -> (x, TypeConstructor (TyCon "Integer"))) vars
-        vars = typeVars $ qualifiedType t
+    degenSubst = map (\x -> (x, TypeConstructor (TyCon "Integer"))) vars
+    vars = typeVars ty

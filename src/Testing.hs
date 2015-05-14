@@ -89,8 +89,8 @@ testExpressionValues limit expression solutionFile studentFile = do
     solutionType <- typeOf ("Solution." ++ expression)
     studentType <- typeOf ("Student." ++ expression)
     case testTypeEquality solutionType studentType of
-        TypesEqual resultType -> do
-            rta <- getTestableArguments resultType 
+        TypesEqual exprType -> do
+            rta <- sequence <$> mapM getTestableArguments (degeneralize exprType)
             case rta of
                 Right ta -> do
                     let testExpression = createTestExpression expression ta
@@ -103,8 +103,8 @@ testExpressionValues limit expression solutionFile studentFile = do
 -- | Function createTestExpressions creates one string test expression from two function expressions.
 -- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
 -- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> [ TestableArgument ] -> String
-createTestExpression expression arguments = wrap . map property $ degeneralize arguments
+createTestExpression :: String -> [[TestableArgument]] -> String
+createTestExpression expression arguments = wrap . map property $ arguments
   where
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
