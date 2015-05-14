@@ -9,6 +9,7 @@ module Types.Arguments
     ) where
 
 import Control.Monad
+import Control.Applicative
 import Data.Maybe
 import Data.Either
 import Types.TypeExpression
