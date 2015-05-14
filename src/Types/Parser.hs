@@ -1,7 +1,7 @@
 module Types.Parser (parseType) where 
 
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014,201 Vladimír Štill
 
 import Types.TypeExpression
 import Text.Parsec
@@ -17,8 +17,8 @@ typeExpression = TypeExpression <$>
     (typeParser <* eof)
 
 -- | Parser of one item of type context, for example - Num a
-typeContextItem :: Parser (TypeClass, TypeVariable)
-typeContextItem = (,) <$> (typeClass <* spaces) <*> typeVariable
+typeContextItem :: Parser (TypeClass, [Type])
+typeContextItem = (,) <$> (typeClass <* spaces) <*> (((:[]) . TypeVariable) <$> typeVariable)
 
 -- | Parser of the entire type context, without surrounding parentheses.
 typeContext :: Parser TypeContext
@@ -29,16 +29,18 @@ typeClass :: Parser TypeClass
 typeClass = (intercalate ".") <$> sepBy1 ((:) <$> upper <*> many alphaNum) (char '.')
 
 -- | Parser of type variable, basically parses string begining with lowercase letter followed by arbitrary number of alphanumeric characters.
-typeVariable :: Parser TypeVariable
+typeVariable :: Parser TypeVar
 typeVariable = (:) <$> lower <*> many alphaNum
 
--- | Parser of type constructor. Exactly the same as the type class parser, defined for convinience.
-typeConstructor :: Parser TypeConstructor
-typeConstructor = typeClass <|> many1 digit
+-- | Parser of type constructor. Same as the type class parser, or numeric literal (TypeLits).
+typeConstructor :: Parser TypeConstr
+typeConstructor = TyCon <$> (typeClass <|> many1 digit)
 
 -- | Parser of function type.
 typeParser :: Parser Type
-typeParser = spaced $ chainr1 bTypeParser (string "->" *> return FunctionType)
+typeParser = spaced $ chainr1 bTypeParser (string "->" *> return applyType)
+  where
+    applyType a b = (TypeConstructor FunTyCon `TypeApplication` a) `TypeApplication` b
 
 -- | Parser of type application.
 bTypeParser :: Parser Type
@@ -47,12 +49,17 @@ bTypeParser = spaced $ chainl1 aTypeParser (spaces *> return TypeApplication)
 -- | Parser of other possibilities of the type syntax. Read type expression grammar for further details.
 aTypeParser :: Parser Type
 aTypeParser = spaced $ choice [ TypeConstructor <$> typeConstructor
-        , try (VariableType <$> typeVariable)
-        , try (string "()" *> return (TupleType []))
+        , try (TypeVariable <$> typeVariable)
+        , try (string "()" *> return (TypeConstructor (TupleTyCon 0)))
         , try (parens typeParser)
-        , try (TupleType <$> parens (typeParser `sepBy` (char ',')))
-        , ListType <$> brackets typeParser ]
-    
+        , try tupleParser
+        , fmap (\ty -> TypeConstructor ListTyCon `TypeApplication` ty) (brackets typeParser) ]
+  where
+    tupleParser = do
+        types <- parens (typeParser `sepBy` (char ','))
+        let len = length types
+        return $ foldl TypeApplication (TypeConstructor (TupleTyCon len)) types
+
 -- | Combinator "wrappning" given parser into parentheses with arbitrary number of spaces between parser and parentheses.
 parens :: Parser a -> Parser a
 parens = spaced . between (char '(' <* spaces) (spaces *> char ')')

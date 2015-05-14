@@ -34,13 +34,14 @@ compareTypes a0 b0 = case (context1 == context2, type1 == type2) of
         (True, True)   -> TypesEqual a
   where
     a@(TypeExpression context1 type1) = normalize a0
-    b@(TypeExpression context2 type2) = normalize b0
+    (TypeExpression context2 type2) = normalize b0
 
     tconmsg = "Type contex mismatch: " ++ formatContext context1
                             ++ " /= " ++ formatContext context2 ++ "."
-    tmismsg = "Type mismatch: " ++ formatType type1 ++ " /= " ++ formatType type2
-                            ++ ", could not match " ++ _mismatch type1 type2 ++ "."
+    tmismsg = "Type mismatch: " ++ formatType type1 ++ " /= " ++ formatType type2 ++ "."
+--                            ++ ", could not match " ++ _mismatch type1 type2 ++ "."
 
+{-
 _mismatch (TypeApplication t11 t12) (TypeApplication t21 t22) = _mismatch2 t11 t12 t21 t22
 _mismatch (FunctionType t11 t12) (FunctionType t21 t22) = _mismatch2 t11 t12 t21 t22
 _mismatch (TypeConstructor con1) (TypeConstructor con2) = case con1 == con2 of
@@ -71,3 +72,5 @@ _ttype (FunctionType _ _)    = "function type"
 _ttype (VariableType _)      = "type variable"
 _ttype (TupleType _)         = "tuple type"
 _ttype (ListType _)          = "list type"
+
+-}

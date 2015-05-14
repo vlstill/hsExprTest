@@ -3,7 +3,7 @@
            #-}
 
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014, 2015 Vladimír Štill
 
 module Testing where
 
@@ -118,8 +118,8 @@ createTestExpression expression arguments = wrap . map property $ degeneralize a
     expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]
     types = map qualifiedType >>>
             foldr (\(TypeExpression (TypeContext []) ty1) tys -> ty1 : tys) [] >>>
-            TupleType >>>
-            TypeApplication (TypeConstructor "Maybe") >>>
+            tupleType >>>
+            TypeApplication (TypeConstructor (TyCon "Maybe")) >>>
             formatType
 
 runTestfile :: FilePath -> String -> IO TestingResult

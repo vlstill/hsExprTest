@@ -1,8 +1,6 @@
-{-# LANGUAGE TupleSections
-           , NamedFieldPuns
-           #-}
+{-# LANGUAGE TupleSections, NamedFieldPuns #-}
 
--- (c) 2014 Vladimír Štill
+-- (c) 2014, 2015 Vladimír Štill
 
 module Types.Arguments
     ( getTestableArguments
@@ -11,6 +9,7 @@ module Types.Arguments
     ) where
 
 import Control.Monad
+import Data.Maybe
 import Types.TypeExpression
 import Types.Formating 
 import Types.Processing
@@ -42,7 +41,7 @@ isTypeclass typ typeclass = do
                   , "(undefined :: ", typeclass, " a => a -> a)"
                   ]
     gtype = case typ of
-        TypeExpression con ty -> TypeExpression con (ty `FunctionType` TupleType [])
+        TypeExpression con ty -> TypeExpression con (ty --> tupleType [])
 
 
 isEq = (`isTypeclass` "Eq")
@@ -67,24 +66,19 @@ getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> case 
 
     -- add extra Eq quantification for any type variable in result type
     con :: TypeContext
-    con = if isPoly returnType'
-            then TypeContext (map ("Eq", ) (getVars returnType') ++ (\(TypeContext x) -> x) con')
+    con = if isPolymorphic returnType'
+            then TypeContext (map (("Eq", ) . (:[]) . TypeVariable) (typeVars returnType') ++ (\(TypeContext x) -> x) con')
             else con'
 
-    getVars :: Type -> [ TypeVariable ]
-    getVars = extract (++) [] (:[])
-
 functionTypes :: Type -> ([Type], Type)
-functionTypes typ@(FunctionType _ _) = (as typ, rt typ)
+functionTypes typ
+    | isJust (splitFunApp typ) = (init as, last as)
+    | otherwise = ([], typ)
   where
-    rt (FunctionType _ t) = rt t
-    rt t                  = t
-    as (FunctionType a b) = a : as b
-    as return             = []
-functionTypes x                      = ([], x)
-
-isPoly :: Type -> Bool
-isPoly = extract (||) False (const True)
+    as = doargs typ
+    doargs t = case splitFunApp t of
+                  Nothing     -> [t] -- return type
+                  Just (a, b) -> a : doargs b
 
 getTestableArguments' :: TypeContext -> [ Type ] -> Interpreter (Either String [ TestableArgument ])
 getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
@@ -103,31 +97,31 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
                 (False, _, Left msg) -> Left $ msg ++ ", " ++ msgof at
     blind typ = let
         qualifiedType = normalize $ TypeExpression con
-                          (TypeConstructor "Blind" `TypeApplication` typ)
+                          (TypeConstructor (TyCon "Blind") `TypeApplication` typ)
         bindGen i = parens $ "Blind " ++ varGen i
         varGen i  = "b" ++ show i
         in TestableArgument { qualifiedType, bindGen, varGen }
 
-    argument typ@(FunctionType a b) = let 
-        (par, re) = functionTypes typ
-        bindGen i = parens $ "Fun _" ++ show i ++ " f" ++ show i
-        in if length par == 1
-            then let
-                qualifiedType = normalize $ TypeExpression con 
-                    ((TypeConstructor "Fun" `TypeApplication` a) `TypeApplication` b)
-                varGen i = "f" ++ show i
-                in TestableArgument { qualifiedType, bindGen, varGen }
-            else let
-                qualifiedType = normalize $ TypeExpression con
-                    ((TypeConstructor "Fun" `TypeApplication` TupleType par) `TypeApplication` re)
-                varGen i = "(gcurry f" ++ show i ++ ")"
-                in TestableArgument { qualifiedType, bindGen, varGen }
-
-    argument typ = let
-        qualifiedType = normalize $ TypeExpression con typ
-        bindGen = parens . varGen
-        varGen i = "x" ++ show i
-        in TestableArgument { qualifiedType, bindGen, varGen }
+    argument typ = case splitFunApp typ of
+        Just (a, b) -> let 
+            (par, re) = functionTypes typ
+            bindGen i = parens $ "Fun _" ++ show i ++ " f" ++ show i
+            in if length par == 1
+                then let
+                    qualifiedType = normalize $ TypeExpression con 
+                        ((TypeConstructor (TyCon "Fun") `TypeApplication` a) `TypeApplication` b)
+                    varGen i = "f" ++ show i
+                    in TestableArgument { qualifiedType, bindGen, varGen }
+                else let
+                    qualifiedType = normalize $ TypeExpression con
+                        ((TypeConstructor (TyCon "Fun") `TypeApplication` tupleType par) `TypeApplication` re)
+                    varGen i = "(gcurry f" ++ show i ++ ")"
+                    in TestableArgument { qualifiedType, bindGen, varGen }
+        Nothing -> let
+            qualifiedType = normalizeAndSimplify $ TypeExpression con typ
+            bindGen = parens . varGen
+            varGen i = "x" ++ show i
+            in TestableArgument { qualifiedType, bindGen, varGen }
 
     msgof typ = "type `" ++ formatType typ ++ "' is not instance of Arbitrary class and cannot be tested" 
 
@@ -135,25 +129,6 @@ getTestableArguments' con ts = foldM accum (Right []) ts >>= return . fix
     fix l          = l
 
     parens = ('(' :) . (++ ")")
-
-foldType :: (b -> b -> b) -- ^ TypeApplication
-         -> (String -> b) -- ^ TypeConstructor
-         -> (b -> b -> b) -- ^ FunctionType
-         -> (String -> b) -- ^ VariableType
-         -> ([b] -> b)    -- ^ TupleType
-         -> (b -> b)      -- ^ ListType
-         -> Type -> b
-foldType ta tc ft vt tt lt typ = let self = foldType ta tc ft vt tt lt in case typ of
-    TypeApplication a b -> ta (self a) (self b)
-    TypeConstructor c   -> tc c
-    FunctionType a b    -> ft (self a) (self b)
-    VariableType var    -> vt var
-    TupleType ts        -> tt (map self ts)
-    ListType  l         -> lt (self l)
-
-extract :: (b -> b -> b) -> b -> (String -> b) -> Type -> b
-extract binop ide tyvar = foldType binop (const ide) binop tyvar (foldr binop ide) id
-
 
 -- | This function generates monomorphic instances out of possibly polymorphic
 -- arguments
@@ -163,7 +138,7 @@ extract binop ide tyvar = foldType binop (const ide) binop tyvar (foldr binop id
 degeneralize :: [ TestableArgument ] -> [ [ TestableArgument ] ]
 degeneralize = (:[]) . map degen
   where
-    degen t@(TestableArgument { qualifiedType = TypeExpression con typ }) =
-        t { qualifiedType = normalize . TypeExpression con $
-              foldType TypeApplication TypeConstructor FunctionType
-                       (const $ TypeConstructor "Integer") TupleType ListType typ }
+    degen t = t { qualifiedType = qualifiedType t // degenSubst }
+      where
+        degenSubst = map (\x -> (x, TypeConstructor (TyCon "Integer"))) vars
+        vars = typeVars $ qualifiedType t
