@@ -10,6 +10,7 @@ module Testing where
 import Control.Arrow
 import Control.Concurrent
 import Control.Exception
+import Control.Applicative
 
 import System.Directory
 import Data.List
