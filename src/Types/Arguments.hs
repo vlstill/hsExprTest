@@ -13,7 +13,7 @@ import Control.Applicative
 import Data.Maybe
 import Data.Either
 import Types.TypeExpression
-import Types.Formating 
+import Types.Formating
 import Types.Processing
 import Types.Parser ( parseType )
 import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )
@@ -22,7 +22,7 @@ data TestableArgument = TestableArgument
     { qualifiedType :: TypeExpression
     , bindGen       :: Int -> String -- lambda binding pattern generator
     , varGen        :: Int -> String -- variable name generator
-    }                       
+    }
 
 -- | Note that polymorphic type (both uncostrained and constrained) can belong
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns
@@ -96,8 +96,8 @@ getTestableArguments' con ts = fix <$> foldM accum (Right []) ts
         varGen i  = "b" ++ show i
         in TestableArgument { qualifiedType, bindGen, varGen }
 
-    argument typ = case splitFunApp typ of
-        Just (a, b) -> let 
+    argument typ 
+      | Just (a, b) <- splitFunApp typ = let
             (par, re) = functionTypes typ
             bindGen i = parens $ "Fun _" ++ show i ++ " f" ++ show i
             in if length par == 1
@@ -111,7 +111,7 @@ getTestableArguments' con ts = fix <$> foldM accum (Right []) ts
                         ((TypeConstructor (TyCon "Fun") `TypeApplication` tupleType par) `TypeApplication` re)
                     varGen i = "(gcurry f" ++ show i ++ ")"
                     in TestableArgument { qualifiedType, bindGen, varGen }
-        Nothing -> let
+      | otherwise = let
             qualifiedType = normalizeAndSimplify $ TypeExpression con typ
             bindGen = parens . varGen
             varGen i = "x" ++ show i

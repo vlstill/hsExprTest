@@ -92,13 +92,11 @@ testExpressionValues limit expression solutionFile studentFile = do
     case testTypeEquality solutionType studentType of
         TypesEqual exprType -> do
             rta <- sequence <$> mapM getTestableArguments (degeneralize exprType)
-            case rta of
-                Right ta -> do
-                    let testExpression = createTestExpression expression ta
-                    liftIO $ putStrLn testExpression
-                    props <- interpret testExpression (as :: [ AnyProperty ])
-                    liftIO $ qcRunProperties limit props
-                Left msg -> return $ NotTestable msg
+            flip (either (return . NotTestable)) rta $ \ta -> do
+                let testExpression = createTestExpression expression ta
+                liftIO $ putStrLn testExpression
+                props <- interpret testExpression (as :: [ AnyProperty ])
+                liftIO $ qcRunProperties limit props
         r -> return (TypesNotEqual r)
 
 -- | Function createTestExpressions creates one string test expression from two function expressions.
