@@ -30,10 +30,12 @@ sfun f = Fun (\case Nothing -> Error; Just x -> f x)
 unwrap :: Arg -> String
 unwrap (Val x) = x
 unwrap (Fun f) = unwrap (f Nothing)
-unwrap _       = error "formatType: Invalid type"
+unwrap x       = error $ "formatType: Invalid type " ++ case x of
+                                                            Error -> "(Error)"
+                                                            End   -> "(End)"
 
 instance FormatType Type where
-    formatType = unwrap . foldType (\t1 t2 -> t1 `apply` t2) formatCon Val
+    formatType = unwrap . foldType apply formatCon apcon
       where
         formatCon :: TypeConstr -> Arg
         formatCon FunTyCon = sfun (\x -> sfun $ (\y -> Val $ _parens x ++ " -> " ++ _parens y))
