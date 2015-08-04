@@ -21,7 +21,7 @@ data Arg = Error
 apply :: Arg -> Arg -> Arg
 apply (Fun f)   (Val x) = f (Just x)
 apply (Fun f)   End     = f Nothing
-apply f@(Fun _) (Fun g) = f `apply` (g Nothing) 
+apply f@(Fun _) (Fun g) = f `apply` g Nothing 
 apply _       _ = Error
 
 sfun :: (String -> Arg) -> Arg
@@ -38,7 +38,7 @@ instance FormatType Type where
     formatType = unwrap . foldType apply formatCon apcon
       where
         formatCon :: TypeConstr -> Arg
-        formatCon FunTyCon = sfun (\x -> sfun $ (\y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y))
+        formatCon FunTyCon = sfun (\x -> sfun $ \y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y)
         formatCon ListTyCon = sfun (\x -> Val $ "[" ++ x ++ "]")
         formatCon (TupleTyCon n) = aptuple [] n
         formatCon (TyCon con) = apcon con
@@ -46,7 +46,7 @@ instance FormatType Type where
         aptuple :: [String] -> Int -> Arg
         aptuple args 0 = Val $ "(" ++ intercalate ", " args ++ ")"
         aptuple args n = Fun $ \case
-                            Nothing -> Val $ "(" ++ replicate (n + length args) ',' ++ ") " ++ intercalate " " (map _parens args)
+                            Nothing -> Val $ "(" ++ replicate (n + length args) ',' ++ ") " ++ unwords (map _parens args)
                             Just v  -> aptuple (args ++ [v]) (n - 1)
         apcon :: String -> Arg
         apcon con = Fun $ \case
@@ -63,7 +63,7 @@ formatContext (TypeContext [(c, v)]) = c ++ " " ++ _formatTList v
 formatContext (TypeContext cs) = _tuple $ map (\(c, v) -> c ++ " " ++ _formatTList v) cs
 
 _formatTList :: [Type] -> String
-_formatTList = intercalate " " . map (_parens . formatType)
+_formatTList = unwords . map (_parens . formatType)
 
 _parens' :: (String -> Bool) -> String -> String
 _parens' p x

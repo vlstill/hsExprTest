@@ -1,7 +1,7 @@
 module Types.Parser (parseType) where 
 
 -- (c) 2012 Martin Jonáš
--- (c) 2014,201 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
 import Types.TypeExpression
 import Text.Parsec
@@ -26,7 +26,7 @@ typeContext = TypeContext <$> (try (sepBy typeContextItem (try (spaced (char ','
 
 -- | Parser of type class. It may contain module part, for example Module.TypeClass.
 typeClass :: Parser TypeClass
-typeClass = (intercalate ".") <$> sepBy1 ((:) <$> upper <*> many alphaNum) (char '.')
+typeClass = intercalate "." <$> sepBy1 ((:) <$> upper <*> many alphaNum) (char '.')
 
 -- | Parser of type variable, basically parses string begining with lowercase letter followed by arbitrary number of alphanumeric characters.
 typeVariable :: Parser TypeVar
@@ -56,7 +56,7 @@ aTypeParser = spaced $ choice [ TypeConstructor <$> typeConstructor
         , fmap (\ty -> TypeConstructor ListTyCon `TypeApplication` ty) (brackets typeParser) ]
   where
     tupleParser = do
-        types <- parens (typeParser `sepBy` (char ','))
+        types <- parens (typeParser `sepBy` char ',')
         let len = length types
         return $ foldl TypeApplication (TypeConstructor (TupleTyCon len)) types
 

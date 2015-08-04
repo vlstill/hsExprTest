@@ -48,11 +48,11 @@ import Testing.DataTypes
 import Testing.Limiting
 import Control.Concurrent
 import Control.Exception
+import Control.Applicative
 
 import Prelude hiding ( catch )
 import System.IO.Unsafe ( unsafePerformIO )
 import Control.DeepSeq
-import Control.Exception
 
 data AnyProperty = forall a. Testable a => AnyProperty a
     deriving ( Typeable )
@@ -100,7 +100,7 @@ qcFirstFailed = firstFailed . map qcToResult
 
 
 qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestingResult
-qcRunProperties lim props = mapM applyQC props >>= return . qcFirstFailed
+qcRunProperties lim props = qcFirstFailed <$> mapM applyQC props
   where
     applyQC (AnyProperty p) = case lim of
         Nothing -> QCT.quickCheckWithResult args p
@@ -111,7 +111,7 @@ qcRunProperties lim props = mapM applyQC props >>= return . qcFirstFailed
             -- also QuickCheck's within does not work either
             pid <- myThreadId
             bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
-                    (killThread)
+                    killThread
                     (const (QCT.quickCheckWithResult args p))
     args = QCT.stdArgs { QCT.chatty = False
                        , QCT.maxSuccess = 1000

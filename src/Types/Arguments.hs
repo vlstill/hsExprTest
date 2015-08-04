@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, NamedFieldPuns #-}
+{-# LANGUAGE TupleSections, NamedFieldPuns, PatternGuards #-}
 
 -- (c) 2014, 2015 Vladimír Štill
 
@@ -51,9 +51,9 @@ isArbitrary x = liftM2 (&&) (x `isTypeclass` "Arbitrary")  (x `isTypeclass` "Sho
 -- - All qualified types of argumens are fully simplified.
 -- - Additional constraint for return type being Eq is added if return type is polymorphic
 getTestableArguments :: TypeExpression -> Interpreter (Either String [ TestableArgument ])
-getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> case x of
-    True  -> getTestableArguments' con arguments
-    False -> return . Left $ "Return type `" ++ formatType returnType ++ "' not member of Eq"
+getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> if x
+    then getTestableArguments' con arguments
+    else return . Left $ "Return type `" ++ formatType returnType ++ "' not member of Eq"
   where
     returnType = normalize . TypeExpression con $ returnType'
     (arguments, returnType') = functionTypes typ

@@ -81,7 +81,7 @@ setupInterpreter mod imports = do
 
 -- | Function testExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
 -- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
-testExpressionValues :: (Maybe Int) -> String -> String -> String -> Interpreter TestingResult
+testExpressionValues :: Maybe Int -> String -> String -> String -> Interpreter TestingResult
 testExpressionValues limit expression solutionFile studentFile = do
     setupInterpreter [ solutionFile, studentFile ]
                      [ ("Student", Just "Student")
@@ -108,13 +108,13 @@ createTestExpression expression arguments = wrap . map property $ arguments
     wrap = ('[' :) . (++ "]") . intercalate ", "
     property :: [ TestableArgument ] -> String
     property []   = "AnyProperty (Solution." ++ expression ++ " <==> Student." ++ expression ++ ")"
-    property args = concat [ "AnyProperty (\\", intercalate " " (params args), " -> "
+    property args = concat [ "AnyProperty (\\", unwords (params args), " -> "
                            , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
                            , " `seq` (Solution.", expr args, " <==> Student.", expr args, ") )"
                            ]
 
     params = flip (zipWith bindGen) [1..]
-    expr = intercalate " " . (expression :) . flip (zipWith varGen) [1..]
+    expr = unwords . (expression :) . flip (zipWith varGen) [1..]
     types = map qualifiedType >>>
             foldr (\(TypeExpression (TypeContext []) ty1) tys -> ty1 : tys) [] >>>
             tupleType >>>
@@ -133,9 +133,9 @@ runTestfile' test student = do
     setupInterpreter [ test, student ] [ ("Student", Just "Student" ), ("Test", Nothing) ]
     config <- interpret "testConfig" (as :: TestConfig)
     solType <- case expectedType config of
-        None        -> return $ ""
+        None        -> return ""
         TypeOf expr -> typeOf expr
-        Fixed t     -> return $ t
+        Fixed t     -> return t
     case solType of
         "" -> runTest config
         _  -> do

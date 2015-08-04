@@ -26,6 +26,7 @@ import Data.Maybe
 import Data.List
 import Data.Data ( Data )
 import Data.Typeable ( Typeable )
+import Data.Function ( on )
 
 -- | Data type TypeExpression represents parsed type expression
 data TypeExpression = TypeExpression TypeContext Type
@@ -58,7 +59,7 @@ foldType :: (a -> a -> a) -- ^ TypeApplication
          -> (TypeConstr -> a) -- ^ TypeConstructor
          -> (TypeVar -> a) -- TypeVariable
          -> Type -> a
-foldType tyApp tyCon tyVar typ = ftgo typ
+foldType tyApp tyCon tyVar = ftgo
   where
     ftgo (TypeApplication t1 t2) = ftgo t1 `tyApp` ftgo t2
     ftgo (TypeConstructor t)     = tyCon t
@@ -85,13 +86,11 @@ fullyInstantiated :: CType t => t -> Bool
 fullyInstantiated = null . typeVars
 
 instance CType Type where
-    substitute sub t = sgo t
+    substitute sub = sgo
       where
-        sgo = foldType (\t1 t2 -> TypeApplication (sgo t1) (sgo t2)) TypeConstructor subst
+        sgo = foldType (TypeApplication `on` sgo) TypeConstructor subst
         subst :: TypeVar -> Type
-        subst x = case x `lookup` sub of
-                    Just ty -> ty
-                    Nothing -> TypeVariable x
+        subst x = fromMaybe (TypeVariable x) (x `lookup` sub)
     typeVars = nub . foldType (++) (const []) (:[])
     plainType _ = True
 

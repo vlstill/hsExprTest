@@ -12,8 +12,8 @@ createCodeFile :: String -> String -> String -> IO String
 createCodeFile fileName moduleName code = do
     tmp <- getTemporaryDirectory
     (createdFileName, handle) <- openTempFile tmp fileName
-    if (moduleName == "Student") then hPutStr handle ("{-# LANGUAGE Safe #-}\n")
-                                 else hPutStr handle ("{-# LANGUAGE Unsafe #-}\n")
+    if moduleName == "Student" then hPutStr handle "{-# LANGUAGE Safe #-}\n"
+                               else hPutStr handle "{-# LANGUAGE Unsafe #-}\n"
     hPutStr handle $ unlines [ "{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}"
                              , "module " ++ moduleName ++ " where"
                              , ""
