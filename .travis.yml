@@ -11,3 +11,5 @@ notifications:
       - xstill@fi.muni.cz
     on_success: always # default: change
     on_failure: always # default: always
+
+sudo: false
