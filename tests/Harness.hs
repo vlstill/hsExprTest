@@ -28,8 +28,8 @@ test (passed, failed) (student, solution, expr, expected) = do
     res <- compareExpressions Nothing expr solution student
     if toConstr res == toConstr expected
         then do
-          putStrLn "OK"
-          putStrLn . unlines . map (" >    " ++) . lines $ show res
+--          putStrLn "OK"
+--          putStrLn . unlines . map (" >    " ++) . lines $ show res
           return (passed + 1, failed)
         else do
           putStrLn "FAILED"
