@@ -50,11 +50,11 @@ main = runTests $
     , ( "_map :: (a -> b) -> [a] -> [b]; _map g xs = [ g x | x <- xs ]"
       , "_map = map", "_map", Success
       )
-    , ( "_map f = foldr (\\a bs -> f a : bs) []", "_map = map", "_map", Success )
-    , ( "_map f = reverse . foldl (\\bs a -> f a : bs) []"
+    , ( "_map f = (foldr :: (a -> b -> b) -> b -> [a] -> b) (\\a bs -> f a : bs) []", "_map = map", "_map", Success )
+    , ( "_map f = reverse . (foldl :: (b -> a -> b) -> b -> [a] -> b) (\\bs a -> f a : bs) []"
       , "_map :: (a -> b) -> [a] -> [b]; _map = map", "_map", Success
       )
-    , ( "_rev = foldl (flip (:)) []"
+    , ( "_rev = (foldl :: (b -> a -> b) -> b -> [a] -> b) (flip (:)) []"
       , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
       )
     , ( "_rev (x:xs) = _rev xs ++ [x]; _rev [] = []"
@@ -67,9 +67,9 @@ main = runTests $
       , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
       )
     -- and some noequivalent
-    , ( "_rev = foldr (flip (:)) []", "_rev = reverse", "_rev", WontCompile ignored )
-    , ( "_rev = foldr (:) []", "_rev = reverse", "_rev", DifferentValues ignored )
-    , ( "_rev (x:xs) = foldl (flip (:)) [x] xs"
+    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b) (flip (:)) []", "_rev = reverse", "_rev", WontCompile ignored )
+    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b)(:) []", "_rev = reverse", "_rev", DifferentValues ignored )
+    , ( "_rev (x:xs) = (foldl :: (b -> a -> b) -> b -> [a] -> b) (flip (:)) [x] xs"
       , "_rev = reverse", "_rev", DifferentValues ignored
       ) -- (exceptions for [])
     -- exception handling
