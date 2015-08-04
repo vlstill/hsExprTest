@@ -80,6 +80,16 @@ Executable hsExprTestService
   main-is:          Service.hs
   extensions:       CPP
 
+Test-Suite types
+  hs-source-dirs:   tests
+  type:             exitcode-stdio-1.0
+  main-is:          Types.hs
+
+  build-depends:    base,
+                    hsExprTest == 0.1.4,
+                    Cabal >= 1.9.2
+
+
 Test-Suite basic
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
