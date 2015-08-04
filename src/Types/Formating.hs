@@ -7,7 +7,7 @@ module Types.Formating ( FormatType ( formatType ), formatContext ) where
 import Control.Applicative
 import Control.Monad
 import Types.TypeExpression
-import Data.List ( intercalate )
+import Data.List
 
 class FormatType t where
     formatType :: t -> String
@@ -38,7 +38,7 @@ instance FormatType Type where
     formatType = unwrap . foldType apply formatCon apcon
       where
         formatCon :: TypeConstr -> Arg
-        formatCon FunTyCon = sfun (\x -> sfun $ (\y -> Val $ _parens x ++ " -> " ++ _parens y))
+        formatCon FunTyCon = sfun (\x -> sfun $ (\y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y))
         formatCon ListTyCon = sfun (\x -> Val $ "[" ++ x ++ "]")
         formatCon (TupleTyCon n) = aptuple [] n
         formatCon (TyCon con) = apcon con
@@ -65,11 +65,14 @@ formatContext (TypeContext cs) = _tuple $ map (\(c, v) -> c ++ " " ++ _formatTLi
 _formatTList :: [Type] -> String
 _formatTList = intercalate " " . map (_parens . formatType)
 
-_parens :: String -> String
-_parens x 
+_parens' :: (String -> Bool) -> String -> String
+_parens' p x
     | head x == '(' && last x == ')' = x
-    | ' ' `elem` x                   = '(' : x ++ ")"
+    | p x                            = '(' : x ++ ")"
     | otherwise                      = x
+
+_parens :: String -> String
+_parens = _parens' (' ' `elem`)
 
 _tuple :: [String] -> String
 _tuple x = '(' : intercalate ", " x ++ ")"
