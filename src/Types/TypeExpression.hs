@@ -3,25 +3,31 @@
 -- (c) 2012 Martin Jonáš
 -- (c) 2015 Vladimír Štill
 
-module Types.TypeExpression 
-    ( TypeExpression(..)
+module Types.TypeExpression (
+      -- * Type representation
+      TypeExpression(..)
     , TypeContext(..)
     , Type(..)
     , TypeClass
     , TypeVar
     , TypeConstr(..)
+    -- * katamorphisms and quieriing of types
     , foldType
     , isPolymorphic
     , CType(..)
+    -- * substitution
     , Substitution
     , (//)
     -- * functions for construction and destruction of types
     , splitFunApp
     , tupleType
     , (-->)
+    -- * Unification
+    , unifyTypes
     ) where
 
 import Control.Arrow
+import Control.Monad
 import Data.Maybe
 import Data.List
 import Data.Data ( Data )
@@ -128,3 +134,81 @@ tupleType :: [Type] -> Type
 tupleType args = foldl TypeApplication (TypeConstructor (TupleTyCon n)) args
   where
     n = length args
+
+type Unification = (Substitution, Substitution)
+
+-- | Unify two types, returns most general unification
+unifyTypes :: Type -> Type -> Either String Unification
+unifyTypes ta tb = (,) <$> ((`composeSubst` tas) <$> mgu) <*> ((`composeSubst` tbs) <$> mgu)
+  where
+    mgu :: Either String Substitution
+    mgu = ((ta // tas) `unsafeUnify` (tb // tbs)) >>= substitutionClosure
+    tas = addPrefixSubst "a_" ta
+    tbs = addPrefixSubst "b_" tb
+
+substitutionClosure :: Substitution -> Either String Substitution
+substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=> clo
+  where
+    merge :: Substitution -> Either String (TypeVar, Type)
+    merge ((va, ta):(vb, tb):xs) = (va, ) . (ta //) <$> ((ta `unsafeUnify` tb) >>= substitutionClosure)
+    merge [x] = Right x
+
+    clo :: Substitution -> Either String Substitution
+    clo sub0 = mapM (\(v, t) -> (v, ) <$> unroll [v] t) sub
+      where
+        -- first we have to canonize equality chains, therefore we calculate
+        -- equality clasees and then change any variable-to-variable substitution
+        -- so that it substitutes to lexicographically first variable in each
+        -- of the classes
+        vars = map fst sub0
+        triv = ($ sub0) $
+               filter (\(v, t) -> case t of TypeVariable _ -> True; _ -> False) >>>
+               map (\(v, TypeVariable t) -> (v, t))
+        classes = ($ vars) $ map (:[]) >>> cloop >>> map (filter (`elem` vars))
+        cloop vars0 = let vars1 = ($ vars0) $
+                                  map (concatMap (\v -> v : map snd (filter ((== v) . fst) triv))) >>>
+                                  map (sort >>> nub) >>> sort >>> nub
+                      in if vars1 == vars0 then vars0
+                                           else cloop vars1
+        sub = ($ sub0) $ map standardize >>> filter (\(t, v) -> case v of TypeVariable tt -> t /= tt; _ -> True)
+        standardize (v, TypeVariable v1) = (v, TypeVariable . head . fromJust $ find (v `elem`) classes)
+        standardize x = x
+
+        -- when we have such a processes substitution, we can unroll it fully
+        -- and perform occurs check
+        unroll :: [TypeVar] -> Type -> Either String Type
+        unroll seen@(v:_) = foldType (liftM2 TypeApplication) (return . TypeConstructor) unrollTyVar >=> \tt ->
+                            case tt of
+                                TypeVariable _ -> Right tt
+                                _ | tt `contains` v ->
+                                        Left $ "Unification error: occurs check `" ++ v ++
+                                        "' in `" ++ show tt ++ "'"
+                                  | otherwise -> Right tt
+          where
+            unrollTyVar :: TypeVar -> Either String Type
+            unrollTyVar var
+              | var `elem` seen          = Right $ TypeVariable var
+              | Just t <- lookup var sub = unroll (var:seen) t
+              | otherwise = Right $ TypeVariable var
+    contains ty var = foldType (||) (const False) (== var) ty
+
+-- | add specified prefix to all type variables in type
+addPrefixSubst :: CType t => String -> t -> Substitution
+addPrefixSubst prefix = typeVars >>> map (id &&& ((prefix ++) >>> TypeVariable))
+
+composeSubst :: Substitution -> Substitution -> Substitution
+composeSubst s2 = map (second (// s2))
+
+unsafeUnify :: Type -> Type -> Either String Substitution
+unsafeUnify (TypeApplication ta1 ta2) (TypeApplication tb1 tb2) =
+    (++) <$> (ta1 `unsafeUnify` tb1) <*> (ta2 `unsafeUnify` tb2)
+unsafeUnify (TypeConstructor ca) (TypeConstructor cb)
+    | ca == cb  = Right []
+    | otherwise = Left $ "Unification error: type constructor mismatch (" ++
+                  "could not match `" ++ show ca ++ "' with `" ++ show cb ++ "')"
+-- avoid breaking symmetry of equality of type variables
+unsafeUnify tva@(TypeVariable va) tvb@(TypeVariable vb) = Right [(va, tvb), (vb, tva)]
+unsafeUnify (TypeVariable var) any = Right [(var, any)]
+unsafeUnify any (TypeVariable var) = Right [(var, any)]
+unsafeUnify ta tb = Left $ "Unification error: could not match `" ++ show ta ++
+                           "' with `" ++ show tb ++ "'"
