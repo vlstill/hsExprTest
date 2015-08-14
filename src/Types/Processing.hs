@@ -5,7 +5,7 @@
 
 module Types.Processing ( normalize, normalizeAndSimplify ) where
 
-import Types.TypeExpression
+import Types
 import Data.List
 import Control.Arrow
 

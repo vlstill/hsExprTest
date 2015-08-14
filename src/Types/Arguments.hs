@@ -12,8 +12,7 @@ import Control.Monad
 import Control.Applicative
 import Data.Maybe
 import Data.Either
-import Types.TypeExpression
-import Types.Formating
+import Types
 import Types.Processing
 import Types.Parser ( parseType )
 import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )

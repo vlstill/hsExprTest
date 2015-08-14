@@ -27,13 +27,13 @@ Library
                     random >= 1.0.1.1,
                     extensible-exceptions >= 0.1.1.4,
                     QuickCheck >= 2.7,
-                    deepseq >= 1.2
+                    deepseq >= 1.2,
+                    temporary >= 1.1,
+                    filepath >= 1.3
 
-  exposed-modules:    Types.TypeExpression
+  exposed-modules:    Types
                       Types.Processing
                       Types.Parser
-                      Types.Comparing
-                      Types.Formating
                       Types.Arguments
                       Types.Curry
                       Testing

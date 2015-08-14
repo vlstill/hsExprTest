@@ -3,7 +3,7 @@ module Types.Parser (parseType) where
 -- (c) 2012 Martin Jonáš
 -- (c) 2014,2015 Vladimír Štill
 
-import Types.TypeExpression
+import Types
 import Text.Parsec
 import Text.Parsec.String
 import Control.Applicative hiding (many, (<|>))

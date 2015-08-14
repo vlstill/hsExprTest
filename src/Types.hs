@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable, TupleSections #-}
+{-# LANGUAGE DeriveDataTypeable, TupleSections, LambdaCase #-}
 
 -- (c) 2012 Martin Jonáš
--- (c) 2015 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
-module Types.TypeExpression (
+module Types (
       -- * Type representation
       TypeExpression(..)
     , TypeContext(..)
@@ -24,10 +24,18 @@ module Types.TypeExpression (
     , (-->)
     -- * Unification
     , unifyTypes
+    -- * Comparing
+    , expressionsEqual
+    , compareTypes
+    -- * Formating
+    , FormatType ( formatType )
+    , formatContext
     ) where
+
 
 import Control.Arrow
 import Control.Monad
+import Control.Applicative
 import Data.Maybe
 import Data.List
 import Data.Data ( Data )
@@ -182,7 +190,7 @@ substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=
                                 TypeVariable _ -> Right tt
                                 _ | tt `contains` v ->
                                         Left $ "Unification error: occurs check `" ++ v ++
-                                        "' in `" ++ show tt ++ "'"
+                                        "' in `" ++ formatType tt ++ "'"
                                   | otherwise -> Right tt
           where
             unrollTyVar :: TypeVar -> Either String Type
@@ -202,13 +210,126 @@ composeSubst s2 = map (second (// s2))
 unsafeUnify :: Type -> Type -> Either String Substitution
 unsafeUnify (TypeApplication ta1 ta2) (TypeApplication tb1 tb2) =
     (++) <$> (ta1 `unsafeUnify` tb1) <*> (ta2 `unsafeUnify` tb2)
-unsafeUnify (TypeConstructor ca) (TypeConstructor cb)
+unsafeUnify tca@(TypeConstructor ca) tcb@(TypeConstructor cb)
     | ca == cb  = Right []
     | otherwise = Left $ "Unification error: type constructor mismatch (" ++
-                  "could not match `" ++ show ca ++ "' with `" ++ show cb ++ "')"
+                  "could not match `" ++ formatType tca ++ "' with `" ++ formatType tcb ++ "')"
 -- avoid breaking symmetry of equality of type variables
 unsafeUnify tva@(TypeVariable va) tvb@(TypeVariable vb) = Right [(va, tvb), (vb, tva)]
 unsafeUnify (TypeVariable var) any = Right [(var, any)]
 unsafeUnify any (TypeVariable var) = Right [(var, any)]
-unsafeUnify ta tb = Left $ "Unification error: could not match `" ++ show ta ++
-                           "' with `" ++ show tb ++ "'"
+unsafeUnify ta tb = Left $ "Unification error: could not match `" ++ formatType ta ++
+                           "' with `" ++ formatType tb ++ "'"
+
+-- | Is sustitution just a renaming of type variables (trivial substitution)?
+isRename :: Substitution -> Bool
+isRename = all (snd >>> tvar)
+  where
+    tvar :: Type -> Bool
+    tvar (TypeVariable _) = True
+    tvar _                = False
+
+-- | Compare type context, order does not matter, variable naming does
+instance Eq TypeContext where
+    (==) (TypeContext a) (TypeContext b) = sort a == sort b
+
+-- | Compare type expressions after normalization (same as 'expressionsEqual')
+instance Eq TypeExpression where
+    (==) = expressionsEqual
+
+-- | Compare type expressions for equality, normalize them (same as '(==)')
+expressionsEqual :: TypeExpression -> TypeExpression -> Bool
+expressionsEqual a b = (== Equal) . fst $ compareTypes a b
+
+data TypeOrdering = Equal | MoreGeneral | LessGeneral | Unifiable | NotUnifiable
+                    deriving (Eq, Show, Read)
+
+-- | Compare type expressions, returning either canonized type, or a textual
+-- description of in case of noneqality
+compareTypes :: TypeExpression -> TypeExpression -> (TypeOrdering, String)
+compareTypes ea@(TypeExpression ca ta) eb@(TypeExpression cb tb) =
+    case unifyTypes ta tb of
+        Right (mgua, mgub) -> case (isRename mgua, isRename mgub, ca // mgua == cb // mgub) of
+            (True, True, True)  -> (Equal, "Types equal")
+            (True, True, False) -> undefined -- NotEqual $ "Type contex mismatch: " ++ formatContext (ca // mgua)
+                                             --  ++ " /= " ++ formatContext (cb // mgub) ++ "."
+            (True, False, _)    -> (MoreGeneral, "First type (" ++ formatType (ea // mgua) ++
+                                                 ") is more general then second (" ++
+                                                 formatType (eb // mgub) ++ ").")
+            (False, True, _)    -> (LessGeneral, "Second type (" ++ formatType (ea // mgua) ++
+                                                 ") is more general then first (" ++
+                                                 formatType (eb // mgub) ++ ").")
+            _                   -> (Unifiable, "Types are neither equal, not one more general then other. However, they are unifiable.")
+        Left emsg               -> (NotUnifiable, "Types are neither equal, nor unifiable: " ++ emsg)
+
+
+
+
+
+class FormatType t where
+    formatType :: t -> String
+
+data Arg = Error
+         | End
+         | Val String
+         | Fun (Maybe String -> Arg)
+
+
+apply :: Arg -> Arg -> Arg
+apply (Fun f)   (Val x) = f (Just x)
+apply (Fun f)   End     = f Nothing
+apply f@(Fun _) (Fun g) = f `apply` g Nothing 
+apply _       _ = Error
+
+sfun :: (String -> Arg) -> Arg
+sfun f = Fun (\case Nothing -> Error; Just x -> f x)
+
+unwrap :: Arg -> String
+unwrap (Val x) = x
+unwrap (Fun f) = unwrap (f Nothing)
+unwrap x       = error $ "formatType: Invalid type " ++ case x of
+                                                            Error -> "(Error)"
+                                                            End   -> "(End)"
+
+instance FormatType Type where
+    formatType = unwrap . foldType apply formatCon apcon
+      where
+        formatCon :: TypeConstr -> Arg
+        formatCon FunTyCon = sfun (\x -> sfun $ \y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y)
+        formatCon ListTyCon = sfun (\x -> Val $ "[" ++ x ++ "]")
+        formatCon (TupleTyCon n) = aptuple [] n
+        formatCon (TyCon con) = apcon con
+
+        aptuple :: [String] -> Int -> Arg
+        aptuple args 0 = Val $ "(" ++ intercalate ", " args ++ ")"
+        aptuple args n = Fun $ \case
+                            Nothing -> Val $ "(" ++ replicate (n + length args) ',' ++ ") " ++ unwords (map _parens args)
+                            Just v  -> aptuple (args ++ [v]) (n - 1)
+        apcon :: String -> Arg
+        apcon con = Fun $ \case
+                      Nothing -> Val con
+                      Just x  -> apcon $ con ++ " " ++ _parens x
+
+instance FormatType TypeExpression where
+    formatType (TypeExpression (TypeContext []) ty) = formatType ty
+    formatType (TypeExpression con ty) = formatContext con ++ " => "++ formatType ty
+
+formatContext :: TypeContext -> String
+formatContext (TypeContext []) = "()"
+formatContext (TypeContext [(c, v)]) = c ++ " " ++ _formatTList v
+formatContext (TypeContext cs) = _tuple $ map (\(c, v) -> c ++ " " ++ _formatTList v) cs
+
+_formatTList :: [Type] -> String
+_formatTList = unwords . map (_parens . formatType)
+
+_parens' :: (String -> Bool) -> String -> String
+_parens' p x
+    | head x == '(' && last x == ')' = x
+    | p x                            = '(' : x ++ ")"
+    | otherwise                      = x
+
+_parens :: String -> String
+_parens = _parens' (' ' `elem`)
+
+_tuple :: [String] -> String
+_tuple x = '(' : intercalate ", " x ++ ")"
