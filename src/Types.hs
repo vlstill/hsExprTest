@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, TupleSections, LambdaCase #-}
+{-# LANGUAGE DeriveDataTypeable, TupleSections, LambdaCase, PatternGuards #-}
 
 -- (c) 2012 Martin Jonáš
 -- (c) 2014,2015 Vladimír Štill
@@ -18,12 +18,13 @@ module Types (
     -- * substitution
     , Substitution
     , (//)
+    , isTrivial
+    -- * Unification
+    , unifyTypes
     -- * functions for construction and destruction of types
     , splitFunApp
     , tupleType
     , (-->)
-    -- * Unification
-    , unifyTypes
     -- * Comparing
     , expressionsEqual
     , compareTypes
@@ -158,8 +159,10 @@ substitutionClosure :: Substitution -> Either String Substitution
 substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=> clo
   where
     merge :: Substitution -> Either String (TypeVar, Type)
-    merge ((va, ta):(vb, tb):xs) = (va, ) . (ta //) <$> ((ta `unsafeUnify` tb) >>= substitutionClosure)
+    merge ((va, ta):(_, tb):xs) = ta `unsafeUnify` tb >>= substitutionClosure >>=
+                                  merge . (:xs) . (va, ) . (ta //)
     merge [x] = Right x
+    merge [] = error "merge: empty list"
 
     clo :: Substitution -> Either String Substitution
     clo sub0 = mapM (\(v, t) -> (v, ) <$> unroll [v] t) sub
@@ -170,7 +173,7 @@ substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=
         -- of the classes
         vars = map fst sub0
         triv = ($ sub0) $
-               filter (\(v, t) -> case t of TypeVariable _ -> True; _ -> False) >>>
+               filter (\(_, t) -> case t of TypeVariable _ -> True; _ -> False) >>>
                map (\(v, TypeVariable t) -> (v, t))
         classes = ($ vars) $ map (:[]) >>> cloop >>> map (filter (`elem` vars))
         cloop vars0 = let vars1 = ($ vars0) $
@@ -179,12 +182,13 @@ substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=
                       in if vars1 == vars0 then vars0
                                            else cloop vars1
         sub = ($ sub0) $ map standardize >>> filter (\(t, v) -> case v of TypeVariable tt -> t /= tt; _ -> True)
-        standardize (v, TypeVariable v1) = (v, TypeVariable . head . fromJust $ find (v `elem`) classes)
+        standardize (v, TypeVariable _) = (v, TypeVariable . head . fromJust $ find (v `elem`) classes)
         standardize x = x
 
         -- when we have such a processes substitution, we can unroll it fully
         -- and perform occurs check
         unroll :: [TypeVar] -> Type -> Either String Type
+        unroll [] = error "unroll: empty list"
         unroll seen@(v:_) = foldType (liftM2 TypeApplication) (return . TypeConstructor) unrollTyVar >=> \tt ->
                             case tt of
                                 TypeVariable _ -> Right tt
@@ -216,14 +220,14 @@ unsafeUnify tca@(TypeConstructor ca) tcb@(TypeConstructor cb)
                   "could not match `" ++ formatType tca ++ "' with `" ++ formatType tcb ++ "')"
 -- avoid breaking symmetry of equality of type variables
 unsafeUnify tva@(TypeVariable va) tvb@(TypeVariable vb) = Right [(va, tvb), (vb, tva)]
-unsafeUnify (TypeVariable var) any = Right [(var, any)]
-unsafeUnify any (TypeVariable var) = Right [(var, any)]
+unsafeUnify (TypeVariable var) anything = Right [(var, anything)]
+unsafeUnify anything (TypeVariable var) = Right [(var, anything)]
 unsafeUnify ta tb = Left $ "Unification error: could not match `" ++ formatType ta ++
                            "' with `" ++ formatType tb ++ "'"
 
--- | Is sustitution just a renaming of type variables (trivial substitution)?
-isRename :: Substitution -> Bool
-isRename = all (snd >>> tvar)
+-- | Is sustitution trivial (injective reanaming of variables)?
+isTrivial :: Substitution -> Bool
+isTrivial = (&&) <$> all (snd >>> tvar) <*> (sort >>> nub >>> groupBy ((==) `on` snd) >>> all ((== 1) . length))
   where
     tvar :: Type -> Bool
     tvar (TypeVariable _) = True
@@ -244,25 +248,36 @@ expressionsEqual a b = (== Equal) . fst $ compareTypes a b
 data TypeOrdering = Equal | MoreGeneral | LessGeneral | Unifiable | NotUnifiable
                     deriving (Eq, Show, Read)
 
--- | Compare type expressions, returning either canonized type, or a textual
--- description of in case of noneqality
+-- | Compare type expressions, return 'TypeOrdering' and string message with
+-- humar readable description.
 compareTypes :: TypeExpression -> TypeExpression -> (TypeOrdering, String)
 compareTypes ea@(TypeExpression ca ta) eb@(TypeExpression cb tb) =
     case unifyTypes ta tb of
-        Right (mgua, mgub) -> case (isRename mgua, isRename mgub, ca // mgua == cb // mgub) of
+        Right (mgua, mgub) -> case (isTrivial mgua, isTrivial mgub, cas == cbs) of
             (True, True, True)  -> (Equal, "Types equal")
-            (True, True, False) -> undefined -- NotEqual $ "Type contex mismatch: " ++ formatContext (ca // mgua)
-                                             --  ++ " /= " ++ formatContext (cb // mgub) ++ "."
-            (True, False, _)    -> (MoreGeneral, "First type (" ++ formatType (ea // mgua) ++
-                                                 ") is more general then second (" ++
-                                                 formatType (eb // mgub) ++ ").")
-            (False, True, _)    -> (LessGeneral, "Second type (" ++ formatType (ea // mgua) ++
-                                                 ") is more general then first (" ++
-                                                 formatType (eb // mgub) ++ ").")
+            (True, True, False) -> case (casl `subset` cbsl, cbsl `subset` casl) of
+                (True, False) -> (MoreGeneral, "First type context `" ++ formatContext ca ++
+                                               "' is more permissive then second `" ++
+                                               formatContext cb ++ "'.")
+                (False, True) -> (LessGeneral, "First type context `" ++ formatContext ca ++
+                                               "' is less permissive then second `" ++
+                                               formatContext cb ++ "'.")
+                _             -> (NotUnifiable, "Type context mismatch: `" ++ formatContext ca ++
+                                                "' /= `" ++ formatContext cb ++ "'.")
+            (True, False, _)    -> (MoreGeneral, "First type `" ++ formatType ea ++
+                                                 "' is more general then second `" ++
+                                                 formatType eb ++ "'.")
+            (False, True, _)    -> (LessGeneral, "Second type `" ++ formatType ea ++
+                                                 "' is more general then first `" ++
+                                                 formatType eb ++ "'.")
             _                   -> (Unifiable, "Types are neither equal, not one more general then other. However, they are unifiable.")
+          where
+            cas@(TypeContext casl) = ca // mgua
+            cbs@(TypeContext cbsl) = cb // mgub
         Left emsg               -> (NotUnifiable, "Types are neither equal, nor unifiable: " ++ emsg)
 
-
+subset :: Eq a => [a] -> [a] -> Bool
+subset a b = all (`elem` b) a
 
 
 
@@ -290,6 +305,7 @@ unwrap (Fun f) = unwrap (f Nothing)
 unwrap x       = error $ "formatType: Invalid type " ++ case x of
                                                             Error -> "(Error)"
                                                             End   -> "(End)"
+                                                            _     -> error "Unhandled error"
 
 instance FormatType Type where
     formatType = unwrap . foldType apply formatCon apcon
