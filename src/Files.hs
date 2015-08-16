@@ -1,32 +1,52 @@
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
-module Files (createSolutionFile, createStudentFile) where
+module Files (
+    -- * File Context
+      FileContext(..)
+    , withContext
+    -- * File creation
+    , createCodeFile, createStudentFile, createSolutionFile
+    ) where
 
 import System.IO
+import System.IO.Temp
 import System.Directory
+import System.FilePath
 
--- | Function createCodeFile creates temporary file with given name containing module of given name and with given code.
--- | Marks module as Safe or Unsafe according to the name of the module.
-createCodeFile :: String -> String -> String -> IO String
-createCodeFile fileName moduleName code = do
-    tmp <- getTemporaryDirectory
-    (createdFileName, handle) <- openTempFile tmp fileName
-    if moduleName == "Student" then hPutStr handle "{-# LANGUAGE Safe #-}\n"
-                               else hPutStr handle "{-# LANGUAGE Unsafe #-}\n"
-    hPutStr handle $ unlines [ "{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}"
-                             , "module " ++ moduleName ++ " where"
-                             , ""
-                             , "{-# LINE 1 \"" ++ moduleName ++ ".hs\" #-}"
-                             ]
-    hPutStr handle code
-    return createdFileName
+newtype FileContext = FileContext { getContext :: FilePath }
+                    deriving ( Eq, Show, Read )
 
--- | Function createSolutionFile creates temporary file solution.hs containing module Solution containing given code.
-createSolutionFile :: String -> IO String
-createSolutionFile = createCodeFile "solution.hs" "Solution"
 
--- | Function createSolutionFile creates temporary file student.hs containing module Student containing given code.
-createStudentFile :: String -> IO String
-createStudentFile = createCodeFile "student.hs" "Student"
+-- | Create execution context, which is actually a directory in which all files are held
+withContext :: (FileContext -> IO a) -> IO a
+withContext yield = withSystemTempDirectory "hsExprTestContext" $ yield . FileContext
+
+-- | Create temporary file with containing given module
+--
+-- @withCodeFile context module content safe@ will create file @<module>.hs@
+-- in given context, file will contain module header and given context, it will
+-- be marked either safe or unsafe base on @safe@ parameter.
+createCodeFile :: FileContext -> String -> String -> Bool -> IO FilePath
+createCodeFile (FileContext fc) moduleName content safe = do
+    let name = fc </> moduleName <.> "hs"
+    withFile name WriteMode $ \h -> do
+        hPutStr h $ unlines
+            [ if safe then "{-# LANGUAGE Safe #-}" else "{-# LANGUAGE Unsafe #-}"
+            , "module " ++ moduleName ++ " where"
+            , ""
+            , "{-# LINE 1 \"" ++ moduleName ++ ".hs\" #-}"
+            ]
+        hPutStr h content
+    return name
+
+-- | create file "Student.hs" containing module @Student@ in given context.
+-- Module will be marked as safe.
+createStudentFile :: FileContext -> String -> IO FilePath
+createStudentFile fc content = createCodeFile fc "Student" content True
+
+-- | create file "Solution.hs" containing module @Solution@ in given context.
+-- Module will be marked as unsafe.
+createSolutionFile :: FileContext -> String -> IO FilePath
+createSolutionFile fc content = createCodeFile fc "Solution" content False
 

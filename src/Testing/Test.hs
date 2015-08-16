@@ -1,17 +1,12 @@
-{-# LANGUAGE NamedFieldPuns
-           , Unsafe
-           , DeriveDataTypeable
-           , ExistentialQuantification
-           , Rank2Types
-           , BangPatterns
-           #-}
+{-# LANGUAGE NamedFieldPuns, Unsafe, DeriveDataTypeable
+           , ExistentialQuantification, Rank2Types, BangPatterns #-}
 
--- (c) 2014 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
 -- | Simple interface to testing
 module Testing.Test (
     -- * Result re-exports
-      TestingResult ( DifferentValues, Success, TimeoutOrUserInterrupt )
+      TestResult(..)
     -- * Configuration
     , Expression
     , ExpectedType ( .. )
@@ -24,14 +19,14 @@ module Testing.Test (
     , qcFirstFailed
     , qcRunProperties
     , (<==>)
-    -- * Utility types
+    -- * Utility
     , AnyProperty ( AnyProperty )
+    , withTypeOf
     -- * QuickCheck instances and utilities
     , Arbitrary
     , CoArbitrary
     , Function
     , Fun ( Fun )
-    -- * InteractiveImports re-export
     ) where
 
 import Result
@@ -82,24 +77,24 @@ defaultConfig = TestConfig { expectedType = None
                            , test = Properties []
                            }
 
-qcToResult :: QCT.Result -> TestingResult
+qcToResult :: QCT.Result -> TestResult
 qcToResult (QCT.Success {}) = Success
 qcToResult (QCT.GaveUp {})  = Success
 qcToResult (QCT.Failure { QCT.reason = r, QCT.output = o, QCT.theException = exc }) = case exc of
     Just se -> case fromException se of
-                 Just ex -> (ex :: AsyncException) `seq` TimeoutOrUserInterrupt
-                 _       -> DifferentValues o
-    Nothing -> DifferentValues o
-qcToResult (QCT.NoExpectedFailure { QCT.output = o }) = DifferentValues o
+                 Just ex -> (ex :: AsyncException) `seq` Timeout (show ex)
+                 _       -> TestFailure o
+    Nothing -> TestFailure o
+qcToResult (QCT.NoExpectedFailure { QCT.output = o }) = TestFailure o
 
-firstFailed :: [ TestingResult ] -> TestingResult
+firstFailed :: [ TestResult ] -> TestResult
 firstFailed = mconcat
 
-qcFirstFailed :: [ QCT.Result ] -> TestingResult
+qcFirstFailed :: [ QCT.Result ] -> TestResult
 qcFirstFailed = firstFailed . map qcToResult
 
 
-qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestingResult
+qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestResult
 qcRunProperties lim props = qcFirstFailed <$> mapM applyQC props
   where
     applyQC (AnyProperty p) = case lim of
@@ -152,3 +147,6 @@ instance Show a => Show (Wrapper a) where
 instance NFData a => NFData (Wrapper a) where
     rnf (OK a)  = rnf a
     rnf (Exc !e) = ()
+
+withTypeOf :: a -> a -> a
+withTypeOf = const

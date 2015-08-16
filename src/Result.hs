@@ -1,49 +1,33 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
-module Result
-    ( CResult ( .. )
-    , TestingResult ( .. )
-    , TypingResult ( .. )
-    ) where
+module Result ( TestResult(..), isSuccess ) where
 
 import Data.Monoid
-import Types.TypeExpression ( TypeExpression )
 import Data.Typeable ( Typeable )
 import Data.Data ( Data )
 
-data TestingResult
-    = WontCompile String
-    | ExceptionWhileTesting String
-    | NotTestable String
-    | TypesNotEqual TypingResult
-    | DifferentValues String
-    | Success
-    | TimeoutOrUserInterrupt
-    | TestError String
-    deriving ( Show, Typeable, Data )
+data TestResult = CompileError { emsg :: String }
+                  -- ^ error occured in compilation phase
+                | TypeError { emsg :: String }
+                  -- ^ error occured in typechcecking phase
+                | RuntimeError { emsg :: String }
+                  -- ^ an error encountered while running test this is NOT test
+                  -- failure, but unexpected behaviour, such as exception from
+                  -- testing functions
+                | Timeout { emsg :: String }
+                | TestFailure { emsg :: String }
+                  -- ^ failed testcase or other error reported by test suite
+                | Success -- ^ test passed
+                deriving ( Eq, Show, Read, Data, Typeable )
 
-data TypingResult
-    = TypesEqual TypeExpression
-    | CannotParse String
-    | NotEqual String
-    deriving ( Show, Typeable, Data )
+isSuccess :: TestResult -> Bool
+isSuccess Success = True
+isSuccess _ = False
 
-class CResult r where
-    isSuccess :: r -> Bool
-
-instance CResult TestingResult where
-    isSuccess Success = True
-    isSuccess _ = False
-
-instance CResult TypingResult where
-    isSuccess (TypesEqual _) = True
-    isSuccess _              = False
-
-instance Monoid TestingResult where
+instance Monoid TestResult where
     mempty = Success
     mappend Success y = y
     mappend x _       = x
-

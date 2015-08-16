@@ -3,31 +3,28 @@
 -- (c) 2014, 2015 Vladimír Štill
 
 module Types.Arguments
-    ( getTestableArguments
+    ( getTestableType
+    , getDegeneralizedTypes
     , degeneralize
-    , TestableArgument ( .. )
+    , buildTestExpression
     ) where
 
 import Control.Monad
 import Control.Applicative
-import Data.Maybe
-import Data.Either
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
+import Control.Arrow
+import Data.Bool
+import Data.Set ( Set, toList, fromList )
 import Types
-import Types.Processing
 import Types.Parser ( parseType )
 import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )
-
-data TestableArgument = TestableArgument
-    { qualifiedType :: TypeExpression
-    , bindGen       :: Int -> String -- lambda binding pattern generator
-    , varGen        :: Int -> String -- variable name generator
-    }
 
 -- | Note that polymorphic type (both uncostrained and constrained) can belong
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns
 -- always true.
-isTypeclass :: TypeExpression -> String -> Interpreter Bool
-isTypeclass (TypeExpression con ty) typeclass = do
+isTypeclass :: Type -> String -> Interpreter Bool
+isTypeclass ty typeclass = do
     tc <- typeChecks expr
     if not tc
         then return False
@@ -37,99 +34,64 @@ isTypeclass (TypeExpression con ty) typeclass = do
                   , " undefined :: ", typeclass, " a => a ]"
                   ]
 
-isEq = (`isTypeclass` "Eq")
-isArbitrary x = liftM2 (&&) (x `isTypeclass` "Arbitrary")  (x `isTypeclass` "Show")
+isTypeclasses :: Type -> [String] -> Interpreter Bool
+isTypeclasses ty = fmap and . mapM (ty `isTypeclass`)
 
+getDegeneralizedTypes :: TypeExpression -> ExceptT String Interpreter [Type]
+getDegeneralizedTypes = fmap degeneralize . getTestableType
 
--- | This function creates list of TestableArguments from (qualified, polymorphic)
--- type. Type can contain higher-order functions.
--- Result is either Left errorMessage if some of the agruments cannot meet
--- Arbitrary typeclass or result does not meet Eq.
--- If everything is OK, Right arguments will be returned, containing argument
--- descriptions for all arguments.
--- - All qualified types of argumens are fully simplified.
--- - Additional constraint for return type being Eq is added if return type is polymorphic
-getTestableArguments :: TypeExpression -> Interpreter (Either String [ TestableArgument ])
-getTestableArguments (TypeExpression con' typ) = isEq returnType >>= \x -> if x
-    then getTestableArguments' con arguments
-    else return . Left $ "Return type `" ++ formatType returnType ++ "' not member of Eq"
+getTestableType :: TypeExpression -> ExceptT String Interpreter TypeExpression
+getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
   where
-    returnType = normalize . TypeExpression con $ returnType'
-    (arguments, returnType') = functionTypes typ
+    finalize :: Set (TypeClass, [Type]) -> TypeExpression
+    finalize ctxnew = TypeExpression (TypeContext . toList $ ctxnew `mappend` fromList ctx) ty
+    
+    gtt :: Bool -> Type -> ExceptT String Interpreter (Set (TypeClass, [Type]))
+    gtt nested = foldArgumentsM funapp (arg nested)
+    funapp a b = return $ a `mappend` b
+    arg nested isret typ
+        | Just _ <- splitFunApp typ      = gtt True typ
+        | Just ts <- unwrapTupleType typ = mconcat <$> mapM (gtt True) ts
+        | Just t <- unwrapListType typ   = gtt True t
+        | TypeConstructor _ <- typ       = checkTestable
+        | TypeVariable var <- typ        = return $ mkTestable var
+        | otherwise                      = throwE $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
+      where
+        checkTestable = lift (isTypeclasses typ $
+                                ifL ["Eq"] (not nested && isret)
+                                ++ bool ["Arbitrary"] ["CoArbitrary", "Function"] (nested && not isret))
+                            >>= flip when (throwE ("Not testable: `" ++ formatType typ ++ "'."))
+                            >> return mempty
+        mkTestable var = fromList . map (, [TypeVariable var]) $
+              "Show" : bool ["Arbitrary"] [ "CoArbitrary", "Function" ] (nested && not isret)
+                     ++ ifL ["Eq"] (not nested && isret)
 
-    -- add extra Eq quantification for any type variable in result type
-    con :: TypeContext
-    con = if isPolymorphic returnType'
-            then TypeContext (map (("Eq", ) . (:[]) . TypeVariable) (typeVars returnType') ++ (\(TypeContext x) -> x) con')
-            else con'
+        ifL l True  = l
+        ifL _ False = []
 
-functionTypes :: Type -> ([Type], Type)
-functionTypes typ
-    | isJust (splitFunApp typ) = (init as, last as)
-    | otherwise = ([], typ)
+buildTestExpression :: String -> String -> Type -> Interpreter String
+buildTestExpression st so ty = do
+    (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
+    return . unwords $ "qcToResult (\\" : binds ++ [ "->", withWitness st ] ++ pars ++ [ "<==>", withWitness so ] ++ pars ++ [ ")" ]
   where
-    as = doargs typ
-    doargs t = case splitFunApp t of
-                  Nothing     -> [t] -- return type
-                  Just (a, b) -> a : doargs b
-
-getTestableArguments' :: TypeContext -> [ Type ] -> Interpreter (Either String [ TestableArgument ])
-getTestableArguments' con ts = fix <$> foldM accum (Right []) ts
-  where
-    accum done now =
-        let a  = argument now
-            at = qualifiedType a
-            b  = blind now
-            bt = qualifiedType b
-        in isArbitrary at >>= \arb -> isArbitrary bt >>= \bl ->
-            return $ case (arb || bl, arb, done) of
-                (True, True,  Right as) -> Right $ a : as
-                (True, False, Right as) -> Right $ b : as
-                (True,  _, Left msg) -> Left msg
-                (False, _, Right _)  -> Left $ msgof at
-                (False, _, Left msg) -> Left $ msg ++ ", " ++ msgof at
-    blind typ = let
-        qualifiedType = normalize $ TypeExpression con
-                          (TypeConstructor (TyCon "Blind") `TypeApplication` typ)
-        bindGen i = parens $ "Blind " ++ varGen i
-        varGen i  = "b" ++ show i
-        in TestableArgument { qualifiedType, bindGen, varGen }
-
-    argument typ 
-      | Just (a, b) <- splitFunApp typ = let
-            (par, re) = functionTypes typ
-            bindGen i = parens $ "Fun _" ++ show i ++ " f" ++ show i
-            in if length par == 1
-                then let
-                    qualifiedType = normalize $ TypeExpression con 
-                        ((TypeConstructor (TyCon "Fun") `TypeApplication` a) `TypeApplication` b)
-                    varGen i = "f" ++ show i
-                    in TestableArgument { qualifiedType, bindGen, varGen }
-                else let
-                    qualifiedType = normalize $ TypeExpression con
-                        ((TypeConstructor (TyCon "Fun") `TypeApplication` tupleType par) `TypeApplication` re)
-                    varGen i = "(gcurry f" ++ show i ++ ")"
-                    in TestableArgument { qualifiedType, bindGen, varGen }
-      | otherwise = let
-            qualifiedType = normalizeAndSimplify $ TypeExpression con typ
-            bindGen = parens . varGen
-            varGen i = "x" ++ show i
-            in TestableArgument { qualifiedType, bindGen, varGen }
-
-    msgof typ = "type `" ++ formatType typ ++ "' is not instance of Arbitrary class and cannot be tested" 
-
-    fix (Right xs) = Right $ reverse xs
-    fix l          = l
-
-    parens = ('(' :) . (++ ")")
+    withWitness fn = "((" ++ fn ++ ") `withTypeOf` (undefined :: " ++ formatType ty ++ "))"
+    arg :: String -> Type -> Interpreter (String, String)
+    arg i typ
+        | Just _ <- splitFunApp typ = return (bind, par)
+        | otherwise = bool ("(Blind " ++ xi ++ ")", xi) (xi, xi) <$> typ `isTypeclass` "Show"
+      where
+        docurry = (> 1) . length . fst $ functionTypes typ
+        bind = "(Fun _ f" ++ i ++ ")"
+        par = bool ("f" ++ i) ("(gcurry f" ++ i ++ ")") docurry
+        xi = "x" ++ i
 
 -- | This function generates monomorphic instances out of possibly polymorphic
 -- arguments
 --
 -- TODO: Actually select proper types and possibly generate more instances,
 -- not just degeneralize every type variable to Integer
-degeneralize :: TypeExpression -> [ TypeExpression ]
-degeneralize ty = [ ty // degenSubst ]
+degeneralize :: TypeExpression -> [ Type ]
+degeneralize ex@(TypeExpression _ ty) = [ ty // degenSubst ]
   where
     degenSubst = map (\x -> (x, TypeConstructor (TyCon "Integer"))) vars
-    vars = typeVars ty
+    vars = typeVars ex

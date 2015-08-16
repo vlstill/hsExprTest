@@ -11,9 +11,7 @@ module Types (
     , TypeClass
     , TypeVar
     , TypeConstr(..)
-    -- * katamorphisms and quieriing of types
-    , foldType
-    , isPolymorphic
+    -- *
     , CType(..)
     -- * substitution
     , Substitution
@@ -22,11 +20,24 @@ module Types (
     -- * Unification
     , unifyTypes
     -- * functions for construction and destruction of types
+    -- ** Folds
+    , foldType
+    , foldArguments
+    , foldArguments'
+    , foldArgumentsM
+    -- ** Type queriing
+    , isPolymorphic
     , splitFunApp
+    , functionTypes
+    , returnType
+    -- ** type construction
     , tupleType
+    , unwrapTupleType
+    , unwrapListType
     , (-->)
     -- * Comparing
     , expressionsEqual
+    , TypeOrdering (..)
     , compareTypes
     -- * Formating
     , FormatType ( formatType )
@@ -133,6 +144,38 @@ splitFunApp :: Type -> Maybe (Type, Type)
 splitFunApp ((TypeConstructor FunTyCon `TypeApplication` arg1) `TypeApplication` arg2) = Just (arg1, arg2)
 splitFunApp _ = Nothing
 
+-- | Return types of parameter and return type of functions
+functionTypes :: Type -> ([Type], Type)
+functionTypes typ = case foldArguments' (++) (:[]) typ of
+    [t] -> ([], t)
+    ts  -> (init ts, last ts)
+
+-- | Get return type of function
+returnType :: Type -> Type
+returnType = foldArguments' (flip const) id
+
+foldArguments :: (a -> a -> a) -- ^ (->) application
+              -> (Bool -> Type -> a)   -- ^ argument processing (Bool value
+                                       -- indicates if this is return type
+              -> Type -> a
+foldArguments fapp farg = go True
+  where
+    go isret ty
+      | Just (a, b) <- splitFunApp ty = go False a `fapp` go True b
+      | otherwise = farg isret ty
+
+-- | simplified version of 'foldArguments' which lacks indication of
+-- return type in second callback
+--
+-- @id = foldArguments' (-->) id
+foldArguments' :: (a -> a -> a) -> (Type -> a) -> Type -> a
+foldArguments' fapp farg = foldArguments fapp (const farg)
+
+foldArgumentsM :: Monad m => (a -> a -> m a)
+                          -> (Bool -> Type -> m a)
+                          -> Type -> m a
+foldArgumentsM fapp farg = foldArguments (\a b -> join $ liftM2 fapp a b) farg
+
 -- | Function arrow operator of symbolic types
 (-->) :: Type -> Type -> Type
 a --> b = (TypeConstructor FunTyCon `TypeApplication` a) `TypeApplication` b
@@ -143,6 +186,21 @@ tupleType :: [Type] -> Type
 tupleType args = foldl TypeApplication (TypeConstructor (TupleTyCon n)) args
   where
     n = length args
+
+-- | inversion of 'tupleType'
+unwrapTupleType :: Type -> Maybe [Type]
+unwrapTupleType = untuple []
+  where
+    untuple ts (TypeConstructor (TupleTyCon n))
+        | length ts == n = Just ts
+        | otherwise      = Nothing
+    untuple ts (TypeApplication r t) = untuple (t:ts) r
+    untuple _ _ = Nothing
+
+-- | if input type is of form @[a]@ return @a@, otherise @Nothing@
+unwrapListType :: Type -> Maybe Type
+unwrapListType (TypeApplication (TypeConstructor ListTyCon) t) = Just t
+unwrapListType _ = Nothing
 
 type Unification = (Substitution, Substitution)
 
