@@ -5,7 +5,7 @@ failed=""
 
 src=$(ls dist/hsExprTest-* | tail -n1)
 
-for i in current ghc783 ghc763 ghc742 ghc722 ghc704; do
+for i in current ghc784 ghc7101; do
     echo "Making $i"
 
     if nix-build -A $i --arg hsExprTestSrc $src; then
