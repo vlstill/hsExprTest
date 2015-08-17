@@ -1,6 +1,6 @@
 all : build
 
-build: sandbox
+build: .cabal-sandbox
 	cabal install
 	chmod +x wrap/hsExprTest.sh
 	ln -s wrap/hsExprTest.sh hsExprTest || true
@@ -37,9 +37,17 @@ nixcheck : sdist
 nixbuild : sdist
 	nix-build -A current --arg hsExprTestSrc $$(ls dist/hsExprTest-*.tar.gz | tail -n1)
 
-test : sandbox
+test : .cabal-sandbox
 	cabal install --only-dependencies --enable-tests
 	cabal configure --enable-tests
 	cabal install
 	chmod +x wrap/env.sh
 	./wrap/env.sh -c "cabal test --show-details=always"
+
+.cabal-sandbox/bin/haddock : .cabal-sandbox
+	cabal install haddock
+	touch $@
+		
+haddock : .cabal-sandbox/bin/haddock
+	cabal haddock --html --with-haddock=./.cabal-sandbox/bin/haddock
+	@echo "file://$$PWD/dist/doc/html/hsExprTest/index.html"
