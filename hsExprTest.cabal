@@ -84,7 +84,7 @@ Executable hsExprTestService
 Test-Suite types
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
-  main-is:          Types.hs
+  main-is:          types.hs
 
   build-depends:    base,
                     hsExprTest == 0.1.99,
@@ -94,7 +94,7 @@ Test-Suite types
 Test-Suite basic
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
-  main-is:          Basic.hs
+  main-is:          basic.hs
   other-modules:    Harness
 
   build-depends:    base,
@@ -104,7 +104,7 @@ Test-Suite basic
 Test-Suite security
   hs-source-dirs:   tests
   type:             exitcode-stdio-1.0
-  main-is:          Security.hs
+  main-is:          security.hs
   other-modules:    Harness
 
   build-depends:    base,

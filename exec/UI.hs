@@ -1,8 +1,5 @@
-{-# LANGUAGE FlexibleInstances
-           , MultiParamTypeClasses
-           , DeriveDataTypeable
-           , NamedFieldPuns
-           #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, DeriveDataTypeable 
+           , NamedFieldPuns, DisambiguateRecordFields #-}
 
 -- (c) 2012 Martin Jonáš
 -- (c) 2014 Vladimír Štill
@@ -17,11 +14,14 @@ import Data.List ( )
 import Data.Data
 import Data.Typeable
 import Control.Monad
+import Control.Arrow
 
 import System.Console.CmdLib
 
+import PrettyPrint
 import Result
-import qualified Testing as Testing
+import Types
+import qualified Testing as T
 
 data Main 
     = CompareTypes { student  :: String
@@ -32,9 +32,9 @@ data Main
                          , expressionName :: String
                          , limit          :: Maybe Int
                          }
-    | Testfile { student  :: String
-               , testfile :: FilePath
-               }
+--    | Testfile { student  :: String
+--               , testfile :: FilePath
+--               }
     deriving ( Typeable, Data, Eq, Show, Read )
 
 
@@ -44,7 +44,7 @@ instance Attributes Main where
 instance RecordCommand Main where
     mode_summary (CompareTypes { }) = "Compare types"
     mode_summary (CompareExpressions { }) = "Compare expressions"
-    mode_summary (Testfile { }) = "Test student's solution using given testfile"
+--    mode_summary (Testfile { }) = "Test student's solution using given testfile"
 
     rec_options (CompareTypes { }) = group "Compare types" [
         student            %> [ Help "student's answer", ArgHelp "TYPE", Required True ],
@@ -58,32 +58,34 @@ instance RecordCommand Main where
                               , Default (Nothing :: Maybe Int)
                               , Required False ]
       ]
-    rec_options (Testfile { }) = group "Run testfile" [
-        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
-        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
-      ]
+--    rec_options (Testfile { }) = group "Run testfile" [
+--        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
+--        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
+--      ]
 
     run' conf _ = runExpressionTester conf >>= \(success, msg) -> do
         putStrLn msg
         if success then exitSuccess else exitWith (ExitFailure 32)
 
 runExpressionTester :: Main -> IO (Bool, String)
-runExpressionTester (CompareTypes { student, solution }) = do
-    let result = Testing.testTypeEquality solution student
-    return (isSuccess result, if isSuccess result then "OK" else "FAILED: " ++ show result)
+runExpressionTester (CompareTypes { student, solution }) =
+    fmap formatResult . T.runTest $ T.CompareTypes { student, solution
+                                         , typecheckMode = T.RequireTypeOrdering [ Equal ]
+                                         , compareMode = T.FullComparison
+                                         }
 
 runExpressionTester (CompareExpressions { student, solution, expressionName, limit }) =
-    Testing.compareExpressions limit expressionName solution student >>= return . formatResult
+    fmap formatResult . T.runTest $
+        T.CompareExpressions { limit, expressionName, solution, student
+                             , typecheckMode = T.RequireTypeOrdering [ Equal ]
+                             , compareMode = T.FullComparison
+                             }
 
-runExpressionTester (Testfile { student, testfile }) =
-    Testing.runTestfile testfile student >>= return . formatResult
+-- runExpressionTester (Testfile { student, testfile }) =
+--    Testing.runTestfile testfile student >>= return . formatResult
 
-formatResult :: TestingResult -> (Bool, String)
-formatResult (WontCompile m)     = (False, m)
-formatResult (DifferentValues v) = (False, "DifferentValues: " ++ v)
-formatResult (ExceptionWhileTesting ex) = (False, "ExceptionWhileTesting: " ++ ex)
-formatResult Success             = (True, "OK")
-formatResult result              = (isSuccess result, show result)
+formatResult :: TestResult -> (Bool, String)
+formatResult = isSuccess &&& pp
 
 -- | Main function, behaves differently according to the command line arguments
 runUI :: [ String ] -> IO ()

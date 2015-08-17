@@ -7,7 +7,9 @@ module Result ( TestResult(..), isSuccess ) where
 
 import Data.Monoid
 import Data.Typeable ( Typeable )
-import Data.Data ( Data )
+import Data.Data
+import PrettyPrint
+import Data.List
 
 data TestResult = CompileError { emsg :: String }
                   -- ^ error occured in compilation phase
@@ -31,3 +33,10 @@ instance Monoid TestResult where
     mempty = Success
     mappend Success y = y
     mappend x _       = x
+
+instance PrettyPrint TestResult where
+    pp Success = "Test passed"
+    pp r = "Test failed: " ++ typ ++ ":\n" ++ indent (emsg r)
+      where
+        typ = show $ toConstr r
+        indent = unlines . map ("    " ++) . lines

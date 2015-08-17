@@ -18,6 +18,7 @@ module Testing.Test (
     , qcToResult
     , qcFirstFailed
     , qcRunProperties
+    , qcRunProperty
     , (<==>)
     -- * Utility
     , AnyProperty ( AnyProperty )
@@ -39,8 +40,6 @@ import Test.QuickCheck ( Testable )
 import Data.Monoid
 import Data.List
 import Data.Typeable
-import Testing.DataTypes
-import Testing.Limiting
 import Control.Concurrent
 import Control.Exception
 import Control.Applicative
@@ -93,21 +92,22 @@ firstFailed = mconcat
 qcFirstFailed :: [ QCT.Result ] -> TestResult
 qcFirstFailed = firstFailed . map qcToResult
 
-
 qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestResult
-qcRunProperties lim props = qcFirstFailed <$> mapM applyQC props
+qcRunProperties lim props = firstFailed <$> mapM (qcRunProperty lim) props
+
+qcRunProperty :: Maybe Int -> AnyProperty -> IO TestResult
+qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
+    Nothing -> QCT.quickCheckWithResult args p
+    Just limit -> do
+        -- we are throwing UserInterrupt because it is the only exception
+        -- which does not allow shrinking in QuickCheck (which is very
+        -- important, as shirinking for example f = f will never end)
+        -- also QuickCheck's within does not work either
+        pid <- myThreadId
+        bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
+                killThread
+                (const (QCT.quickCheckWithResult args p))
   where
-    applyQC (AnyProperty p) = case lim of
-        Nothing -> QCT.quickCheckWithResult args p
-        Just limit -> do
-            -- we are throwing UserInterrupt because it is the only exception
-            -- which does not allow shrinking in QuickCheck (which is very
-            -- important, as shirinking for example f = f will never end)
-            -- also QuickCheck's within does not work either
-            pid <- myThreadId
-            bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
-                    killThread
-                    (const (QCT.quickCheckWithResult args p))
     args = QCT.stdArgs { QCT.chatty = False
                        , QCT.maxSuccess = 1000
                        }
@@ -116,20 +116,20 @@ qcRunProperties lim props = qcFirstFailed <$> mapM applyQC props
 infix 4 <==>
 x <==> y = x `comp` y
   where
-    wrap x = unsafePerformIO $ (return . OK $!! x) `catch` handler
+    wrap v = unsafePerformIO $ (return . OK $!! v) `catch` handler
     handler se@(SomeException e) = case fromException se of
         Just ae -> throw (ae :: AsyncException)
         Nothing -> if "<<timeout>>" `isInfixOf` show e
                         then throw e
                         else return (Exc e)
-    comp x0 y0 = QC.counterexample (sx ++ " /= " ++ sy) (x == y)
+    comp x0 y0 = QC.counterexample (sx ++ " /= " ++ sy) (wx == wy)
       where
-        x = wrap x0
-        y = wrap y0
-        sx = unwrap . wrap $ show x
-        sy = unwrap . wrap $ show y
+        wx = wrap x0
+        wy = wrap y0
+        sx = unwrap . wrap $ show wx
+        sy = unwrap . wrap $ show wy
     unwrap  (OK str) = str
-    unwrap x@(Exc _) = show x
+    unwrap ex@(Exc _) = show ex
 
 data Wrapper a
     = OK a

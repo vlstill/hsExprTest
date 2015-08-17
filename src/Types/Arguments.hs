@@ -55,12 +55,14 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         | Just t <- unwrapListType typ   = gtt True t
         | TypeConstructor _ <- typ       = checkTestable
         | TypeVariable var <- typ        = return $ mkTestable var
+        | Just (TyCon _, args) <- splitConApp typ
+                                         = (mconcat <$> mapM (gtt True) args) >>= \x -> checkTestable >> return x
         | otherwise                      = throwE $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
       where
         checkTestable = lift (isTypeclasses typ $
                                 ifL ["Eq"] (not nested && isret)
                                 ++ bool ["Arbitrary"] ["CoArbitrary", "Function"] (nested && not isret))
-                            >>= flip when (throwE ("Not testable: `" ++ formatType typ ++ "'."))
+                            >>= flip when (throwE ("Not testable: `" ++ formatType typ ++ "'.")) . not
                             >> return mempty
         mkTestable var = fromList . map (, [TypeVariable var]) $
               "Show" : bool ["Arbitrary"] [ "CoArbitrary", "Function" ] (nested && not isret)
@@ -72,17 +74,21 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
 buildTestExpression :: String -> String -> Type -> Interpreter String
 buildTestExpression st so ty = do
     (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
-    return . unwords $ "qcToResult (\\" : binds ++ [ "->", withWitness st ] ++ pars ++ [ "<==>", withWitness so ] ++ pars ++ [ ")" ]
+    return . unwords $ "AnyProperty (\\" : binds ++ [ "->", withWitness st ] ++
+                       pars ++ [ "<==>", withWitness so ] ++ pars ++ [ ")" ]
   where
     withWitness fn = "((" ++ fn ++ ") `withTypeOf` (undefined :: " ++ formatType ty ++ "))"
     arg :: String -> Type -> Interpreter (String, String)
     arg i typ
-        | Just _ <- splitFunApp typ = return (bind, par)
+        | isHigherOrderFunction typ = return (bindBF, parF)
+        | isFunction typ            = return (bindF, parF)
         | otherwise = bool ("(Blind " ++ xi ++ ")", xi) (xi, xi) <$> typ `isTypeclass` "Show"
       where
         docurry = (> 1) . length . fst $ functionTypes typ
-        bind = "(Fun _ f" ++ i ++ ")"
-        par = bool ("f" ++ i) ("(gcurry f" ++ i ++ ")") docurry
+        bindF = "(Fun _ f" ++ i ++ ")"
+        bindBF = "(Blind f" ++ i ++ ")"
+        parF = bool ("f" ++ i) ("(gcurry (f" ++ i ++ " :: " ++ formatType tftype ++ "))") docurry
+        tftype = uncurry (-->) . first tupleType . functionTypes $ typ
         xi = "x" ++ i
 
 -- | This function generates monomorphic instances out of possibly polymorphic

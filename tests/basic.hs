@@ -12,17 +12,17 @@ main = runTests $
     
     -- , ("f x = x . ((.).)", "f = (.((.).))", "f", Success)
       ("f m n = m `mod` n", "f = mod", "f", Success)
-    , ("f _ 0 = 0; f m n = m `mod` n", "f = mod", "f", DifferentValues ignored )
+    , ("f _ 0 = 0; f m n = m `mod` n", "f = mod", "f", TestFailure ignored )
 
     -- generate noncomutative functions
     , ( "f :: (a -> a -> a) -> a -> [a] -> a; f = foldl"
       , "f :: (a -> a -> a) -> a -> [a] -> a; f = foldr"
-      , "f", DifferentValues ignored
+      , "f", TestFailure ignored
       )
     -- indentation
     , ( "f :: a -> a -> a\nf x y = y"
       , "f :: a -> a -> a\nf = const"
-      , "f", DifferentValues ignored
+      , "f", TestFailure ignored
       )
     -- monomorphism restriction
     , ( "f x = x", "f = id", "f", Success )
@@ -36,10 +36,10 @@ main = runTests $
       , "f", Success
       )
     -- type mismatch
-    , ( "f = const", "f :: a -> a -> a; f = undefined", "f", TypesNotEqual ignored )
+    , ( "f = const", "f :: a -> a -> a; f = undefined", "f", TypeError ignored )
     -- no IO supported
     , ( "f :: Int -> IO Int; f x = return x", "f :: Int -> IO Int; f = return"
-      , "f", NotTestable ignored
+      , "f", RuntimeError ignored
       )
     -- wrapped function
     , ( "f :: Maybe (a -> a) -> a -> a; f Nothing x = x; f (Just g) x = g x"
@@ -67,10 +67,10 @@ main = runTests $
       , "_rev :: [a] -> [a]; _rev = reverse", "_rev", Success
       )
     -- and some noequivalent
-    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b) (flip (:)) []", "_rev = reverse", "_rev", WontCompile ignored )
-    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b)(:) []", "_rev = reverse", "_rev", DifferentValues ignored )
+    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b) (flip (:)) []", "_rev = reverse", "_rev", CompileError ignored )
+    , ( "_rev = (foldr :: (a -> b -> b) -> b -> [a] -> b)(:) []", "_rev = reverse", "_rev", TestFailure ignored )
     , ( "_rev (x:xs) = (foldl :: (b -> a -> b) -> b -> [a] -> b) (flip (:)) [x] xs"
-      , "_rev = reverse", "_rev", DifferentValues ignored
+      , "_rev = reverse", "_rev", TestFailure ignored
       ) -- (exceptions for [])
     -- exception handling
     , ( unlines [ "binmap :: (a -> a -> b) -> [a] -> [b]"
@@ -79,5 +79,5 @@ main = runTests $
                 , "binmap f (x:y:xs) = f x y : binmap f xs" ]
       , unlines [ "binmap :: (a -> a -> b) -> [a] -> [b]"
                 , "binmap f (x:y:xs) = f x y : binmap f xs" ]
-      , "binmap", DifferentValues ignored )
+      , "binmap", TestFailure ignored )
     ]

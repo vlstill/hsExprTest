@@ -11,7 +11,6 @@ module Files (
 
 import System.IO
 import System.IO.Temp
-import System.Directory
 import System.FilePath
 
 newtype FileContext = FileContext { getContext :: FilePath }

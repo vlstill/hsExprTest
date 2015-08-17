@@ -27,7 +27,10 @@ module Types (
     , foldArgumentsM
     -- ** Type queriing
     , isPolymorphic
+    , isFunction
+    , isHigherOrderFunction
     , splitFunApp
+    , splitConApp
     , functionTypes
     , returnType
     -- ** type construction
@@ -55,7 +58,9 @@ import Data.Typeable ( Typeable )
 import Data.Function ( on )
 
 -- | Data type TypeExpression represents parsed type expression
-data TypeExpression = TypeExpression TypeContext Type
+data TypeExpression = TypeExpression { getTypeContext :: TypeContext
+                                     , getType :: Type
+                                     }
     deriving ( Show, Typeable, Data )
 
 -- | Data type TypeContext represents parsed type context
@@ -93,6 +98,14 @@ foldType tyApp tyCon tyVar = ftgo
 
 isPolymorphic :: Type -> Bool
 isPolymorphic = foldType (||) (const False) (const True)
+
+isFunction :: Type -> Bool
+isFunction fn
+    | Just _ <- splitFunApp fn = True
+    | otherwise = False
+
+isHigherOrderFunction :: Type -> Bool
+isHigherOrderFunction = any isFunction . fst . functionTypes
 
 type Substitution = [(TypeVar, Type)]
 
@@ -144,6 +157,14 @@ splitFunApp :: Type -> Maybe (Type, Type)
 splitFunApp ((TypeConstructor FunTyCon `TypeApplication` arg1) `TypeApplication` arg2) = Just (arg1, arg2)
 splitFunApp _ = Nothing
 
+-- | split type constructor application
+splitConApp :: Type -> Maybe (TypeConstr, [Type])
+splitConApp (TypeConstructor con) = Just (con, [])
+splitConApp (TypeApplication a b)
+    | Just (con, ts) <- splitConApp a = Just (con, ts ++ [b])
+    | otherwise = Nothing
+splitConApp _ = Nothing
+
 -- | Return types of parameter and return type of functions
 functionTypes :: Type -> ([Type], Type)
 functionTypes typ = case foldArguments' (++) (:[]) typ of
@@ -158,11 +179,11 @@ foldArguments :: (a -> a -> a) -- ^ (->) application
               -> (Bool -> Type -> a)   -- ^ argument processing (Bool value
                                        -- indicates if this is return type
               -> Type -> a
-foldArguments fapp farg = go True
+foldArguments fapp farg = go
   where
-    go isret ty
-      | Just (a, b) <- splitFunApp ty = go False a `fapp` go True b
-      | otherwise = farg isret ty
+    go ty
+      | Just (a, b) <- splitFunApp ty = farg False a `fapp` go b
+      | otherwise = farg True ty
 
 -- | simplified version of 'foldArguments' which lacks indication of
 -- return type in second callback
@@ -174,7 +195,7 @@ foldArguments' fapp farg = foldArguments fapp (const farg)
 foldArgumentsM :: Monad m => (a -> a -> m a)
                           -> (Bool -> Type -> m a)
                           -> Type -> m a
-foldArgumentsM fapp farg = foldArguments (\a b -> join $ liftM2 fapp a b) farg
+foldArgumentsM fapp = foldArguments (\a b -> join $ liftM2 fapp a b)
 
 -- | Function arrow operator of symbolic types
 (-->) :: Type -> Type -> Type

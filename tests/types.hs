@@ -5,7 +5,7 @@ import Control.Applicative
 import System.Exit
 
 import Types.Parser
-import Types.Formating
+import Types
 
 main = bool exitFailure exitSuccess . and =<< mapM runTest
        [ "a", "b", "blabla", "blaBla", "Int", "Double", "BlaBla"

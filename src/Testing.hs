@@ -1,181 +1,167 @@
-{-# LANGUAGE StandaloneDeriving
-           , DeriveDataTypeable
-           #-}
+{-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, NamedFieldPuns
+           , TupleSections, LambdaCase, MultiWayIf #-}
 
 -- (c) 2012 Martin Jonáš
 -- (c) 2014, 2015 Vladimír Štill
 
-module Testing where
+module Testing (
+      Test(..)
+    , Typecheck(..)
+    , CompareMode(..)
+    , runTest
+    ) where
 
 import Control.Arrow
 import Control.Concurrent
 import Control.Exception
 import Control.Applicative
+import Control.Monad
+import Control.Monad.Trans.Except
 
-import System.Directory
 import Data.List
-import Text.Printf
-import Data.Typeable hiding (typeOf)
-import qualified Data.Typeable as T
+import Data.Typeable ( Typeable )
 
-import qualified Test.QuickCheck as QC
-import qualified Test.QuickCheck.Test as QCT
+import qualified Test.QuickCheck as QC ( Result )
+import Testing.Test ( qcRunProperty, AnyProperty )
 
 import Language.Haskell.Interpreter hiding ( WontCompile )
 import qualified Language.Haskell.Interpreter as I
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 
 import Types.Parser
-import Types.Processing
-import Types.Comparing ( compareTypes )
-import Types.TypeExpression
+import Types
 import Types.Arguments
-import Types.Formating ( formatType )
 import Files
 import Result
-import Testing.Test ( qcRunProperties, AnyProperty, TestConfig ( .. ), Test ( .. ), ExpectedType ( .. ) )
+import PrettyPrint
 
 deriving instance Typeable QC.Result
 
--- | Function compareExpressions compares two expressions using QuickCheck and return result as IO String
-compareExpressions :: Maybe Int -> String -> String -> String -> IO TestingResult
-compareExpressions = testFiles testExpressionValues
+data Typecheck = NoTypecheck -- ^ do not perform any typechecking step
+               | RequireTypeOrdering [TypeOrdering]
+               -- ^ require that student type compared to solution type satisfies
+               -- one of given ordering, for example:
+               -- @RequireTypeOrdering ['Equal', 'MoreGeneral']@ means that
+               -- student's type must be equal or more general then solution's
+               deriving (Eq, Read, Show)
 
--- | Function testFiles creates two testing modules containing student and solution expressions and runs given interpreter on those modules.
-testFiles :: (Maybe Int -> String -> String -> String -> Interpreter TestingResult)
-          -> Maybe Int -> String -> String -> String -> IO TestingResult
-testFiles interpreter limit expression solution student =
-    bracket (createSolutionFile solution) removeFile $ \solutionFile ->
-        bracket (createStudentFile student) removeFile $ \studentFile ->
-            run $ interpreter limit expression solutionFile studentFile
+-- | Specify what should be output from comparison
+data CompareMode = JustCompile -- ^ run just compilation (type parsing for type comparison)
+                 | CompileAndTypecheck -- ^ run compilation and typechecking
+                 | FullComparison -- ^ perform full test
+                 deriving (Eq, Read, Show)
 
--- | Function testTypeEquality compares two given type expressions.
-testTypeEquality :: String -> String -> TypingResult
-testTypeEquality solution student =
-    case (parsedSolutionType, parsedStudentType) of
-        (Right a, Right b) -> a `compareTypes` b
-        (_, Left _) -> CannotParse student
-        (Left _, _) -> CannotParse solution
-    where
-        parsedSolutionType = parseType solution
-        parsedStudentType = parseType student
+-- | Test definition
+data Test
+    -- | compare expressions of given name, optionally with time limit
+    -- (in milliseconds), following actions are performed:
+    --
+    -- 1. compilation
+    -- 2. type comparison, if @typecheckMode@ is not 'TypecheckDisable'
+    -- 3. execution of test
+    = CompareExpressions { student        :: String
+                         , solution       :: String
+                         , expressionName :: String
+                         , limit          :: Maybe Int
+                         , typecheckMode  :: Typecheck
+                         , compareMode    :: CompareMode
+                         }
+    -- | compare types by given specification (if @'NoTypecheck'@ is given,
+    -- just parse types and return parse errors).
+    | CompareTypes { student       :: String
+                   , solution      :: String
+                   , typecheckMode :: Typecheck
+                   , compareMode   :: CompareMode
+                   }
 
-setupInterpreter :: [ String ] -- ^ Modules
-                 -> [ (String, Maybe String) ] -- ^ optionally qualified imports
-                 -> Interpreter ()
-setupInterpreter mod imports = do
-    set [ installedModulesInScope := True -- this seems to only affect interactive,
-                                          -- not solutions in file
-                                          -- also it is needed to make instances available
-        ]
-    loadModules mod
-    setImportsQ $ [ ("Prelude", Nothing)
-                  , ("Data.Word", Nothing)
-                  , ("Data.Int", Nothing)
-                  , ("Test.QuickCheck", Nothing)
-                  , ("Test.QuickCheck.Modifiers", Nothing)
-                  , ("Test.QuickCheck.Arbitrary", Nothing)
-                  , ("Testing.Test", Nothing)
-                  , ("Types.Curry", Nothing)
-                  ] ++ imports
+runTest :: Test -> IO TestResult
+runTest (CompareTypes { student, solution, typecheckMode, compareMode }) =
+    return $ compareTypesCmd student solution typecheckMode compareMode
 
--- | Function testExpressionValues is the main function of this module. It performs nearly all the useful work and almost all functions use it internally.
--- | This function compares given expressions within given time bounds and returns interpreter, which can be executed.
-testExpressionValues :: Maybe Int -> String -> String -> String -> Interpreter TestingResult
-testExpressionValues limit expression solutionFile studentFile = do
-    setupInterpreter [ solutionFile, studentFile ]
-                     [ ("Student", Just "Student")
-                     , ("Solution", Just "Solution")
-                     ]
-    solutionType <- typeOf ("Solution." ++ expression)
-    studentType <- typeOf ("Student." ++ expression)
-    case testTypeEquality solutionType studentType of
-        TypesEqual exprType -> do
-            rta <- sequence <$> mapM getTestableArguments (degeneralize exprType)
-            flip (either (return . NotTestable)) rta $ \ta -> do
-                let testExpression = createTestExpression expression ta
-                liftIO $ putStrLn testExpression
-                props <- interpret testExpression (as :: [ AnyProperty ])
-                liftIO $ qcRunProperties limit props
-        r -> return (TypesNotEqual r)
-
--- | Function createTestExpressions creates one string test expression from two function expressions.
--- | It creates lambda expression by prepending correct number of arguments and comparing result of given functions when applied to those arguments.
--- | Generated lambda expression also contains time limitation computed by function createLimits
-createTestExpression :: String -> [[TestableArgument]] -> String
-createTestExpression expression arguments = wrap . map property $ arguments
+runTest (CompareExpressions { student, solution, expressionName, limit, typecheckMode, compareMode }) =
+    withContext $ \c -> do
+        studf <- createStudentFile c student
+        solf <- createSolutionFile c solution
+        withInterpreter c [ studf, solf ] [ importQ "Student", importQ "Solution" ] $ do
+            sttype <- typeOf stexpr
+            sotype <- typeOf soexpr
+            case compareTypesCmd sttype sotype typecheckMode compareMode of
+                Success -> if compareMode == FullComparison
+                    then compare sttype sotype
+                    else return Success
+                r -> return r
   where
-    wrap = ('[' :) . (++ "]") . intercalate ", "
-    property :: [ TestableArgument ] -> String
-    property []   = "AnyProperty (Solution." ++ expression ++ " <==> Student." ++ expression ++ ")"
-    property args = concat [ "AnyProperty (\\", unwords (params args), " -> "
-                           , "(Just (", intercalate ", " (params args), ") :: ", types args, ")"
-                           , " `seq` (Solution.", expr args, " <==> Student.", expr args, ") )"
-                           ]
+    stexpr = "Student." ++ expressionName
+    soexpr = "Solution." ++ expressionName
 
-    params = flip (zipWith bindGen) [1..]
-    expr = unwords . (expression :) . flip (zipWith varGen) [1..]
-    types = map qualifiedType >>>
-            foldr (\(TypeExpression (TypeContext []) ty1) tys -> ty1 : tys) [] >>>
-            tupleType >>>
-            TypeApplication (TypeConstructor (TyCon "Maybe")) >>>
-            formatType
+    compare :: String -> String -> Interpreter TestResult
+    compare sttype0 sotype0 = runExceptT (getDegeneralizedTypes comtype) >>= \case
+        Right testtypes -> mconcat <$> mapM test testtypes
+        Left emsg       -> return . RuntimeError $ emsg
+      where
+        -- this is after typechecking, so type parsing and unification
+        -- must succeed
+        Right sttype = parseType sttype0
+        Right sotype = parseType sotype0
+        Right mgu = unifyTypes (getType sttype) (getType sotype)
+        comtype = sttype // fst mgu
 
-runTestfile :: FilePath -> String -> IO TestingResult
-runTestfile testfile student = do
-    studentFile <- createStudentFile student
-    result <- run $ runTestfile' testfile studentFile
-    removeFile studentFile
-    return result
+    test testtype = do
+        expr <- buildTestExpression stexpr soexpr testtype
+        prop <- interpret expr (as :: AnyProperty)
+        liftIO $ qcRunProperty limit prop
 
-runTestfile' :: FilePath -> FilePath -> Interpreter TestingResult
-runTestfile' test student = do
-    setupInterpreter [ test, student ] [ ("Student", Just "Student" ), ("Test", Nothing) ]
-    config <- interpret "testConfig" (as :: TestConfig)
-    solType <- case expectedType config of
-        None        -> return ""
-        TypeOf expr -> typeOf expr
-        Fixed t     -> return t
-    case solType of
-        "" -> runTest config
-        _  -> do
-            studType <- typeOf $ "Student." ++ studentExpression config
-            case testTypeEquality solType studType of
-                TypesEqual _ -> runTest config
-                r -> return $ TypesNotEqual r
-
-runTest :: TestConfig -> Interpreter TestingResult
-runTest TestConfig { test = TestEntry entry }  = typeOf entry >>= \t ->
-    case (t == showType (infer :: TestingResult), t == showType (infer :: IO TestingResult) ) of
-        (True, _) -> interpret entry (as :: TestingResult)
-        (_, True) -> interpret entry (as :: IO TestingResult) >>= liftIO
-runTest TestConfig { test = Properties props } = liftIO $ qcRunProperties Nothing props -- TODO: limit
-
-showType :: Typeable a => a -> String
-showType = show . T.typeOf
-
-
--- | Function run is convinience function which executes the interpreter and returns the result.
-run :: Interpreter TestingResult -> IO TestingResult
-run interpreter = do
-    r <- try $ unsafeRunInterpreterWithArgs args interpreter
-    case r of
-        Left (SomeException se) -> return $ ExceptionWhileTesting (show se)
-        Right (Left error) -> case error of
-            I.UnknownError str -> ce $ "Unknown error: " ++ str
-            I.NotAllowed  str  -> ce $ "Not allowed: " ++ str
-            I.GhcException str -> ce $ "GHC exception: " ++ str
-            I.WontCompile list -> ce $ "Compilation error:\n" ++ (unlines . nub . map I.errMsg) list
-        Right (Right result) -> return result
+compareTypesCmd :: String -> String -> Typecheck -> CompareMode -> TestResult
+compareTypesCmd student solution typecheckMode compareMode =
+    case (parseType student, parseType solution) of
+        (Left ste, Left soe) -> CompileError $ "Parse error: " ++ perr "student" ste ++
+                                  ", " ++ perr "solution" soe ++ "."
+        (Left ste, _) -> CompileError $ "Parse error: " ++ perr "student" ste ++ "."
+        (_, Left soe) -> CompileError $ "Parse error: " ++ perr "solution" soe ++ "."
+        (Right stt, Right sot) ->
+            if | compareMode == JustCompile || typecheckMode == NoTypecheck -> Success
+               | result `elem` required -> Success
+               | otherwise -> TypeError $ "Expected one of " ++ show required ++
+                                  " but got " ++ show result ++ " (" ++ message ++ ")."
+            where
+              RequireTypeOrdering required = typecheckMode
+              (result, message) = compareTypes stt sot
   where
-    ce = return . WontCompile
+    perr who what = "could not parse " ++ who ++ " type: `" ++ pp what ++ "'"
+
+importQ :: String -> (String, Maybe String)
+importQ m = (m, Just m)
+
+withInterpreter :: FileContext -> [FilePath] -> [(String, Maybe String)]
+                -> Interpreter TestResult -> IO TestResult
+withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterpreterWithArgs args $ do
+    -- this seems to only affect interactive, not solutions in file also it is
+    -- needed to make instances available
+    set [ installedModulesInScope := True ]
+    loadModules modules
+    setImportsQ $ map (, Nothing) [ "Prelude", "Data.Word", "Data.Int"
+                                   , "Test.QuickCheck", "Test.QuickCheck.Modifiers"
+                                   , "Test.QuickCheck.Arbitrary", "Testing.Test"
+                                   , "Types.Curry", "Control.DeepSeq" ]
+                  ++ imports
+    action
+  where
+    output (Left (SomeException ex)) = RuntimeError (show ex)
+    output (Right (Left err)) = case err of
+        I.UnknownError str -> RuntimeError $ "Unknown error: " ++ str
+        I.NotAllowed  str  -> RuntimeError $ "Not allowed: " ++ str
+        I.GhcException str -> RuntimeError $ "GHC exception: " ++ str
+        I.WontCompile list -> CompileError . unlines . nub . map I.errMsg $ list
+    output (Right (Right result)) = result
     args = pkgs ++ extra
     -- NOTE: it would seem better to use HINT's set feature to set language
     -- extensions (and it would be type safe) but there is bug somewhere
     -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
-    extra = [ "-XNoMonomorphismRestriction", "-XDeriveDataTypeable"
-            , "-XStandaloneDeriving", "-Werror" ]
+    extra = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
+            , "-XDeriveDataTypeable"
+            , "-XStandaloneDeriving"
+            , "-Werror", "-i" ++ getContext ctx ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 
