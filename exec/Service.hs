@@ -5,13 +5,11 @@ module Main ( main ) where
 
 import UI
 
-import Prelude hiding ( catch )
-
 import Control.Exception
 import Control.Arrow
 
 import System.Environment ( getArgs )
-import System.IO.Error hiding ( catch )
+import System.IO.Error
 import System.Directory
 import System.Exit
 import System.IO
@@ -24,7 +22,6 @@ import Network.Socket
 import Text.Read ( readEither )
 import Data.Char
 import Data.Typeable ( typeOf )
-import Data.Either
 import Data.Maybe
 import Data.Monoid
 import Data.Bits ( (.|.) )
@@ -44,6 +41,7 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
             | isDoesNotExistError e = return ()
             | otherwise = throwIO e
 
+defaultsock, defaultqdir :: FilePath
 defaultsock = "/var/lib/checker/socket"
 defaultqdir = "/var/lib/checker/qdir"
 
@@ -58,6 +56,7 @@ main = getArgs >>= \args -> case args of
   [ sockaddr, qdir ] -> runSocket sockaddr qdir
   [ sockaddr ]       -> runSocket sockaddr defaultqdir
   []                 -> runSocket defaultsock defaultqdir
+  _                  -> error "usage: hsExprTestService [ sockaddr [ qdir ] ]"
 
 
 runSocket :: FilePath -> FilePath -> IO ()
@@ -182,11 +181,6 @@ parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fma
     parseContent :: String -> Either String String
     parseContent ('S':qs) = Right qs
     parseContent _        = Left "Expected 'S'. "
-
-    parseContentLen (Right (len, cont)) =
-        if length cont == len then Right cont
-            else Left $ "Wrong content length, expected " ++ show len ++ " got " ++ show (length cont) ++ ". "
-    parseContentLen (Left msg) = Left msg
 
     toQuery (transactId, (questionId, content)) = Query { transactId, questionId, content }
 parseQ _ = Left "Expected 'I' at the beginning. "

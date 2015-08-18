@@ -6,10 +6,8 @@
 module Result ( TestResult(..), isSuccess ) where
 
 import Data.Monoid
-import Data.Typeable ( Typeable )
 import Data.Data
 import PrettyPrint
-import Data.List
 
 data TestResult = CompileError { emsg :: String }
                   -- ^ error occured in compilation phase

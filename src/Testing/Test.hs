@@ -35,7 +35,6 @@ import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
 import Test.QuickCheck.Arbitrary ( Arbitrary, CoArbitrary )
 import Test.QuickCheck.Function ( Function, Fun ( Fun ) )
-import Control.Monad ( mapM )
 import Test.QuickCheck ( Testable )
 import Data.Monoid
 import Data.List
@@ -44,7 +43,6 @@ import Control.Concurrent
 import Control.Exception
 import Control.Applicative
 
-import Prelude hiding ( catch )
 import System.IO.Unsafe ( unsafePerformIO )
 import Control.DeepSeq
 

@@ -5,7 +5,6 @@
 module Testing.DataTypes (Nat(..), BinaryTree(..)) where
 
 import Test.QuickCheck
-import Test.QuickCheck.Arbitrary
 import Control.Monad
 import Testing.Limiting
 
@@ -47,6 +46,7 @@ arbitraryBinaryTree 0 = return Empty
 arbitraryBinaryTree n
     | n > 0 = frequency [(1, return Empty),
                          (4, liftM3 BinaryNode arbitrary (arbitraryBinaryTree (n `div`2)) (arbitraryBinaryTree (n `div`2)))]
+    | otherwise = error "arbitraryBinaryTree: Negative value"
 
 -- | Function binaryTreeNodes returns total number of nodes in given binary tree.
 binaryTreeNodes :: BinaryTree a -> Int

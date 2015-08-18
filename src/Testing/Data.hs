@@ -38,8 +38,8 @@ reflectData witness = DataDecl name ctors
     rep = dataTypeRep typ
     name = tyconUQname $ dataTypeName typ
     ctors = case rep of
-        AlgRep ctors -> map (conVal >>> reflectCtor) ctors
-        other        -> error "Not ADT"
+        AlgRep c -> map (conVal >>> reflectCtor) c
+        _        -> error "Not ADT"
     conVal :: Constr -> a
     conVal = fromConstr
 
@@ -65,10 +65,6 @@ constrArgsNames _ con = conArgsNames (fromConstr con :: witness)
 
 reflectCtor :: Data a => a -> DataCon
 reflectCtor witness = DataCon (showConstr (toConstr witness)) (conArgsNames witness)
-
-showCtorDecl :: Data a => a -> String
-showCtorDecl witness = showCon $ reflectCtor witness
-
 
 canonizeData :: DataDecl -> DataDecl
 canonizeData (DataDecl tyCon daCons) = DataDecl tyCon (sort daCons)

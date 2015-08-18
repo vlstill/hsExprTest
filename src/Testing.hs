@@ -11,11 +11,8 @@ module Testing (
     , runTest
     ) where
 
-import Control.Arrow
-import Control.Concurrent
 import Control.Exception
 import Control.Applicative
-import Control.Monad
 import Control.Monad.Trans.Error
 
 import Data.Monoid
@@ -23,14 +20,13 @@ import Data.List
 import Data.Typeable ( Typeable )
 
 import qualified Test.QuickCheck as QC ( Result )
-import Testing.Test ( qcRunProperty, AnyProperty )
 
-import Language.Haskell.Interpreter hiding ( WontCompile )
-import qualified Language.Haskell.Interpreter as I
+import Language.Haskell.Interpreter
 import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 
-import Types.Parser
+import Testing.Test ( qcRunProperty, AnyProperty )
 import Types
+import Types.Parser
 import Types.Arguments
 import Files
 import Result
@@ -88,15 +84,15 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
             sotype <- typeOf soexpr
             case compareTypesCmd sttype sotype typecheckMode compareMode of
                 Success -> if compareMode == FullComparison
-                    then compare sttype sotype
+                    then cmp sttype sotype
                     else return Success
                 r -> return r
   where
     stexpr = "Student." ++ expressionName
     soexpr = "Solution." ++ expressionName
 
-    compare :: String -> String -> Interpreter TestResult
-    compare sttype0 sotype0 = runErrorT (getDegeneralizedTypes comtype) >>= \case
+    cmp :: String -> String -> Interpreter TestResult
+    cmp sttype0 sotype0 = runErrorT (getDegeneralizedTypes comtype) >>= \case
         Right testtypes -> mconcat <$> mapM test testtypes
         Left emsg       -> return . RuntimeError $ emsg
       where
@@ -149,10 +145,10 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
   where
     output (Left (SomeException ex)) = RuntimeError (show ex)
     output (Right (Left err)) = case err of
-        I.UnknownError str -> RuntimeError $ "Unknown error: " ++ str
-        I.NotAllowed  str  -> RuntimeError $ "Not allowed: " ++ str
-        I.GhcException str -> RuntimeError $ "GHC exception: " ++ str
-        I.WontCompile list -> CompileError . unlines . nub . map I.errMsg $ list
+        UnknownError str -> RuntimeError $ "Unknown error: " ++ str
+        NotAllowed  str  -> RuntimeError $ "Not allowed: " ++ str
+        GhcException str -> RuntimeError $ "GHC exception: " ++ str
+        WontCompile list -> CompileError . unlines . nub . map errMsg $ list
     output (Right (Right result)) = result
     args = pkgs ++ extra
     -- NOTE: it would seem better to use HINT's set feature to set language

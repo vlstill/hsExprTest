@@ -2,18 +2,12 @@
            , NamedFieldPuns, DisambiguateRecordFields #-}
 
 -- (c) 2012 Martin Jonáš
--- (c) 2014 Vladimír Štill
+-- (c) 2014,2015 Vladimír Štill
 
 module UI ( runUI, runExpressionTester, Main ( .. ) ) where
 
-import System.Environment
-import System.IO
 import System.Exit
-import Data.Maybe
-import Data.List ( )
 import Data.Data
-import Data.Typeable
-import Control.Monad
 import Control.Arrow
 
 import System.Console.CmdLib
@@ -91,17 +85,3 @@ formatResult = isSuccess &&& pp
 runUI :: [ String ] -> IO ()
 runUI = dispatch [] (recordCommands (undefined :: Main))
 -- execute (recordCommands (error "a" :: Main))
-
--- | Function parseLimits parses limiting expression in form "function;;;function;function;"
-parseLimits :: String -> [Maybe String]
-parseLimits limits = map (\xs -> if length xs == 0 then Nothing else Just xs) (split ';' limits)  
-
--- | Function split splits string in the given separator.
-split :: Char -> String -> [String]
-split = split' []
-
--- | Convience function
-split' :: [String] -> Char -> String -> [String]
-split' parts delimiter input = case (break (== delimiter) input) of
-    (xs, []) -> parts ++ [xs]
-    (xs, y:ys) -> split' (parts ++ [xs]) delimiter ys

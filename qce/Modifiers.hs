@@ -21,7 +21,6 @@ import Control.Arrow
 import System.Random
 
 import Test.QuickCheck
-import Test.QuickCheck.Arbitrary
 
 -- | modifier for generating integral values within given inclusive range
 type Range (i :: *) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
