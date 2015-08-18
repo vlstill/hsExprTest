@@ -16,6 +16,7 @@ import Control.Monad.Trans.Error
 import Control.Arrow
 import Data.Bool
 import Data.Set ( Set, toList, fromList )
+import Data.Monoid
 import Types
 import Types.Parser ( parseType )
 import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )
