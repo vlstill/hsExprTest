@@ -5,10 +5,16 @@ import Harness
 
 main :: IO ()
 main = runTests $
-    [ ("f = 2^2^2", "f = (2^2)^2", "f", Success)
-    -- , ("f x = x . ((.).)", "f = (.((.).))", "f", Success)
+    [ -- unparametrized expressions
+      ("f = 2^2^2", "f = (2^2)^2", "f", Success)
+    , ("f = True", "f = False", "f", TestFailure ignored )
+    , ("f = True", "f = 0", "f", TypeError ignored )
+    -- simple functions
     , ("f m n = m `mod` n", "f = mod", "f", Success)
     , ("f _ 0 = 0; f m n = m `mod` n", "f = mod", "f", TestFailure ignored )
+    -- polymorphic return type not dependent on argument
+    , ("f m = fromIntegral m", "f = fromInteger . toInteger", "f", Success)
+    -- , ("f = fromRational", "f m = fromRational m", "f", Success)
     -- generate noncomutative functions
     , ( "f :: (a -> a -> a) -> a -> [a] -> a; f = foldl"
       , "f :: (a -> a -> a) -> a -> [a] -> a; f = foldr"
