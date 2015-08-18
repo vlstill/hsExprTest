@@ -3,11 +3,11 @@ ghc:
   - 7.8
 
 install:
-  - cabal update
-  - cabal install --only-dependencies --enable-tests
+    - cabal install text-1.2.1.2
+    - cabal install --only-dependencies --enable-tests
 
 script:
-  - cabal install && cabal configure --enable-tests && cabal build && cabal test --show-details=always
+    - cabal configure --enable-tests && cabal build && cabal test --show-details=always
 
 notifications:
   email:
