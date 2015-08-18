@@ -53,4 +53,4 @@ haddock : .cabal-sandbox/bin/haddock
 	@echo "file://$$PWD/dist/doc/html/hsExprTest/index.html"
 
 hlint :
-	hlint --hint support/HLint.hs src qce exec tests examples
+	hlint --hint support/HLint.hs src exec tests examples

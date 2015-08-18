@@ -17,7 +17,7 @@ flag service
     default: True
 					
 Library
-  hs-source-dirs:   src, qce
+  hs-source-dirs:   src
 
   build-depends:    base >= 4.7,
                     hint >= 0.3.3.4 && < 0.4.3,
@@ -43,8 +43,8 @@ Library
                       Testing.Data
                       Result
                       Files
-                      Modifiers
                       PrettyPrint
+                      Test.QuickCheck.Range
 					  
   ghc-options:        -O1 -threaded -Wall
   extensions:         StandaloneDeriving
