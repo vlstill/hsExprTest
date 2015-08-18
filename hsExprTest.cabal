@@ -46,7 +46,7 @@ Library
                       Modifiers
                       PrettyPrint
 					  
-  ghc-options:        -O1 -threaded
+  ghc-options:        -O1 -threaded -Wall
   extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
@@ -76,7 +76,7 @@ Executable hsExprTestService
 
   hs-source-dirs:   exec
 
-  ghc-options:      -O1 -threaded
+  ghc-options:      -O1 -threaded -Wall
 
   main-is:          Service.hs
   extensions:       CPP
