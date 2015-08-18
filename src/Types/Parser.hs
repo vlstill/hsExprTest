@@ -9,16 +9,29 @@ import Text.Parsec.String
 import Control.Applicative hiding (many, (<|>))
 import Data.List
 
+-- | Haskell identifier symbol
+identSymbols :: Parser Char
+identSymbols = alphaNum <|> oneOf "_'"
+
+ident' :: Parser Char -> (Parser Char -> Parser String) -> Parser String
+ident' front howmany = (:) <$> front <*> howmany identSymbols
+
+ident :: Parser Char -> Parser String
+ident front = ident' front many
+
+spaces1 :: Parser ()
+spaces1 = skipMany1 space <?> "white space"
+
 -- | Type expression parser.
 typeExpression :: Parser TypeExpression
 typeExpression = TypeExpression <$> 
-    (try ((parens typeContext <|> typeContext) <* spaced (string "=>")) <|> return (TypeContext [])) 
+    (spaces *> (try ((parens typeContext <|> typeContext) <* spaced (string "=>")) <|> return (TypeContext [])) )
     <*> 
     (typeParser <* eof)
 
 -- | Parser of one item of type context, for example - Num a
 typeContextItem :: Parser (TypeClass, [Type])
-typeContextItem = (,) <$> (typeClass <* spaces) <*> (((:[]) . TypeVariable) <$> typeVariable)
+typeContextItem = (,) <$> (typeClass <* spaces1) <*> (((:[]) . TypeVariable) <$> typeVariable)
 
 -- | Parser of the entire type context, without surrounding parentheses.
 typeContext :: Parser TypeContext
@@ -26,11 +39,14 @@ typeContext = TypeContext <$> (try (sepBy typeContextItem (try (spaced (char ','
 
 -- | Parser of type class. It may contain module part, for example Module.TypeClass.
 typeClass :: Parser TypeClass
-typeClass = intercalate "." <$> sepBy1 ((:) <$> upper <*> many alphaNum) (char '.')
+typeClass = intercalate "." <$> sepBy1 (ident upper) (char '.')
 
--- | Parser of type variable, basically parses string begining with lowercase letter followed by arbitrary number of alphanumeric characters.
+-- | Parser of type variable, basically parses string begining with lowercase
+-- letter followed by arbitrary number of alphanumeric characters, underscored
+-- and apostrophes, or string beginning with underscore with at leas one
+-- aformentioned symbol following.
 typeVariable :: Parser TypeVar
-typeVariable = (:) <$> lower <*> many alphaNum
+typeVariable = try (ident lower) <|> (ident' (char '_') many1)
 
 -- | Parser of type constructor. Same as the type class parser, or numeric literal (TypeLits).
 typeConstructor :: Parser TypeConstr

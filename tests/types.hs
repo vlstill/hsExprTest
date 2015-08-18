@@ -7,7 +7,8 @@ import System.Exit
 import Types.Parser
 import Types
 
-main = bool exitFailure exitSuccess . and =<< mapM runTest
+main = bool exitFailure exitSuccess . and =<< sequence (
+    map runTest
        [ "a", "b", "blabla", "blaBla", "Int", "Double", "BlaBla"
        , "Maybe Integer", "IO a", "IO Int", "Either Int Bool"
        , "(Int, Bool)", "[String]", "[a]", "()", "([a], (b, Int))"
@@ -22,14 +23,28 @@ main = bool exitFailure exitSuccess . and =<< mapM runTest
        , "(Functor f, Monad f, Default a) => f a"
 --       , "Class a b => a b" -- multiparam classes not yet supported
 --       , "(,) a", "(,,,) a b" -- we can't parse this yet, and it is obscure
+       -- some parsing obscurities
+       , "a", "a_a", "_a", "__", "_a_a", "aA", "a'", "a'a", "_'"
+       , "A", "A_", "Maybe _a"
+       , "AA_a a => a"
        ]
+    ++
+    map (uncurry runTest')
+        [ ("a->b", "a -> b"), ("a->t a", "a -> t a"), ("a_->a'", "a_ -> a'"), ("a'->a'", "a' -> a'")
+        , ("__->___", "__ -> ___"), ("A_b c=>c", "A_b c => c"), ("A __=>__->__", "A __ => __ -> __")
+        , ("  a      ->  a    ", "a -> a"), ("   Ord       a   =>   a  ", "Ord a => a")
+        ]
+    )
 
 runTest :: String -> IO Bool
-runTest x = flip (either parseError) (parseType x) $ \ty -> do
-                if formatType ty == x
+runTest x = runTest' x x
+
+runTest' :: String -> String -> IO Bool
+runTest' x exp = flip (either parseError) (parseType x) $ \ty -> do
+                if formatType ty == exp
                     then return True
                     else do
-                        putStrLn $ "FAILED: " ++ formatType ty ++ " /= " ++ x
+                        putStrLn $ "FAILED: " ++ formatType ty ++ " /= " ++ exp
                         return False
   where
     parseError err = putStrLn ("FAILED: cannot parse '" ++ show x ++ "': " ++ show err) >> return False
