@@ -13,13 +13,16 @@ script:
     - cabal configure --enable-tests
     - cabal build
     - cabal install
-    - cabal test --show-details=always || { which cabal; env; false; }
+    - cabal test --show-details=always
+
+after_success:
+    - make -i hlint
 
 notifications:
   email:
     recipients:
       - xstill@fi.muni.cz
-    on_success: always # default: change
+    on_success: change # default: change
     on_failure: always # default: always
 
 sudo: false
