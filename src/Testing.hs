@@ -18,6 +18,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Error
 
+import Data.Monoid
 import Data.List
 import Data.Typeable ( Typeable )
 
