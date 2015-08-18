@@ -8,7 +8,10 @@ install:
     - cabal install --only-dependencies --enable-tests
 
 script:
-    - cabal configure --enable-tests && cabal install && cabal test --show-details=always
+    - cabal configure --enable-tests
+    - cabal build
+    - cabal install
+    - cabal test --show-details=always
 
 notifications:
   email:
