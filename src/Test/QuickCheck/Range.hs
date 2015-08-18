@@ -9,7 +9,7 @@
 
 -- (c) 2014 Vladimír Štill
 
-module Modifiers
+module Test.QuickCheck.Range
     ( Range, Ranges ( Range ), unRange
     , CRange ( toRanges )
     , inRanges
