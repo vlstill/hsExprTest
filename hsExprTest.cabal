@@ -30,7 +30,7 @@ Library
                     deepseq >= 1.2,
                     temporary >= 1.1,
                     filepath >= 1.3,
-                    transformers >= 0.4
+                    transformers >= 0.3
 
   exposed-modules:    Types
                       Types.Parser

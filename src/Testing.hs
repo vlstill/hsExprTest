@@ -16,7 +16,7 @@ import Control.Concurrent
 import Control.Exception
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Trans.Except
+import Control.Monad.Trans.Error
 
 import Data.List
 import Data.Typeable ( Typeable )
@@ -95,7 +95,7 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
     soexpr = "Solution." ++ expressionName
 
     compare :: String -> String -> Interpreter TestResult
-    compare sttype0 sotype0 = runExceptT (getDegeneralizedTypes comtype) >>= \case
+    compare sttype0 sotype0 = runErrorT (getDegeneralizedTypes comtype) >>= \case
         Right testtypes -> mconcat <$> mapM test testtypes
         Left emsg       -> return . RuntimeError $ emsg
       where
