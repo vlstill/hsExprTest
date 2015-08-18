@@ -75,7 +75,7 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
 buildTestExpression :: String -> String -> Type -> Interpreter String
 buildTestExpression st so ty = do
     (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
-    return . unwords $ if length binds == 0
+    return . unwords $ if null binds
         then [ "AnyProperty (", withWitness st, "<==>", withWitness so, ")" ]
         else "AnyProperty (\\" : binds ++ [ "->", withWitness st ] ++
                    pars ++ [ "<==>", withWitness so ] ++ pars ++ [ ")" ]

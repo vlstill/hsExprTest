@@ -26,13 +26,13 @@ banner (passed, failed) = "FAIL: Passed " ++ show passed ++ " out of " ++ show (
 
 test :: (Integer, Integer) -> (String, String, String, TestResult) -> IO (Integer, Integer)
 test (passed, failed) (student, solution, expr, expected) = do
-    res <- runTest $ CompareExpressions { limit = Nothing
-                                         , expressionName = expr
-                                         , solution = solution
-                                         , student = student
-                                         , compareMode = FullComparison
-                                         , typecheckMode = RequireTypeOrdering [ Equal ]
-                                         }
+    res <- runTest CompareExpressions { limit = Nothing
+                                      , expressionName = expr
+                                      , solution = solution
+                                      , student = student
+                                      , compareMode = FullComparison
+                                      , typecheckMode = RequireTypeOrdering [ Equal ]
+                                      }
     if toConstr res == toConstr expected
         then return (passed + 1, failed)
         else do

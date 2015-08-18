@@ -7,6 +7,8 @@ import UI
 
 import Control.Exception
 import Control.Arrow
+import Control.Applicative
+import Control.Monad
 
 import System.Environment ( getArgs )
 import System.IO.Error
@@ -48,8 +50,8 @@ defaultqdir = "/var/lib/checker/qdir"
 deflimit :: Int
 deflimit = 2000 * 1000 -- 1 seconds
 
-do_log :: String -> IO ()
-do_log = hPutStrLn stderr 
+doLog :: String -> IO ()
+doLog = hPutStrLn stderr
 
 main :: IO ()
 main = getArgs >>= \args -> case args of
@@ -70,22 +72,22 @@ runSocket sockaddr qdir = do
                                         , otherReadMode, otherWriteMode ]
     listen listener 1
     loop $ do
-        do_log "accepting socket..."
-        bracket (accept listener >>= return . fst) (close) $ \sock -> do
-            do_log $ "accepted fd=" ++ show ((\(MkSocket fd _ _ _ _) -> fd) sock)
+        doLog "accepting socket..."
+        bracket (fst <$> accept listener) close $ \sock -> do
+            doLog $ "accepted fd=" ++ show ((\(MkSocket fd _ _ _ _) -> fd) sock)
 
-            do_log "receiving query..."
+            doLog "receiving query..."
             query <- recv sock 65536
             start <- getTime Monotonic
-            do_log "done"
+            doLog "done"
 
             hPutStrLn stderr $ "Received: '" ++ query ++ "'"
             case parseQ query of
-                Left msg -> send sock ("INVALID: " ++ msg ++ "\n\n") >> return ()
+                Left msg -> void $ send sock ("INVALID: " ++ msg ++ "\n\n")
                 Right query -> do
-                    do_log . ("Running query: " ++ ) . show $ query
+                    doLog . ("Running query: " ++ ) . show $ query
                     runQuery qdir query sock
-                    do_log "query done"
+                    doLog "query done"
             end <- getTime Monotonic
             putStrLn $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
   where
@@ -94,7 +96,7 @@ runSocket sockaddr qdir = do
 
     ignore :: SomeException -> IO ()
     ignore (SomeException e) = case (fromException (SomeException e) :: Maybe IOException) of
-        Just ioe -> do putStrLn $ "WARNING: Exception: " ++ show ioe
+        Just ioe -> putStrLn $ "WARNING: Exception: " ++ show ioe
         Nothing  -> do putStrLn $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
                        exitFailure
 
@@ -108,20 +110,20 @@ runQuery :: FilePath -> Query -> Socket -> IO ()
 runQuery qpath (Query { transactId, questionId, content }) sock = do
     let qfile = qpath </> show questionId `addExtension` "q.hs"
     fe <- doesFileExist qfile
-    if not fe then send sock "FATAL: Question does not exits" >> return () else do
-        question <- fmap (decodeQ content) $ readFile qfile
+    if not fe then void (send sock "FATAL: Question does not exits") else do
+        question <- decodeQ content <$> readFile qfile
         case question of
-            Left emsg -> send sock ("FATAL: Invalid question: " ++ emsg) >> return ()
+            Left emsg -> void $ send sock ("FATAL: Invalid question: " ++ emsg)
             Right q   -> do
-                do_log "running expressionTester"
+                doLog "running expressionTester"
                 (ok, msg) <- runExpressionTester q
-                do_log "done"
+                doLog "done"
                 let reply = concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
                                    , "C", msg ]
-                do_log $ "replying on socket, reply = " ++ reply
+                doLog $ "replying on socket, reply = " ++ reply
                 send sock reply
-                do_log "reply sent"
+                doLog "reply sent"
                 return ()
   where
     decodeQ :: String -> String -> Either String Main
@@ -132,7 +134,7 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
     fromInstr student0 solution instrs0 = do
         let instrs = map (span (/= ':') >>> second (drop 2)) instrs0
         case (lookup "type" instrs, lookup "expr" instrs) of
-            (Just _, Nothing) -> return $ CompareTypes { student = student0, solution }
+            (Just _, Nothing) -> return CompareTypes { student = student0, solution }
             (Nothing, Just expressionName) -> do
                 limit <- fmap Just $ case lookup "limit" instrs of
                     Nothing   -> Right deflimit
@@ -149,7 +151,7 @@ runQuery qpath (Query { transactId, questionId, content }) sock = do
                                         , student0
                                         ]
                     else Right student0
-                return $ CompareExpressions { student, solution, expressionName, limit }
+                return CompareExpressions { student, solution, expressionName, limit }
             _ -> Left "Invalid instructions"
 
 {-

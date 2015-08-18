@@ -40,7 +40,7 @@ runTest :: String -> IO Bool
 runTest x = runTest' x x
 
 runTest' :: String -> String -> IO Bool
-runTest' x exp = flip (either parseError) (parseType x) $ \ty -> do
+runTest' x exp = flip (either parseError) (parseType x) $ \ty ->
                 if formatType ty == exp
                     then return True
                     else do

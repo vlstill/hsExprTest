@@ -4,7 +4,7 @@ import Harness
 
 
 main :: IO ()
-main = runTests $
+main = runTests
     [ -- unparametrized expressions
       ("f = 2^2^2", "f = (2^2)^2", "f", Success)
     , ("f = True", "f = False", "f", TestFailure ignored )

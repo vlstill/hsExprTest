@@ -46,7 +46,7 @@ typeClass = intercalate "." <$> sepBy1 (ident upper) (char '.')
 -- and apostrophes, or string beginning with underscore with at leas one
 -- aformentioned symbol following.
 typeVariable :: Parser TypeVar
-typeVariable = try (ident lower) <|> (ident' (char '_') many1)
+typeVariable = try (ident lower) <|> ident' (char '_') many1
 
 -- | Parser of type constructor. Same as the type class parser, or numeric literal (TypeLits).
 typeConstructor :: Parser TypeConstr

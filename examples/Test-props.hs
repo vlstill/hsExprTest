@@ -38,7 +38,7 @@ testConfig = defaultConfig
     -- They must all compile though.
     , test = Properties
         [ AnyProperty (\(x :: Int) (y :: Int) -> x /= y || x == y)
-        , AnyProperty (\(x :: Int) -> (fromIntegral x) + 1 == (fromIntegral (x + 1) :: Integer) )
+        , AnyProperty (\(x :: Int) -> fromIntegral x + 1 == (fromIntegral (x + 1) :: Integer) )
         -- you can restrict polymorphic testacase like this (you will need ScopedTypeVariables
         -- language extension
         , AnyProperty (\(x :: Int) -> Student.f x == x )
