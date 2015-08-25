@@ -50,7 +50,7 @@ typeVariable = try (ident lower) <|> ident' (char '_') many1
 
 -- | Parser of type constructor. Same as the type class parser, or numeric literal (TypeLits).
 typeConstructor :: Parser TypeConstr
-typeConstructor = TyCon <$> (typeClass <|> many1 digit)
+typeConstructor = (TyCon <$> typeClass) <|> (TyLit <$> many1 digit)
 
 -- | Parser of function type.
 typeParser :: Parser Type

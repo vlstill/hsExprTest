@@ -27,6 +27,8 @@ main = bool exitFailure exitSuccess . and =<< sequence (
        , "a", "a_a", "_a", "__", "_a_a", "aA", "a'", "a'a", "_'"
        , "A", "A_", "Maybe _a"
        , "AA_a a => a"
+       -- type literals
+       , "Range Int 0 1", "Range Int 0 1 -> Int -> Range Integer 0 1 -> Bool"
        ]
     ++
     map (uncurry runTest')

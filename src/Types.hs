@@ -83,6 +83,7 @@ type TypeVar = String
 data TypeConstr = FunTyCon
                 | ListTyCon
                 | TupleTyCon Int -- ^ tuple with arity
+                | TyLit String -- ^ type literal (-XDataKinds)
                 | TyCon String -- ^ any other type constructor
                 deriving ( Show, Eq, Ord, Typeable, Data )
 
@@ -393,6 +394,7 @@ instance FormatType Type where
         formatCon FunTyCon = sfun (\x -> sfun $ \y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y)
         formatCon ListTyCon = sfun (\x -> Val $ "[" ++ x ++ "]")
         formatCon (TupleTyCon n) = aptuple [] n
+        formatCon (TyLit con) = apcon con
         formatCon (TyCon con) = apcon con
 
         aptuple :: [String] -> Int -> Arg

@@ -54,6 +54,8 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         | Just _ <- splitFunApp typ      = gtt True typ
         | Just ts <- unwrapTupleType typ = mconcat <$> mapM (gtt True) ts
         | Just t <- unwrapListType typ   = gtt True t
+        | TypeConstructor (TyLit _) <- typ
+                                         = return mempty
         | TypeConstructor _ <- typ       = checkTestable
         | TypeVariable var <- typ        = return $ mkTestable var
         | Just (TyCon _, args) <- splitConApp typ
