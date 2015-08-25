@@ -159,6 +159,7 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
     extra = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
             , "-XDeriveDataTypeable"
             , "-XStandaloneDeriving"
+            , "-XDataKinds"
             , "-Werror", "-i" ++ getContext ctx ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 
