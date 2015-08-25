@@ -13,7 +13,7 @@ module Testing (
 
 import Control.Exception
 import Control.Applicative
-import Control.Monad.Trans.Error
+import Control.Monad.Trans.Except
 
 import Data.Monoid
 import Data.List
@@ -92,7 +92,7 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
     soexpr = "Solution." ++ expressionName
 
     cmp :: String -> String -> Interpreter TestResult
-    cmp sttype0 sotype0 = runErrorT (getDegeneralizedTypes comtype) >>= \case
+    cmp sttype0 sotype0 = runExceptT (getDegeneralizedTypes comtype) >>= \case
         Right testtypes -> mconcat <$> mapM test testtypes
         Left emsg       -> return . RuntimeError $ emsg
       where

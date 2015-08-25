@@ -12,7 +12,7 @@ module Types.Arguments
 import Control.Monad
 import Control.Applicative
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Error
+import Control.Monad.Trans.Except
 import Control.Arrow
 import Data.Bool
 import Data.Set ( Set, toList, fromList )
@@ -38,16 +38,16 @@ isTypeclass ty typeclass = do
 isTypeclasses :: Type -> [String] -> Interpreter Bool
 isTypeclasses ty = fmap and . mapM (ty `isTypeclass`)
 
-getDegeneralizedTypes :: TypeExpression -> ErrorT String Interpreter [Type]
+getDegeneralizedTypes :: TypeExpression -> ExceptT String Interpreter [Type]
 getDegeneralizedTypes = fmap degeneralize . getTestableType
 
-getTestableType :: TypeExpression -> ErrorT String Interpreter TypeExpression
+getTestableType :: TypeExpression -> ExceptT String Interpreter TypeExpression
 getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
   where
     finalize :: Set (TypeClass, [Type]) -> TypeExpression
     finalize ctxnew = TypeExpression (TypeContext . toList $ ctxnew `mappend` fromList ctx) ty
     
-    gtt :: Bool -> Type -> ErrorT String Interpreter (Set (TypeClass, [Type]))
+    gtt :: Bool -> Type -> ExceptT String Interpreter (Set (TypeClass, [Type]))
     gtt nested = foldArgumentsM funapp (arg nested)
     funapp a b = return $ a `mappend` b
     arg nested isret typ
@@ -58,12 +58,12 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         | TypeVariable var <- typ        = return $ mkTestable var
         | Just (TyCon _, args) <- splitConApp typ
                                          = (mconcat <$> mapM (gtt True) args) >>= \x -> checkTestable >> return x
-        | otherwise                      = throwError $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
+        | otherwise                      = throwE $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
       where
         checkTestable = lift (isTypeclasses typ $
                                 ifL ["Eq"] (not nested && isret)
                                 ++ bool ["Arbitrary"] ["CoArbitrary", "Function"] (nested && not isret))
-                            >>= flip when (throwError ("Not testable: `" ++ formatType typ ++ "'.")) . not
+                            >>= flip when (throwE ("Not testable: `" ++ formatType typ ++ "'.")) . not
                             >> return mempty
         mkTestable var = fromList . map (, [TypeVariable var]) $
               "Show" : bool ["Arbitrary"] [ "CoArbitrary", "Function" ] (nested && not isret)
