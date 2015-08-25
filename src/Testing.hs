@@ -138,8 +138,8 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
     loadModules modules
     setImportsQ $ map (, Nothing) [ "Prelude", "Data.Word", "Data.Int"
                                    , "Test.QuickCheck", "Test.QuickCheck.Modifiers"
-                                   , "Test.QuickCheck.Arbitrary", "Testing.Test"
-                                   , "Types.Curry", "Control.DeepSeq" ]
+                                   , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
+                                   , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
                   ++ imports
     action
   where

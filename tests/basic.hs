@@ -4,7 +4,7 @@ import Harness
 
 
 main :: IO ()
-main = runTests
+main = runTests $
     [ -- unparametrized expressions
       ("f = 2^2^2", "f = (2^2)^2", "f", Success)
     , ("f = True", "f = False", "f", TestFailure ignored )
@@ -81,4 +81,8 @@ main = runTests
       , unlines [ "binmap :: (a -> a -> b) -> [a] -> [b]"
                 , "binmap f (x:y:xs) = f x y : binmap f xs" ]
       , "binmap", TestFailure ignored )
+    ]
+    -- ranges
+    ++ map (\(x, y, f, r) -> let ir = ("import Test.QuickCheck.Range\n" ++) in (ir x, ir y, f, r))
+    [ ( "f :: Range Int 0 10 -> Bool; f _ = True", "f :: Range Int 0 10 -> Bool; f (Range x) = x < 10;", "f", TestFailure ignored )
     ]
