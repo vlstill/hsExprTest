@@ -13,6 +13,7 @@ script:
     - cabal test --show-details=always
 
 after_success:
+    - cabal install hlint
     - make -i hlint
 
 notifications:
