@@ -5,6 +5,7 @@
            , GADTs
            , ExplicitForAll
            , ScopedTypeVariables
+           , Safe
            #-}
 
 -- (c) 2014 Vladimír Štill
