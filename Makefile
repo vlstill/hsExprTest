@@ -2,8 +2,9 @@ all : build
 
 build: .cabal-sandbox
 	cabal install
-	chmod +x wrap/hsExprTest.sh
+	chmod +x wrap/hsExprTest.sh wrap/hsExprTestService.sh
 	ln -s wrap/hsExprTest.sh hsExprTest || true
+	ln -s wrap/hsExprTestService.sh hsExprTestService || true
 
 sandbox : .cabal-sandbox
 
@@ -16,7 +17,7 @@ install:
 clean:
 	cabal clean
 	rm -rf dist || true
-	rm hsExprTest || true
+	rm hsExprTest hsExprTestService || true
 
 clean-all: clean
 	find -name '*.hi' -exec rm {} \;
