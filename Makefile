@@ -1,10 +1,13 @@
 all : build
 
-build: .cabal-sandbox
+build: .cabal-sandbox serviceProxy
 	cabal install
 	chmod +x wrap/hsExprTest.sh wrap/hsExprTestService.sh
 	ln -s wrap/hsExprTest.sh hsExprTest || true
 	ln -s wrap/hsExprTestService.sh hsExprTestService || true
+
+serviceProxy : exec/serviceProxy.cpp
+	g++ -std=c++11 -Wall -Wextra -Wold-style-cast $< -o $@
 
 sandbox : .cabal-sandbox
 
