@@ -59,8 +59,8 @@ struct Msg {
 #define WARN( msg ) Msg( Level::Warning, msg, __FILE__, __LINE__, __func__ )
 #define INFO( msg ) Msg( Level::Info, msg, __FILE__, __LINE__, __func__ )
 
-#define SYSDIE() DIE( std::string( std::strerror( errno ) ) + " (" + std::to_string( errno ) + ")" )
-#define SYSWARN() WARN( std::string( std::strerror( errno ) ) + " (" + std::to_string( errno ) + ")" )
+#define SYSDIE( msg ) DIE( std::string( msg ) + ": " + std::string( std::strerror( errno ) ) + " (" + std::to_string( errno ) + ")" )
+#define SYSWARN( msg ) WARN( std::string( msg ) + ": " + std::string( std::strerror( errno ) ) + " (" + std::to_string( errno ) + ")" )
 
 void operator||( bool v, Msg &&f ) { f.inhibit = v; }
 void operator&&( bool v, Msg f ) { f.inhibit = !v; }
@@ -95,7 +95,7 @@ void ensureServices( int attempt = 0 ) {
                 INFO( "killed service " + std::to_string( i ) + "(" + std::to_string( p.pid ) + ")" );
                 p.pid = -1;
             } else {
-                SYSWARN();
+                SYSWARN( "kill" );
             }
         }
         if ( p.pid == -1 ) {
@@ -106,7 +106,7 @@ void ensureServices( int attempt = 0 ) {
                 std::string log = "hsExprTestService." + std::to_string( i ) + ".log";
                 std::freopen( log.c_str(), "a", stdout );
                 std::freopen( log.c_str(), "a", stderr );
-                execv( serviceExec.c_str(), const_cast< char *const * >( argv ) ) == 0 || SYSDIE();
+                execv( serviceExec.c_str(), const_cast< char *const * >( argv ) ) == 0 || SYSDIE( "execv" );
             }
             else if ( pid > 0 ) {
                 p.pid = pid;
@@ -114,7 +114,7 @@ void ensureServices( int attempt = 0 ) {
                 p.ttl = std::uniform_real_distribution<>( 1000, 2000 )( rnd );
                 INFO( "started, ttl = " + std::to_string( p.ttl ) );
             } else
-                SYSDIE();
+                SYSWARN( "fork" );
         } else {
             --p.ttl;
             if ( p.ttl <= 0 ) {
@@ -126,7 +126,7 @@ void ensureServices( int attempt = 0 ) {
 }
 
 void setupServices() {
-    access( serviceExec.c_str(), X_OK ) == 0 || SYSDIE();
+    access( serviceExec.c_str(), X_OK ) == 0 || SYSDIE( "service is not executable" );
 
     INFO( "Setting signal handler" );
     struct sigaction sa;
@@ -140,7 +140,7 @@ void setupServices() {
             }
         };
     sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-    sigaction( SIGCHLD, &sa, 0 ) == 0 || SYSDIE();
+    sigaction( SIGCHLD, &sa, 0 ) == 0 || SYSDIE( "sigaction" );
 
     for ( int i = 0; i < 2; ++i )
         services[ i ].addr = "proxySock." + std::to_string( i + 1 );
@@ -169,7 +169,7 @@ std::string resend( const std::string &data ) {
         for ( int i = 0; i < 2; ++i ) {
             socks[ i ].fd = socket( AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0 );
             if ( socks[ i ].fd < 0 ) {
-                SYSWARN();
+                SYSWARN( "socket" );
                 continue;
             }
 
@@ -182,7 +182,7 @@ std::string resend( const std::string &data ) {
             int con = connect( socks[ i ].fd, reinterpret_cast< sockaddr * >( addr ), len );
             if ( con == -1 && errno != EINPROGRESS ) {
                 socks[ i ].fd *= -1; // disable polling
-                SYSWARN();
+                SYSWARN( "connect" );
                 continue;
             }
 
@@ -193,7 +193,7 @@ std::string resend( const std::string &data ) {
         int rpoll = poll( socks, 2, 500 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
-                SYSWARN();
+                SYSWARN( "poll" );
             else
                 WARN( "connect timeout" );
             continue;
@@ -204,7 +204,7 @@ std::string resend( const std::string &data ) {
             if ( (s.revents & POLLOUT) != 0 ) {
                 int out = -1;
                 unsigned len = sizeof( int );
-                getsockopt( s.fd, SOL_SOCKET, SO_ERROR, &out, &len ) == 0 || SYSWARN();
+                getsockopt( s.fd, SOL_SOCKET, SO_ERROR, &out, &len ) == 0 || SYSWARN( "getsockopt" );
                 out == 0 || WARN( std::strerror( out ) );
                 if ( out == 0 ) {
                     if ( send( s.fd, data.data(), data.size(), 0 ) == int( data.size() ) ) {
@@ -212,7 +212,7 @@ std::string resend( const std::string &data ) {
                         s.events ^= POLLOUT; // don't watch for writes any more
                         INFO( "Forwarded message" );
                     } else
-                        SYSWARN();
+                        SYSWARN( "send" );
                 }
             }
         }
@@ -223,7 +223,7 @@ std::string resend( const std::string &data ) {
         rpoll = poll( socks, 2, 5000 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
-                SYSWARN();
+                SYSWARN( "poll" );
             else
                 WARN( "Timeout while waiting for reply" );
             break; // give up
@@ -234,7 +234,7 @@ std::string resend( const std::string &data ) {
                 buf.resize( MAX_PKG_LEN );
                 int rsize = recv( s.fd, &buf[0], MAX_PKG_LEN, 0 );
                 if ( rsize <= 0 ) {
-                    SYSWARN();
+                    SYSWARN( "recv" );
                     continue;
                 }
                 buf.resize( rsize );
@@ -264,7 +264,7 @@ int main( int argc, char **argv ) {
 
     INFO( "Creating socket" );
     int input = socket( AF_UNIX, SOCK_STREAM, 0 );
-    input >= 0 || SYSDIE();
+    input >= 0 || SYSDIE( "socket" );
 
     INFO( "Binding socket" );
     unlink( insock.c_str() );
@@ -273,11 +273,11 @@ int main( int argc, char **argv ) {
     inaddr->sun_family = AF_UNIX;
     std::copy( insock.begin(), insock.end(), inaddr->sun_path );
     inaddr->sun_path[ insock.size() ] = 0;
-    bind( input, reinterpret_cast< const sockaddr * >( inaddr ), ilen ) == 0 || SYSDIE();
-    chmod( insock.c_str(), 0666 ) == 0 || SYSDIE();
+    bind( input, reinterpret_cast< const sockaddr * >( inaddr ), ilen ) == 0 || SYSDIE( "bind" );
+    chmod( insock.c_str(), 0666 ) == 0 || SYSDIE( "chmod" );
 
     INFO( "Setting up socket for listening" );
-    listen( input, 1 ) == 0 || SYSDIE();
+    listen( input, 1 ) == 0 || SYSDIE( "listen" );
 
     std::string buffer;
     while ( true ) {
@@ -285,7 +285,7 @@ int main( int argc, char **argv ) {
         INFO( "Accepting socket..." );
         int isSock = accept( input, nullptr, nullptr );
         if ( isSock < 0 ) {
-            SYSWARN();
+            SYSWARN( "accept" );
             continue;
         }
         Defer _{ [&] { close( isSock ); } };
@@ -293,13 +293,13 @@ int main( int argc, char **argv ) {
         INFO( "connection established" );
         int rsize = recv( isSock, &buffer[0], MAX_PKG_LEN, 0 );
         if ( rsize < 0 ) {
-            SYSWARN();
+            SYSWARN( "recv" );
             continue;
         }
         INFO( "packet received" );
         buffer.resize( rsize );
         auto reply = resend( buffer );
-        send( isSock, reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN();
+        send( isSock, reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
         INFO( "Request handled" );
     }
 }
