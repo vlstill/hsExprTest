@@ -288,6 +288,8 @@ int main( int argc, char **argv ) {
             SYSWARN();
             continue;
         }
+        Defer _{ [&] { close( isSock ); } };
+
         INFO( "connection established" );
         int rsize = recv( isSock, &buffer[0], MAX_PKG_LEN, 0 );
         if ( rsize < 0 ) {
