@@ -91,15 +91,15 @@ runSocket sockaddr0 qdir = do
                     runQuery qdir query sock
                     doLog "query done"
             end <- getTime Monotonic
-            putStrLn $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
+            doLog $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
   where
     loop :: IO () -> IO ()
     loop x = x `catch` ignore >> loop x
 
     ignore :: SomeException -> IO ()
     ignore (SomeException e) = case (fromException (SomeException e) :: Maybe IOException) of
-        Just ioe -> putStrLn $ "WARNING: Exception: " ++ show ioe
-        Nothing  -> do putStrLn $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
+        Just ioe -> doLog $ "WARNING: Exception: " ++ show ioe
+        Nothing  -> do doLog $ "FATAL: Exception (" ++ show (typeOf e) ++ "): " ++ show e
                        exitFailure
 
     diffTime :: Integer -> TimeSpec -> TimeSpec -> Integer
