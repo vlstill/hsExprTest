@@ -9,6 +9,7 @@
 #include <csignal>
 #include <atomic>
 #include <functional>
+#include <random>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -65,16 +66,40 @@ void operator&&( bool v, Msg f ) { f.inhibit = !v; }
 
 constexpr int MAX_PKG_LEN = 65536;
 
-std::string serviceExec;
-std::pair< std::atomic< long >, std::string > services[2];
+struct Service {
+    Service() {
+        pid = -1;
+        restart = false;
+    }
 
-void ensureServices() {
+    std::atomic< long > pid;
+    std::atomic< bool > restart;
+    std::string addr;
+    long ttl;
+};
+
+std::mt19937 rnd;
+std::string serviceExec;
+Service services[2];
+
+void ensureServices( int attempt = 0 ) {
     int i = 0;
+    bool restarted = false;
     for ( auto &p : services ) {
         ++i;
-        if ( p.first == -1 ) {
-            INFO( "Starting service..." );
-            const char *const argv[] = { "hsExprTestService", p.second.c_str(), nullptr };
+        if ( attempt == 0 && p.restart && !restarted ) {
+            if ( kill( p.pid, SIGTERM ) == 0 ) {
+                restarted = true;
+                p.restart = false;
+                INFO( "killed service " + std::to_string( i ) + "(" + std::to_string( p.pid ) + ")" );
+                p.pid = -1;
+            } else {
+                SYSWARN();
+            }
+        }
+        if ( p.pid == -1 ) {
+            INFO( "Starting service " + std::to_string( i ) + "..." );
+            const char *const argv[] = { "hsExprTestService", p.addr.c_str(), nullptr };
             int pid = fork();
             if ( pid == 0 ) { // child
                 std::string log = "hsExprTestService." + std::to_string( i ) + ".log";
@@ -83,10 +108,18 @@ void ensureServices() {
                 execv( serviceExec.c_str(), const_cast< char *const * >( argv ) ) == 0 || SYSDIE();
             }
             else if ( pid > 0 ) {
-                INFO( "started" );
-                p.first = pid;
+                p.pid = pid;
+                p.restart = false;
+                p.ttl = std::uniform_real_distribution<>( 1000, 2000 )( rnd );
+                INFO( "started, ttl = " + std::to_string( p.ttl ) );
             } else
                 SYSDIE();
+        } else {
+            --p.ttl;
+            if ( p.ttl <= 0 ) {
+                INFO( "TTL restart for service " + std::to_string( i ) );
+                p.restart = true;
+            }
         }
     }
 }
@@ -101,17 +134,15 @@ void setupServices() {
             pid_t pid;
             while ( (pid = waitpid( pid_t( -1 ), nullptr, WNOHANG )) > 0 ) {
                 for ( auto &p : services )
-                    if ( p.first == pid )
-                        p.first = -1;
+                    if ( p.pid == pid )
+                        p.pid = -1;
             }
         };
     sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
     sigaction( SIGCHLD, &sa, 0 ) == 0 || SYSDIE();
 
-    for ( int i = 0; i < 2; ++i ) {
-        services[ i ].first = -1;
-        services[ i ].second = "proxySock." + std::to_string( i + 1 );
-    }
+    for ( int i = 0; i < 2; ++i )
+        services[ i ].addr = "proxySock." + std::to_string( i + 1 );
 
     ensureServices();
 }
@@ -129,7 +160,7 @@ struct Defer {
 
 std::string resend( const std::string &data ) {
     for ( int i = 0; i < 3; ++i ) {
-        ensureServices();
+        ensureServices( i );
         if ( i > 0 )
             usleep( 100 );
 
@@ -141,12 +172,12 @@ std::string resend( const std::string &data ) {
                 continue;
             }
 
-            INFO( "forwarding to " + services[ i ].second );
-            int len = addrsize( services[ i ].second );
+            INFO( "forwarding to " + services[ i ].addr );
+            int len = addrsize( services[ i ].addr );
             sockaddr_un *addr = reinterpret_cast< sockaddr_un * >( alloca( len ) );
             addr->sun_family = AF_UNIX;
-            std::copy( services[ i ].second.begin(), services[ i ].second.end(), addr->sun_path );
-            addr->sun_path[ services[ i ].second.size() ] = 0;
+            std::copy( services[ i ].addr.begin(), services[ i ].addr.end(), addr->sun_path );
+            addr->sun_path[ services[ i ].addr.size() ] = 0;
             int con = connect( socks[ i ].fd, reinterpret_cast< sockaddr * >( addr ), len );
             if ( con == -1 && errno != EINPROGRESS ) {
                 socks[ i ].fd *= -1; // disable polling
@@ -216,6 +247,11 @@ std::string resend( const std::string &data ) {
 
 void setupSignals() {
     std::signal( SIGPIPE, SIG_IGN );
+    std::signal( SIGUSR1, []( int ) {
+            INFO( "SIGUSR1: setting restart flag" );
+            for ( auto &s : services )
+                s.restart = true;
+        } );
 }
 
 int main( int argc, char **argv ) {
