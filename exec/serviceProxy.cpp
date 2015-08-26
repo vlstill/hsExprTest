@@ -15,8 +15,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <alloca.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <alloca.h>
 #include <poll.h>
 
 enum class Level { Info, Warning, Error };
@@ -273,6 +274,7 @@ int main( int argc, char **argv ) {
     std::copy( insock.begin(), insock.end(), inaddr->sun_path );
     inaddr->sun_path[ insock.size() ] = 0;
     bind( input, reinterpret_cast< const sockaddr * >( inaddr ), ilen ) == 0 || SYSDIE();
+    chmod( insock.c_str(), 0666 ) == 0 || SYSDIE();
 
     INFO( "Setting up socket for listening" );
     listen( input, 1 ) == 0 || SYSDIE();
