@@ -62,7 +62,9 @@ main = getArgs >>= \args -> case args of
 
 
 runSocket :: FilePath -> FilePath -> IO ()
-runSocket sockaddr qdir = do
+runSocket sockaddr0 qdir = do
+    pwd <- getCurrentDirectory
+    let sockaddr = if isAbsolute sockaddr0 then sockaddr0 else pwd </> sockaddr0
     setCurrentDirectory qdir
     removeIfExists sockaddr
     listener <- socket AF_UNIX Stream defaultProtocol
@@ -109,11 +111,12 @@ runSocket sockaddr qdir = do
 runQuery :: FilePath -> Query -> Socket -> IO ()
 runQuery qpath (Query { transactId, questionId, content }) sock = do
     let qfile = qpath </> show questionId `addExtension` "q.hs"
+    let err str = send sock $ concat [ "I", show transactId, "Pnok", "C", str ]
     fe <- doesFileExist qfile
-    if not fe then void (send sock "FATAL: Question does not exits") else do
+    if not fe then void (err "FATAL: Question does not exits") else do
         question <- decodeQ content <$> readFile qfile
         case question of
-            Left emsg -> void $ send sock ("FATAL: Invalid question: " ++ emsg)
+            Left emsg -> void $ err ("FATAL: Invalid question: " ++ emsg)
             Right q   -> do
                 doLog "running expressionTester"
                 (ok, msg) <- runExpressionTester q
