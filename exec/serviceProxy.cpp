@@ -70,13 +70,12 @@ constexpr int MAX_PKG_LEN = 65536;
 struct Service {
     Service() {
         pid = -1;
-        restart = false;
+        ttl = 0;
     }
 
     std::atomic< long > pid;
-    std::atomic< bool > restart;
     std::string addr;
-    long ttl;
+    std::atomic< long > ttl;
 };
 
 std::mt19937 rnd;
@@ -88,10 +87,10 @@ void ensureServices( int attempt = 0 ) {
     bool restarted = false;
     for ( auto &p : services ) {
         ++i;
-        if ( attempt == 0 && p.restart && !restarted ) {
+        if ( attempt == 0 && p.ttl.load( std::memory_order_relaxed ) <= 0 && !restarted ) {
+            INFO( "TTL restart for service " + std::to_string( i ) );
             if ( kill( p.pid, SIGKILL ) == 0 ) {
                 restarted = true;
-                p.restart = false;
                 INFO( "killed service " + std::to_string( i ) + "(" + std::to_string( p.pid ) + ")" );
                 p.pid = -1;
             } else {
@@ -110,18 +109,12 @@ void ensureServices( int attempt = 0 ) {
             }
             else if ( pid > 0 ) {
                 p.pid = pid;
-                p.restart = false;
                 p.ttl = std::uniform_real_distribution<>( 1000, 2000 )( rnd );
                 INFO( "started, ttl = " + std::to_string( p.ttl ) );
             } else
                 SYSWARN( "fork" );
-        } else {
-            --p.ttl;
-            if ( p.ttl <= 0 ) {
-                INFO( "TTL restart for service " + std::to_string( i ) );
-                p.restart = true;
-            }
-        }
+        } else
+            p.ttl.fetch_sub( 1, std::memory_order_relaxed );
     }
 }
 
@@ -259,7 +252,7 @@ void setupSignals() {
     std::signal( SIGUSR1, []( int ) {
             INFO( "SIGUSR1: setting restart flag" );
             for ( auto &s : services )
-                s.restart = true;
+                s.ttl = 0;
         } );
 }
 
