@@ -89,7 +89,7 @@ void ensureServices( int attempt = 0 ) {
     for ( auto &p : services ) {
         ++i;
         if ( attempt == 0 && p.restart && !restarted ) {
-            if ( kill( p.pid, SIGTERM ) == 0 ) {
+            if ( kill( p.pid, SIGKILL ) == 0 ) {
                 restarted = true;
                 p.restart = false;
                 INFO( "killed service " + std::to_string( i ) + "(" + std::to_string( p.pid ) + ")" );
