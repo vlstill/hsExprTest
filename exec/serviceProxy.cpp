@@ -163,7 +163,7 @@ int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
     int r;
     do {
         r = poll( fds, nfds, timeout );
-    } while ( r == -1 || errno == EINTR );
+    } while ( r == -1 && errno == EINTR );
     return r;
 }
 
