@@ -87,7 +87,7 @@ void ensureServices( int attempt = 0 ) {
     bool restarted = false;
     for ( auto &p : services ) {
         ++i;
-        if ( attempt == 0 && p.ttl.load( std::memory_order_relaxed ) <= 0 && !restarted ) {
+        if ( attempt == 0 && p.pid > 0 && p.ttl.load( std::memory_order_relaxed ) <= 0 && !restarted ) {
             INFO( "TTL restart for service " + std::to_string( i ) );
             if ( kill( p.pid, SIGKILL ) == 0 ) {
                 restarted = true;
