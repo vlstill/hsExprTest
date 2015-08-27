@@ -159,6 +159,14 @@ struct Defer {
     std::function< void() > act;
 };
 
+int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
+    int r;
+    do {
+        r = poll( fds, nfds, timeout );
+    } while ( r == -1 || errno == EINTR );
+    return r;
+}
+
 std::string resend( const std::string &data ) {
     for ( int i = 0; i < 3; ++i ) {
         ensureServices( i );
@@ -190,7 +198,7 @@ std::string resend( const std::string &data ) {
         }
         Defer _{ [&] { for ( auto &s : socks ) close( s.fd ); } };
 
-        int rpoll = poll( socks, 2, 500 );
+        int rpoll = niPoll( socks, 2, 500 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
                 SYSWARN( "poll" );
@@ -220,7 +228,7 @@ std::string resend( const std::string &data ) {
             continue;
 
         INFO( "Wainting for reply" );
-        rpoll = poll( socks, 2, 5000 );
+        rpoll = niPoll( socks, 2, 5000 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
                 SYSWARN( "poll" );
