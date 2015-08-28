@@ -67,6 +67,16 @@ void operator&&( bool v, Msg f ) { f.inhibit = !v; }
 
 constexpr int MAX_PKG_LEN = 65536;
 
+// unique_ptr-like holder for file descriptors
+struct FD {
+    FD() : fd( -1 ) { }
+    FD( int fd ) : fd( fd ) { }
+    operator int() { return fd; }
+    FD &operator=( int fd ) { this->fd = fd; return *this; }
+    ~FD() { if ( fd >= 0 ) close( fd ); }
+    int fd;
+};
+
 struct Service {
     Service() {
         pid = -1;
@@ -145,13 +155,6 @@ int addrsize( const std::string &path ) {
     return offsetof( sockaddr_un, sun_path ) + path.size() + 1;
 }
 
-struct Defer {
-    template< typename Act >
-    Defer( Act act ) : act( act ) { }
-    ~Defer() { act(); }
-    std::function< void() > act;
-};
-
 int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
     int r;
     do {
@@ -166,13 +169,15 @@ std::string resend( const std::string &data ) {
         if ( i > 0 )
             usleep( 100 );
 
+        FD fds[2];
         struct pollfd socks[2];
         for ( int i = 0; i < 2; ++i ) {
-            socks[ i ].fd = socket( AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0 );
-            if ( socks[ i ].fd < 0 ) {
+            fds[ i ] = socket( AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0 );
+            if ( fds[ i ] < 0 ) {
                 SYSWARN( "socket" );
                 continue;
             }
+            socks[ i ].fd = fds[ i ];
 
             INFO( "forwarding to " + services[ i ].addr );
             int len = addrsize( services[ i ].addr );
@@ -189,7 +194,6 @@ std::string resend( const std::string &data ) {
 
             socks[ i ].events = POLLOUT | POLLIN;
         }
-        Defer _{ [&] { for ( auto &s : socks ) close( s.fd ); } };
 
         int rpoll = niPoll( socks, 2, 500 );
         if ( rpoll <= 0 ) {
@@ -284,12 +288,11 @@ int main( int argc, char **argv ) {
     while ( true ) {
         buffer.resize( MAX_PKG_LEN );
         INFO( "Accepting socket..." );
-        int isSock = accept( input, nullptr, nullptr );
+        FD isSock = accept( input, nullptr, nullptr );
         if ( isSock < 0 ) {
             SYSWARN( "accept" );
             continue;
         }
-        Defer _{ [&] { close( isSock ); } };
 
         INFO( "connection established" );
         int rsize = recv( isSock, &buffer[0], MAX_PKG_LEN, 0 );
