@@ -1,7 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable, TupleSections, LambdaCase, PatternGuards #-}
 
--- (c) 2012 Martin Jonáš
--- (c) 2014,2015 Vladimír Štill
+-- | Runtime representation of Haskell data types, together with
+-- formating and manipulation (unification, decomposition and creation).
+--
+-- * (c) 2014,2015 Vladimír Štill
+-- * (c) 2012 Martin Jonáš
 
 module Types (
       -- * Type representation
@@ -56,18 +59,21 @@ import Data.List
 import Data.Data ( Data )
 import Data.Typeable ( Typeable )
 import Data.Function ( on )
+import PrettyPrint
 
--- | Data type TypeExpression represents parsed type expression
+-- | Represents data type expression, with type context.
 data TypeExpression = TypeExpression { getTypeContext :: TypeContext
                                      , getType :: Type
                                      }
     deriving ( Show, Typeable, Data )
 
--- | Data type TypeContext represents parsed type context
+-- | Represents data type context. Multiparameter type classes, and
+-- generalized contexts (such as @Show (Foo a)@) are supported.
 data TypeContext = TypeContext [(TypeClass, [Type])]
     deriving ( Show, Typeable, Data )
 
--- | Data type TypeExpression represents parsed type witnout the type context
+-- | Represents data type witnout the type context. Type literals
+-- are supported.
 data Type = TypeApplication Type Type -- ^ Application of the (partially applied)
             -- type constructor or variable on another type
           | TypeConstructor TypeConstr
@@ -75,18 +81,21 @@ data Type = TypeApplication Type Type -- ^ Application of the (partially applied
           deriving ( Show, Eq, Ord, Typeable, Data )
 
 type TypeClass = String
-
 type TypeVar = String
 
--- | Type costructors: build-in type constructors ->, [], (,), (,,)… are handled
--- separatelly to allow for better analysis of those cases
-data TypeConstr = FunTyCon
-                | ListTyCon
+-- | Type costructors: build-in type constructors @(->)@, @[]@, @(,)@, @(,,)@… 
+-- are handled separatelly to allow for better analysis of those cases.
+-- Furthermore type literals are distinct from type user/library defined
+-- type constructors. Type constructor arity is not tracked, except for tuple
+-- type.
+data TypeConstr = FunTyCon -- @(->)@
+                | ListTyCon -- @[]@
                 | TupleTyCon Int -- ^ tuple with arity
-                | TyLit String -- ^ type literal (-XDataKinds)
+                | TyLit String -- ^ type literal (@-XDataKinds@)
                 | TyCon String -- ^ any other type constructor
                 deriving ( Show, Eq, Ord, Typeable, Data )
 
+-- | Katamorphism of 'TypeConstr'.
 foldType :: (a -> a -> a) -- ^ TypeApplication
          -> (TypeConstr -> a) -- ^ TypeConstructor
          -> (TypeVar -> a) -- TypeVariable
@@ -97,31 +106,40 @@ foldType tyApp tyCon tyVar = ftgo
     ftgo (TypeConstructor t)     = tyCon t
     ftgo (TypeVariable v)        = tyVar v
 
+-- | Returns 'True' if given type contains any type variable.
 isPolymorphic :: Type -> Bool
 isPolymorphic = foldType (||) (const False) (const True)
 
+-- | Returns 'True' if given type is function type
 isFunction :: Type -> Bool
 isFunction fn
     | Just _ <- splitFunApp fn = True
     | otherwise = False
 
+-- | Return 'True' if given type is higher order functon, that is any of
+-- its parameters are function. If type is not function type, 'False' is
+-- returned.
 isHigherOrderFunction :: Type -> Bool
 isHigherOrderFunction = any isFunction . fst . functionTypes
 
+-- | Substitution is mapping from type variables to types.
 type Substitution = [(TypeVar, Type)]
 
+-- | Common queriing functions for 'Type' and 'TypeExpression'
 class CType t where
     substitute :: Substitution -> t -> t
     -- | Type variables in order of first occurrence in type (first in type and
     -- then in context for TypeExpression)
     typeVars :: t -> [TypeVar]
-    -- | Type is plain if all type context are of form Class tyVar1 … tyVarN
+    -- | Type is plain if all type context constraints are of form 
+    -- @Class tyVar1 … tyVarN@, or if it is not polymorphic.
     plainType :: t -> Bool
 
 -- | infix operator equivalent to @'flip' 'substitute'@
 (//) :: CType t => t -> Substitution -> t
 (//) = flip substitute
 
+-- | type has no type variables
 fullyInstantiated :: CType t => t -> Bool
 fullyInstantiated = null . typeVars
 
@@ -176,6 +194,7 @@ functionTypes typ = case foldArguments' (++) (:[]) typ of
 returnType :: Type -> Type
 returnType = foldArguments' (flip const) id
 
+-- | Fold on structure of function type.
 foldArguments :: (a -> a -> a) -- ^ (->) application
               -> (Bool -> Type -> a)   -- ^ argument processing (Bool value
                                        -- indicates if this is return type
@@ -193,23 +212,25 @@ foldArguments fapp farg = go
 foldArguments' :: (a -> a -> a) -> (Type -> a) -> Type -> a
 foldArguments' fapp farg = foldArguments fapp (const farg)
 
+-- | Monadic version of 'foldArguments'
 foldArgumentsM :: Monad m => (a -> a -> m a)
                           -> (Bool -> Type -> m a)
                           -> Type -> m a
 foldArgumentsM fapp = foldArguments (\a b -> join $ liftM2 fapp a b)
 
--- | Function arrow operator of symbolic types
+-- | Function arrow operator of symbolic types.
 (-->) :: Type -> Type -> Type
 a --> b = (TypeConstructor FunTyCon `TypeApplication` a) `TypeApplication` b
 infixl -->
 
--- | Return tuple type for given parameters
+-- | Return tuple type for given parameters.
 tupleType :: [Type] -> Type
 tupleType args = foldl TypeApplication (TypeConstructor (TupleTyCon n)) args
   where
     n = length args
 
--- | inversion of 'tupleType'
+-- | Inversion of 'tupleType', returns 'Nothing' if given type is
+-- not tuple type.
 unwrapTupleType :: Type -> Maybe [Type]
 unwrapTupleType = untuple []
   where
@@ -219,14 +240,19 @@ unwrapTupleType = untuple []
     untuple ts (TypeApplication r t) = untuple (t:ts) r
     untuple _ _ = Nothing
 
--- | if input type is of form @[a]@ return @a@, otherise @Nothing@
+-- | Uf input type is of form @[a]@ return @a@, otherise 'Nothing'.
 unwrapListType :: Type -> Maybe Type
 unwrapListType (TypeApplication (TypeConstructor ListTyCon) t) = Just t
 unwrapListType _ = Nothing
 
+-- | Unification is pair of substiturions, one for each unified type.
 type Unification = (Substitution, Substitution)
 
--- | Unify two types, returns most general unification
+-- | Unify two types, returns most general unification, that is
+-- when @(s1, s2) = unifyTypes t1 t2@ then @t1 // s1@ is equal to @t2 // s2@.
+--
+-- Type variables in types are prefixed with @"a_"@ for first type and
+-- @"b_"@ for second.
 unifyTypes :: Type -> Type -> Either String Unification
 unifyTypes ta tb = (,) <$> ((`composeSubst` tas) <$> mgu) <*> ((`composeSubst` tbs) <$> mgu)
   where
@@ -235,6 +261,7 @@ unifyTypes ta tb = (,) <$> ((`composeSubst` tas) <$> mgu) <*> ((`composeSubst` t
     tas = addPrefixSubst "a_" ta
     tbs = addPrefixSubst "b_" tb
 
+-- | internal
 substitutionClosure :: Substitution -> Either String Substitution
 substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=> clo
   where
@@ -284,10 +311,11 @@ substitutionClosure = sort >>> nub >>> groupBy ((==) `on` fst) >>> mapM merge >=
               | otherwise = Right $ TypeVariable var
     contains ty var = foldType (||) (const False) (== var) ty
 
--- | add specified prefix to all type variables in type
+-- | Add specified prefix to all type variables in type.
 addPrefixSubst :: CType t => String -> t -> Substitution
 addPrefixSubst prefix = typeVars >>> map (id &&& ((prefix ++) >>> TypeVariable))
 
+-- | @t // composeSubst s1 s2 = (t // s1) // s2@
 composeSubst :: Substitution -> Substitution -> Substitution
 composeSubst s2 = map (second (// s2))
 
@@ -313,18 +341,20 @@ isTrivial = (&&) <$> all (snd >>> tvar) <*> (sort >>> nub >>> groupBy ((==) `on`
     tvar (TypeVariable _) = True
     tvar _                = False
 
--- | Compare type context, order does not matter, variable naming does
+-- | Compare type context, order does not matter, variable naming does.
 instance Eq TypeContext where
     (==) (TypeContext a) (TypeContext b) = sort a == sort b
 
--- | Compare type expressions after normalization (same as 'expressionsEqual')
+-- | Compare type expressions, same as 'expressionsEqual'.
 instance Eq TypeExpression where
     (==) = expressionsEqual
 
--- | Compare type expressions for equality, normalize them (same as '(==)')
+-- | Compare type expressions for equality (same as '(==)'). It uses
+-- 'compareTypes' internally and checks for 'TypeOrdering' 'Equal'.
 expressionsEqual :: TypeExpression -> TypeExpression -> Bool
 expressionsEqual a b = (== Equal) . fst $ compareTypes a b
 
+-- | Type order based on unification result.
 data TypeOrdering = Equal | MoreGeneral | LessGeneral | Unifiable | NotUnifiable
                     deriving (Eq, Show, Read)
 
@@ -359,8 +389,7 @@ compareTypes ea@(TypeExpression ca ta) eb@(TypeExpression cb tb) =
 subset :: Eq a => [a] -> [a] -> Bool
 subset a b = all (`elem` b) a
 
-
-
+-- | Human readable representation of type.
 class FormatType t where
     formatType :: t -> String
 
@@ -411,6 +440,11 @@ instance FormatType TypeExpression where
     formatType (TypeExpression (TypeContext []) ty) = formatType ty
     formatType (TypeExpression con ty) = formatContext con ++ " => "++ formatType ty
 
+instance PrettyPrint Type where pp = formatType
+instance PrettyPrint TypeExpression where pp = formatType
+instance PrettyPrint TypeContext where pp = formatContext
+
+-- | Format type context, empty context is formated as @"()"@
 formatContext :: TypeContext -> String
 formatContext (TypeContext []) = "()"
 formatContext (TypeContext [(c, v)]) = c ++ " " ++ _formatTList v

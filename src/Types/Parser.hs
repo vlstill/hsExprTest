@@ -1,7 +1,13 @@
-module Types.Parser (parseType) where 
+-- | Parser for Haskell data types.
+-- It should support most of Haslell 98 types, with exception
+-- of freestanding list and typle constructors (such as in 'MaybeT []').
+-- It also supports integral type literal exptesion of GHC (@-XTypeLits@).
+-- It does not support multiparam type classec now.
+--
+-- * (c) 2012 Martin Jonáš
+-- * (c) 2014,2015 Vladimír Štill
 
--- (c) 2012 Martin Jonáš
--- (c) 2014,2015 Vladimír Štill
+module Types.Parser ( parseType ) where 
 
 import Types
 import Text.Parsec
@@ -88,6 +94,6 @@ brackets = spaced . between (char '[' <* spaces) (spaces *> char ']')
 spaced :: Parser a -> Parser a
 spaced = between spaces spaces
 
--- | Function parseType runs the actual type parser and returns parse error or syntactic tree as a result.
+-- | Returns parse error or syntactic tree as a result.
 parseType :: String -> Either ParseError TypeExpression
 parseType = parse typeExpression "(unknown)"

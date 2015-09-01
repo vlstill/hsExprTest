@@ -1,5 +1,7 @@
--- (c) 2012 Martin Jonáš
--- (c) 2014,2015 Vladimír Štill
+-- | File management utilities.
+--
+-- * (c) 2012 Martin Jonáš
+-- * (c) 2014,2015 Vladimír Štill
 
 module Files (
     -- * File Context
@@ -13,18 +15,19 @@ import System.IO
 import System.IO.Temp
 import System.FilePath
 
+-- | 'FileContext' is a directory in which checker stores all necessary files.
 newtype FileContext = FileContext { getContext :: FilePath }
                     deriving ( Eq, Show, Read )
 
 
--- | Create execution context, which is actually a directory in which all files are held
+-- | Create execution context, it will be safely create in temporary directory.
 withContext :: (FileContext -> IO a) -> IO a
 withContext yield = withSystemTempDirectory "hsExprTestContext" $ yield . FileContext
 
--- | Create temporary file with containing given module
+-- | Create temporary file containing given module
 --
--- @withCodeFile context module content safe@ will create file @<module>.hs@
--- in given context, file will contain module header and given context, it will
+-- @'withCodeFile' context module content safe@ will create file @\<module\>.hs@
+-- in given context, file will contain module header and given content, it will
 -- be marked either safe or unsafe base on @safe@ parameter.
 createCodeFile :: FileContext -> String -> String -> Bool -> IO FilePath
 createCodeFile (FileContext fc) moduleName content safe = do

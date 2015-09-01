@@ -1,18 +1,13 @@
 {-# LANGUAGE NamedFieldPuns, Unsafe, DeriveDataTypeable
            , ExistentialQuantification, Rank2Types, BangPatterns #-}
 
+-- | Simple interface to testing.
+--
 -- (c) 2014,2015 Vladimír Štill
 
--- | Simple interface to testing
 module Testing.Test (
     -- * Result re-exports
       TestResult(..)
-    -- * Configuration
-    , Expression
-    , ExpectedType ( .. )
-    , Test ( .. )
-    , TestConfig ( .. )
-    , defaultConfig
     -- * Utility functions
     , firstFailed
     , qcToResult
@@ -23,11 +18,6 @@ module Testing.Test (
     -- * Utility
     , AnyProperty ( AnyProperty )
     , withTypeOf
-    -- * QuickCheck instances and utilities
-    , Arbitrary
-    , CoArbitrary
-    , Function
-    , Fun ( Fun )
     ) where
 
 import Result
@@ -46,34 +36,11 @@ import Control.Applicative
 import System.IO.Unsafe ( unsafePerformIO )
 import Control.DeepSeq
 
+-- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
     deriving ( Typeable )
 
-type Expression = String
-
-data ExpectedType
-    = TypeOf { etTypeOf :: Expression }
-    | Fixed { etFixed :: String }
-    | None
-    deriving ( Typeable, Show )
-
-data Test
-    = TestEntry { tTestEntry :: String }
-    | Properties { tProperties :: [ AnyProperty ] }
-    deriving ( Typeable )
-
-data TestConfig = TestConfig
-    { expectedType      :: ExpectedType
-    , studentExpression :: String
-    , test              :: Test
-    } deriving ( Typeable )
-
-defaultConfig :: TestConfig
-defaultConfig = TestConfig { expectedType = None
-                           , studentExpression = "f"
-                           , test = Properties []
-                           }
-
+-- | Format QuickCheck's 'QCT.Result' into 'TestResult'
 qcToResult :: QCT.Result -> TestResult
 qcToResult (QCT.Success {}) = Success
 qcToResult (QCT.GaveUp {})  = Success
@@ -84,15 +51,19 @@ qcToResult (QCT.Failure { QCT.reason = r, QCT.output = o, QCT.theException = exc
     Nothing -> TestFailure o
 qcToResult (QCT.NoExpectedFailure { QCT.output = o }) = TestFailure o
 
+-- | Get first failing result.
 firstFailed :: [ TestResult ] -> TestResult
 firstFailed = mconcat
 
+-- | Get first failing result after conversion using 'qcToResult'
 qcFirstFailed :: [ QCT.Result ] -> TestResult
 qcFirstFailed = firstFailed . map qcToResult
 
+-- | Run list of properties, possibly with limit.
 qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestResult
 qcRunProperties lim props = firstFailed <$> mapM (qcRunProperty lim) props
 
+-- | Run property, possibly with limit.
 qcRunProperty :: Maybe Int -> AnyProperty -> IO TestResult
 qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
     Nothing -> QCT.quickCheckWithResult args p
@@ -110,6 +81,11 @@ qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
                        , QCT.maxSuccess = 1000
                        }
 
+-- | Exception aware comparison, if no exception is thrown when evaluating
+-- either of the values, compares them using '(==)', if exception is thrown
+-- in both, exception type and message is compared, otherwise if exception
+-- is thrown only in one, property fails. Mismatching values are returned
+-- using 'QC.counterexample' on failure.
 (<==>) :: (Eq a, Show a, NFData a) => a -> a -> QC.Property
 infix 4 <==>
 x <==> y = x `comp` y
@@ -146,5 +122,7 @@ instance NFData a => NFData (Wrapper a) where
     rnf (OK a)  = rnf a
     rnf (Exc !e) = ()
 
+-- | specalized version of 'const', returns first value and type is unified
+-- with type of second value (which can be 'unified' as it is not evaluated).
 withTypeOf :: a -> a -> a
 withTypeOf = const

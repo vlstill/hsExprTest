@@ -8,6 +8,12 @@
            , Trustworthy
            #-}
 
+-- | Entenstion of QuickCheck's modifiers with Integral ranges with type
+-- defined bounds.
+--
+-- >>> foo :: Range Int 0 255 -> Bool
+-- >>> foo (Range v) = /* ... */
+--
 -- (c) 2014 Vladimír Štill
 
 module Test.QuickCheck.Range
@@ -23,15 +29,25 @@ import System.Random
 
 import Test.QuickCheck
 
--- | modifier for generating integral values within given inclusive range
+-- | Modifier for generating integral values within given inclusive range.
+--
+-- @Range Int 0 42@ will have arbitrary values of type 'Int' in range from
+-- 0 to 42 inclusive.
 type Range (i :: *) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
 
+-- | Modifier for choosing arbitrarily from multiple ranges (first range
+-- is chosen uniformly, than value from this range is chosen uniformly).
+--
+-- For example, @Ranges Int [(0,0), (10, 19)]@ will with probability @1/2@
+-- generate @0@, and with probability @1/20@ one of (10, 19) inclusive.
 data Ranges :: * -> [ (Nat, Nat) ] -> * where
     Range :: (Integral i, Arbitrary i) => { unRange :: i } -> Ranges i ranges
 
+-- | Show instance is transparent.
 instance Show i => Show (Ranges i ranges) where
     show = unRange >>> show
 
+-- | Convert compile time type ranges to runtime values.
 class CRange (a :: k) where
     toRanges :: Proxy a -> [(Integer, Integer)]
 
@@ -45,6 +61,7 @@ instance forall head tail. (CRange head, CRange tail) => CRange (head ': tail) w
 instance CRange '[] where
     toRanges _ = []
 
+-- | is given value in range?
 inRanges :: Integral i => i -> [(Integer, Integer)] -> Bool
 inRanges val0 = any (\(x, y) -> val >= x && val <= y)
   where val = fromIntegral val0

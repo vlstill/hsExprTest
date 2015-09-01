@@ -1,10 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
 
+-- | Generic curry for 2 to 7 tuples
+--
 -- (c) 2014 Vladimír Štill
 
--- | Generic curry for 2 to 7 tuples
 module Types.Curry ( GCurry( guncurry, gcurry ), Curry ) where
 
+-- | Generic versions of 'curry' and 'uncurry' with instance for types
+-- of sizes 2 to 7.
 class GCurry a where
     type Curry a r :: *
     gcurry   :: (a -> r) -> Curry a r

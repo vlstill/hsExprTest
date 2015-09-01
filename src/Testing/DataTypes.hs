@@ -1,21 +1,19 @@
 {-# LANGUAGE Trustworthy #-}
 
+-- | Some usefull data types that can be used in tests.
+--
 -- (c) 2012 Martin Jonáš
 
 module Testing.DataTypes (Nat(..), BinaryTree(..)) where
 
 import Test.QuickCheck
 import Control.Monad
-import Testing.Limiting
 
 -- | Data type Nat represents natural numbers (with zero)
 data Nat = Zero | Succ Nat deriving (Eq, Ord, Show)
 
 instance Arbitrary Nat where
     arbitrary = sized arbitrarySizedNat
-
-instance Parametrizable Nat where
-    parameter = natToInt
 
 arbitrarySizedNat :: Int -> Gen Nat
 arbitrarySizedNat n = fmap intToNat (choose (0, n))
@@ -37,9 +35,6 @@ data BinaryTree a = Empty | BinaryNode a (BinaryTree a) (BinaryTree a) deriving 
 
 instance (Arbitrary a) => Arbitrary (BinaryTree a) where
     arbitrary = sized arbitraryBinaryTree
-
-instance Parametrizable (BinaryTree a) where
-    parameter = binaryTreeNodes
 
 arbitraryBinaryTree :: (Arbitrary a) => Int -> Gen (BinaryTree a)
 arbitraryBinaryTree 0 = return Empty

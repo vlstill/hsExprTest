@@ -1,8 +1,9 @@
 {-# LANGUAGE TupleSections, NamedFieldPuns, PatternGuards #-}
 
+-- | Support for building test expressions and type monomorphiscation.
 -- (c) 2014, 2015 Vladimír Štill
 
-module Types.Arguments
+module Testing.Arguments
     ( getTestableType
     , getDegeneralizedTypes
     , degeneralize
@@ -38,9 +39,14 @@ isTypeclass ty typeclass = do
 isTypeclasses :: Type -> [String] -> Interpreter Bool
 isTypeclasses ty = fmap and . mapM (ty `isTypeclass`)
 
+-- | Get degeneralized (monomorphised) types form type expression (which can
+-- be polymoprhic). Uses 'getTestableType' and 'degeneralize'.
 getDegeneralizedTypes :: TypeExpression -> ExceptT String Interpreter [Type]
 getDegeneralizedTypes = fmap degeneralize . getTestableType
 
+-- | Get type expression of testable polymorphic type, or error message if
+-- type is not testable. Typeclasses are added to type context to facilitate
+-- testability if necessary.
 getTestableType :: TypeExpression -> ExceptT String Interpreter TypeExpression
 getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
   where
@@ -74,6 +80,7 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         ifL l True  = l
         ifL _ False = []
 
+-- | Get test expression of type 'AnyProperty' which can be run in interpreter.
 buildTestExpression :: String -> String -> Type -> Interpreter String
 buildTestExpression st so ty = do
     (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
