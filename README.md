@@ -3,6 +3,9 @@ hsExprTest
 
 Automatic comparison of Haskell expressions and types based on QuickCheck.
 
+For documentation of testing setup for IS MUNI see 
+[ISMUNI](https://github.com/vlstill/hsExprTest/ISMUNI.md).
+
 Originally developed as bachelor thesis by Martin Jonáš on Faculty of
 Informatics, Masaryk University in Brno, Czech Republic, the code was
 later extended by Vladimír Štill and is going to be used as a testing tool
