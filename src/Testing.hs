@@ -150,11 +150,12 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
     -- needed to make instances available
     set [ installedModulesInScope := True ]
     loadModules modules
-    setImportsQ $ map (, Nothing) [ "Prelude", "Data.Word", "Data.Int"
-                                   , "Test.QuickCheck", "Test.QuickCheck.Modifiers"
-                                   , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
-                                   , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
-                  ++ imports
+    setImportsQ $ map (, Nothing)
+        [ "Prelude", "Data.Word", "Data.Int", "Test.QuickCheck"
+        , "Test.QuickCheck.Modifiers", "Test.QuickCheck.Function"
+        , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
+        , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
+        ++ imports
     action
   where
     output (Left (SomeException ex)) = RuntimeError (show ex)
