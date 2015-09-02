@@ -12,8 +12,8 @@
 
 ## Writing questions
 
-Questions are stored in question directory (defaults to /var/lib/checker/qdir),
-they have extension '.q.hs'.
+Questions are stored in question directory (defaults to `/var/lib/checker/qdir`),
+they have extension `.q.hs`.
 
 Each question contains preamble, which has hsExprTestService comments
 starting with `-- @` and test definition.
@@ -140,8 +140,8 @@ satisfy `NFData` and `Eq`.
 
 Polymorphic types are automatically degeneralized (mostly to `Integer`),
 however, polymorphic type constructors of arity bigger then 0 are not
-supported. That is types like @a -> b@ can be tested, but for example 
-@t a -> t b@ can not, as there is currently no way to determine what @t@
+supported. That is types like `a -> b` can be tested, but for example 
+`t a -> t b` can not, as there is currently no way to determine what `t`
 should be.
 
 ### Range modifier
