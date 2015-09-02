@@ -65,5 +65,11 @@ deploy-haddock :
 	rsync -a --del _deploy_haddock/hsExprTest/ antea:public_html/doc/hsExprTest
 
 
-hlint :
+hlint : $(shell if which hlint 2>/dev/null; then echo hlint-global; else echo hlint-local; fi)
+
+hlint-global :
 	hlint --hint support/HLint.hs src exec tests examples
+
+hlint-local : .cabal-sandbox
+	[[ -x ./.cabal-sandbox/bin/hlint ]] || cabal install hlint
+	./.cabal-sandbox/bin/hlint --hint support/HLint.hs src exec tests examples
