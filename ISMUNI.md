@@ -123,6 +123,7 @@ Data types has to be provided in extra module (which should be located in
 question directory), if injected directly they would be distinct
 in student and solution module.
 
+question:
 ```haskell
 -- @ expr: mirrorTree
 -- @ limit: 4000000
@@ -134,6 +135,39 @@ import P20140704Data
 
 mirrorTree :: BinTree a -> BinTree a
 /* ... */
+```
+
+`P20140704Data.hs`:
+```haskell
+module P20140704Data where
+
+import Test.QuickCheck
+import Test.QuickCheck.Arbitrary
+import Control.Monad
+import Control.DeepSeq
+
+data BinTree a = Empty
+               | Node a (BinTree a) (BinTree a)
+               deriving (Show, Eq)
+
+instance Arbitrary a => Arbitrary (BinTree a) where
+    arbitrary = sized arbitraryTree
+    shrink Empty       = []
+    shrink (Node v t1 t2) = [Empty, t1, t2]
+                            ++ map (Node v t1) (shrink t2)
+                            ++ map (flip (Node v) t2) (shrink t1)
+                            ++ map (\w -> Node w t1 t2) (shrink v)
+
+arbitraryTree :: Arbitrary a => Int -> Gen (BinTree a)
+arbitraryTree 0 = return Empty
+arbitraryTree n = frequency [ (1, return Empty)
+                            , (4, liftM3 Node arbitrary (arbitraryTree (n `div` 2)) (arbitraryTree (n `div` 2)))
+                            ]
+
+
+instance NFData a => NFData (BinTree a) where
+    rnf Empty = ()
+    rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
 ### Using QuickCheck modifiers
