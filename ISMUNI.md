@@ -43,9 +43,9 @@ Expression comparing questions work in following way:
     code),
 *   both student's and teacher's solutions are compiled,
 *   types of student's and teacher's version of functions are compared (as in
-    [type conparison](#Type comparison) case).
+    [type conparison](#type-comparison) case).
 *   QuickCheck testing expression is built based on type of solution and executed
-    (see [QuickCheck chapter](#QuickCheck) for details),
+    (see [QuickCheck chapter](#quickcheck) for details),
 *   test result is returned to IS.
 
 Example of very basic question definition:
@@ -87,10 +87,15 @@ beginning of student's file, just after module header.
     myfoldr = Prelude.foldr
 
 Here student is tasked with programming `foldr`, therefore `foldr` needs to be
-hidden from prelude. But solution file import of Prelude is not in inject 
+hidden from prelude. But solution file import of Prelude is not in inject
 section, so `foldr` can be used in solution file.
 
 #### Disallowing imports for student
+
+Normally student is allowed to import any module in scope (which includes
+`base`, `QuickCheck` and `hsExprTest` and their dependencies). This can be
+disallowed by injecting any function declaration into student file, after this
+compilation of student file which attempts import will fail.
 
     -- @ expr: mapMaybe
     -- @ limit: 4000000
@@ -104,12 +109,11 @@ section, so `foldr` can be used in solution file.
 
     mapMaybe = Data.Maybe.mapMaybe
 
-Normally student is allowed to import any module in scope (which includes
-`base`, `QuickCheck` and `hsExprTest` and their dependencies). This can be 
-disallowed by injecting any function declaration into student file, after this
-compilation of student file which attempts import will fail.
-
 #### Importing data types
+
+Data types has to be provided in extra module (which should be located in
+question directory), if injected directly they would be distinct
+in student and solution module.
 
     -- @ expr: mirrorTree
     -- @ limit: 4000000
@@ -123,11 +127,19 @@ compilation of student file which attempts import will fail.
     mirrorTree Empty = Empty
     mirrorTree (Node v t1 t2) = Node v (mirrorTree t2) (mirrorTree t1)
 
-Data types has to be provided in extra module (which should be located in
-question directory), if injected directly they would be distinct
-in student and solution module.
-
 #### Using QuickCheck modifiers
+
+List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
+Note that `Blind` modifier for inputs which are not instance of `Show` is
+added automatically.
+
+[qcm]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Modifiers.html
+
+If QuickCheck (or hsExprTest's) modifiers should be used you have to wrap
+tested expression in wrapper provided in inject section. Note that currently
+this implies that types of wrappers are compared (as hsExprTest always
+typechecks same expression as it tests -- this restriction will be lifter
+in some future release).
 
     -- @ expr: wrap_numbers
     -- @ limit: 2000000
@@ -143,26 +155,6 @@ in student and solution module.
 
     numbers :: Int -> Int -> Bool
     numbers x y = /* ... */
-
-If QuickCheck (or hsExprTest's) modifiers should be used you have to wrap
-tested expression in wrapper provided in inject section. Note that currently
-this implies that types of wrappers are compared (as hsExprTest always 
-typechecks same expression as it tests -- this restriction will be lifter
-in some future release).
-
-### QuickCheck requirements
-
-Each data type which is parameter of tested expression has to be instance
-of `Arbitrary` typeclass, when testing higher order functions this implies
-that parameters or functions in parameter must be instances of `CoArbitrary`
-and result must be `Arbitrary`. Furthermore result of whole expression must
-satisfy `NFData` and `Eq`.
-
-Polymorphic types are automatically degeneralized (mostly to `Integer`),
-however, polymorphic type constructors of arity bigger then 0 are not
-supported. That is types like `a -> b` can be tested, but for example 
-`t a -> t b` can not, as there is currently no way to determine what `t`
-should be.
 
 ### Range modifier
 
@@ -187,4 +179,91 @@ example follows.
     clock :: Int -> Int -> String
     /* ... */
 
+## QuickCheck
 
+When comparing expressions `hsExprTest` automatically generates expression,
+which compares results of invocation of student's solution to teacher's
+solution and invokes [QuickCheck](https://hackage.haskell.org/package/QuickCheck)
+to generate input for this expression.
+
+This has several implications:
+
+*   each data type which is parameter of tested expression has to be instance
+    of `Arbitrary` typeclass
+    *   when testing higher order functions this implies that parameters or
+        functions in parameter must be instances of `CoArbitrary` and result
+        must be `Arbitrary`,
+    *   for custom data types you will have to
+        [write arbitrary instance by hand](#arbitrary-instances),
+*   furthermore result of whole expression must satisfy `NFData`, `Eq` and `Show`,
+*   polymorphic types are automatically degeneralized (mostly to `Integer`),
+    however, polymorphic type constructors of arity bigger then 0 are not
+    supported (that is types like `a -> b` can be tested, but for example
+    `t a -> t b` can not, as there is currently no way to determine what `t`
+    should be),
+*   should some of the solution throw an exception, this exception is caught
+    in testing expression and is **not** propagated to QuickCheck
+    *   this allows for comparing exceptional behavior,
+    *   if both solutions throw exception for given input, those exceptions
+        are comared (their type and exception message must match exactly),
+    *   if just one of solutions throws exception, this is reported in
+        test result.
+
+This also means that there is no support for testing `IO` functions.
+
+In case of test failure, QuickCheck will produce counterexample containing:
+
+*   inputs of expression (each line for one parameter),
+*   mismatched outputs (in form `<student's output> /= <teacher's output>`),
+*   counterexample might contain `(*)` instead of input value if value is not
+    instance of show, such types include
+    *   anything which is not instance of `Show` except for most of function
+        types, which [can be shown in QuickCheck][qce],
+    *   higher order functions,
+*   QuickCheck's shrinking will be used to minimize inputs for counterexample.
+
+[qce]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Function.html
+
+Currently QuickCheck performs 1000 tests, which should be enough for most
+cases. However, **care should be taken that distribution of input values is
+well suited for your testcase**, if not you should wrap tested function with
+wrapper and use [QuickCheck](#using-quickcheck-modifiers) or
+[Range](#range-modifier) modifiers, or write your own
+[Arbitrary instance](#arbitrary-instances). Please note that inbuilt instances
+for numeric data types usually generate only small values (somewhere in range
+roughly -30 to 30).
+
+### Arbitrary instances
+
+Each type which is input to testing expression must be instance of
+[`Arbitrary`][arb] typeclass, see the link for more details. This typeclass
+is used for automatic generation of random inputs and for input shrinking
+(minimization of counterexample). Here is an example instance for tree-like
+structure:
+
+    data Filesystem = Folder [Filesystem]
+                    | File
+                    deriving ( Show )
+
+    instance Arbitrary Filesystem where
+        arbitrary = sized arbitraryFilesystem
+        shrink (Folder sub) = File : map Folder (shrink sub)
+        shrink File         = []
+
+
+    arbitraryFilesystem :: Int -> Gen Filesystem
+    arbitraryFilesystem 0 = return File
+    arbitraryFilesystem n = frequency [ (3, choose (0, 5) >>= liftM Folder . arbitraryFSList n)
+                                      , (1, return File)
+                                      ]
+
+    arbitraryFSList :: Int -> Int -> Gen [Filesystem]
+    arbitraryFSList _ 0 = return []
+    arbitraryFSList n l = liftM2 (:) (arbitraryFilesystem (n `div` l)) (arbitraryFSList n (l - 1))
+
+For recursive structures, `sized` combinator should be used to implement
+arbitrary (note that the size parameter is decremented in `arbitraryFSList`).
+`frequency` combinator chooses from one of the generators from the list, each
+with probability proportional to first value in the tuple.
+
+[arb]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Arbitrary.html
