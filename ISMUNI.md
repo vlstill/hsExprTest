@@ -21,8 +21,10 @@ starting with `-- @` and test definition.
 
 ### Type comparison
 
-    -- @ type
-    Bool  -> [[a]] -> Int
+```haskell
+-- @ type
+Bool  -> [[a]] -> Int
+```
 
 Type equality test contains preamble specifying it is type test and expected
 type. Types are tested for equality, that is they can differ only in naming of
@@ -50,13 +52,15 @@ Expression comparing questions work in following way:
 
 Example of very basic question definition:
 
-    -- @ expr: binmap
-    -- @ limit: 5000000
+```haskell
+-- @ expr: binmap
+-- @ limit: 5000000
 
-    binmap :: (a -> a -> b) -> [a] -> [b]
-    binmap _ []       = []
-    binmap _ [_]      = []
-    binmap f (x:y:xs) = f x y : binmap f (y:xs)
+binmap :: (a -> a -> b) -> [a] -> [b]
+binmap _ []       = []
+binmap _ [_]      = []
+binmap f (x:y:xs) = f x y : binmap f (y:xs)
+```
 
 In preamble, `-- @ expr: <name>` is needed to specify this is expression
 comparison and the name of expression to be compared. After this test follows.
@@ -74,17 +78,19 @@ beginning of student's file, just after module header.
 
 #### Hiding functions from prelude
 
-    -- @ expr: myfoldr
-    -- @ limit: 2000000
-    -- @ inject
+```haskell
+-- @ expr: myfoldr
+-- @ limit: 2000000
+-- @ inject
 
-    import qualified Prelude
-    -- @ INJECT BEGIN
-    import Prelude hiding ( foldr, foldl, scanr, scanl, foldr1, foldl1, scanr1, scanl1 )
-    -- @ INJECT END
+import qualified Prelude
+-- @ INJECT BEGIN
+import Prelude hiding ( foldr, foldl, scanr, scanl, foldr1, foldl1, scanr1, scanl1 )
+-- @ INJECT END
 
-    myfoldr :: (a -> b -> b) -> b -> [a] -> b
-    myfoldr = Prelude.foldr
+myfoldr :: (a -> b -> b) -> b -> [a] -> b
+myfoldr = Prelude.foldr
+```
 
 Here student is tasked with programming `foldr`, therefore `foldr` needs to be
 hidden from prelude. But solution file import of Prelude is not in inject
@@ -97,17 +103,19 @@ Normally student is allowed to import any module in scope (which includes
 disallowed by injecting any function declaration into student file, after this
 compilation of student file which attempts import will fail.
 
-    -- @ expr: mapMaybe
-    -- @ limit: 4000000
-    -- @ inject
+```haskell
+-- @ expr: mapMaybe
+-- @ limit: 4000000
+-- @ inject
 
-    import qualified Data.Maybe
+import qualified Data.Maybe
 
-    -- @ INJECT BEGIN
-    no_imports_for_student = ()
-    -- @ INJECT END
+-- @ INJECT BEGIN
+no_imports_for_student = ()
+-- @ INJECT END
 
-    mapMaybe = Data.Maybe.mapMaybe
+mapMaybe = Data.Maybe.mapMaybe
+```
 
 #### Importing data types
 
@@ -115,17 +123,18 @@ Data types has to be provided in extra module (which should be located in
 question directory), if injected directly they would be distinct
 in student and solution module.
 
-    -- @ expr: mirrorTree
-    -- @ limit: 4000000
-    -- @ inject
+```haskell
+-- @ expr: mirrorTree
+-- @ limit: 4000000
+-- @ inject
 
-    -- @ INJECT BEGIN
-    import P20140704Data
-    -- @ INJECT END
+-- @ INJECT BEGIN
+import P20140704Data
+-- @ INJECT END
 
-    mirrorTree :: BinTree a -> BinTree a
-    mirrorTree Empty = Empty
-    mirrorTree (Node v t1 t2) = Node v (mirrorTree t2) (mirrorTree t1)
+mirrorTree :: BinTree a -> BinTree a
+/* ... */
+```
 
 #### Using QuickCheck modifiers
 
@@ -141,20 +150,22 @@ this implies that types of wrappers are compared (as hsExprTest always
 typechecks same expression as it tests -- this restriction will be lifter
 in some future release).
 
-    -- @ expr: wrap_numbers
-    -- @ limit: 2000000
-    -- @ inject
+```haskell
+-- @ expr: wrap_numbers
+-- @ limit: 2000000
+-- @ inject
 
-    -- @ INJECT BEGIN
-    import Test.QuickCheck.Modifiers ( NonNegative ( NonNegative ) )
+-- @ INJECT BEGIN
+import Test.QuickCheck.Modifiers ( NonNegative ( NonNegative ) )
 
-    wrap_numbers :: NonNegative Int -> NonNegative Int -> ( Int, Int, Bool )
-    wrap_numbers (NonNegative x) (NonNegative y) = ( x, y, numbers x y )
+wrap_numbers :: NonNegative Int -> NonNegative Int -> ( Int, Int, Bool )
+wrap_numbers (NonNegative x) (NonNegative y) = ( x, y, numbers x y )
 
-    -- @ INJECT END
+-- @ INJECT END
 
-    numbers :: Int -> Int -> Bool
-    numbers x y = /* ... */
+numbers :: Int -> Int -> Bool
+/* ... */
+```
 
 ### Range modifier
 
@@ -165,19 +176,21 @@ provides ranges with type-specified bounds (using GHC type literals
 `-XTypeLits`).  See documentation of this module for more details, simple
 example follows.
 
-    -- @ expr: wrap_clock
-    -- @ limit: 2000000
-    -- @ inject
+```haskell
+-- @ expr: wrap_clock
+-- @ limit: 2000000
+-- @ inject
 
-    -- @ INJECT BEGIN
-    import Test.QuickCheck.Range
+-- @ INJECT BEGIN
+import Test.QuickCheck.Range
 
-    wrap_clock :: Range Int 0 23 -> Range Int 0 59 -> String
-    wrap_clock (Range hh) (Range mm) = clock hh mm
-    -- @ INJECT END
+wrap_clock :: Range Int 0 23 -> Range Int 0 59 -> String
+wrap_clock (Range hh) (Range mm) = clock hh mm
+-- @ INJECT END
 
-    clock :: Int -> Int -> String
-    /* ... */
+clock :: Int -> Int -> String
+/* ... */
+```
 
 ## QuickCheck
 
@@ -241,25 +254,27 @@ is used for automatic generation of random inputs and for input shrinking
 (minimization of counterexample). Here is an example instance for tree-like
 structure:
 
-    data Filesystem = Folder [Filesystem]
-                    | File
-                    deriving ( Show )
+```haskell
+data Filesystem = Folder [Filesystem]
+                | File
+                deriving ( Show )
 
-    instance Arbitrary Filesystem where
-        arbitrary = sized arbitraryFilesystem
-        shrink (Folder sub) = File : map Folder (shrink sub)
-        shrink File         = []
+instance Arbitrary Filesystem where
+    arbitrary = sized arbitraryFilesystem
+    shrink (Folder sub) = File : map Folder (shrink sub)
+    shrink File         = []
 
 
-    arbitraryFilesystem :: Int -> Gen Filesystem
-    arbitraryFilesystem 0 = return File
-    arbitraryFilesystem n = frequency [ (3, choose (0, 5) >>= liftM Folder . arbitraryFSList n)
-                                      , (1, return File)
-                                      ]
+arbitraryFilesystem :: Int -> Gen Filesystem
+arbitraryFilesystem 0 = return File
+arbitraryFilesystem n = frequency [ (3, choose (0, 5) >>= liftM Folder . arbitraryFSList n)
+                                  , (1, return File)
+                                  ]
 
-    arbitraryFSList :: Int -> Int -> Gen [Filesystem]
-    arbitraryFSList _ 0 = return []
-    arbitraryFSList n l = liftM2 (:) (arbitraryFilesystem (n `div` l)) (arbitraryFSList n (l - 1))
+arbitraryFSList :: Int -> Int -> Gen [Filesystem]
+arbitraryFSList _ 0 = return []
+arbitraryFSList n l = liftM2 (:) (arbitraryFilesystem (n `div` l)) (arbitraryFSList n (l - 1))
+```
 
 For recursive structures, `sized` combinator should be used to implement
 arbitrary (note that the size parameter is decremented in `arbitraryFSList`).
