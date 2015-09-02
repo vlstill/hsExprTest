@@ -1,25 +1,18 @@
-# hsExprTestService and IS MUNI integration
+# Writing questions for IS MUNI integration
 
-## Setting up server
+This is documentation for creating questions, to see how to setup server,
+see [backend][].
 
-### What is needed
-
-*   build of hsExprTestService
-*   question directory
-*   writable directory for service socket
-
-### TODO
-
-## Writing questions
+[backend]: https://github.com/vlstill/hsExprTest/blob/master/ISMUNI_backend.md
 
 Questions are stored in question directory (defaults to `/var/lib/checker/qdir`),
 they have extension `.q.hs`. Currently two types of questions are supported
-**type comparing** and **expresion comparing** (using `QuickCheck`).
+**type comparing** and **expresion comparing** (using [QuickCheck](#quickcheck)).
 
 Each question contains preamble, which has hsExprTestService comments
 starting with `-- @` and test definition.
 
-### Type comparison
+## Type comparison
 
 ```haskell
 -- @ type
@@ -32,7 +25,7 @@ type variables, for example, allowed answer for this question would be
 `Bool -> [[x]] -> Int` but neither `a -> [[b]] -> Int` nor `Bool -> [[Int]] -> Int`
 would be allowed.
 
-### Expression comparison
+## Expression comparison
 
 Expression comparing questions work in following way:
 
@@ -69,14 +62,14 @@ Other options are:
 *   `limit`: time limit (in milliseconds) for test execution,
 *   `inject`: To allow source injection (see later).
 
-### Using source injection
+## Using source injection
 
 Source injection is needed to specify helper functions, insert imports to
 student files, or disallow imports. It is enabled by `-- @ inject` in preamble
 and source between `-- @ INJECT BEGIN` and `-- @ INJECT END` is copied to the
 beginning of student's file, just after module header.
 
-#### Hiding functions from prelude
+### Hiding functions from prelude
 
 ```haskell
 -- @ expr: myfoldr
@@ -96,7 +89,7 @@ Here student is tasked with programming `foldr`, therefore `foldr` needs to be
 hidden from prelude. But solution file import of Prelude is not in inject
 section, so `foldr` can be used in solution file.
 
-#### Disallowing imports for student
+### Disallowing imports for student
 
 Normally student is allowed to import any module in scope (which includes
 `base`, `QuickCheck` and `hsExprTest` and their dependencies). This can be
@@ -117,7 +110,7 @@ no_imports_for_student = ()
 mapMaybe = Data.Maybe.mapMaybe
 ```
 
-#### Importing data types
+### Importing data types
 
 Data types has to be provided in extra module (which should be located in
 question directory), if injected directly they would be distinct
@@ -136,7 +129,7 @@ mirrorTree :: BinTree a -> BinTree a
 /* ... */
 ```
 
-#### Using QuickCheck modifiers
+### Using QuickCheck modifiers
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
