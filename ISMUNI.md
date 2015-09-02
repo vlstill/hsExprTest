@@ -13,7 +13,8 @@
 ## Writing questions
 
 Questions are stored in question directory (defaults to `/var/lib/checker/qdir`),
-they have extension `.q.hs`.
+they have extension `.q.hs`. Currently two types of questions are supported
+**type comparing** and **expresion comparing** (using `QuickCheck`).
 
 Each question contains preamble, which has hsExprTestService comments
 starting with `-- @` and test definition.
@@ -24,9 +25,30 @@ starting with `-- @` and test definition.
     Bool  -> [[a]] -> Int
 
 Type equality test contains preamble specifying it is type test and expected
-type.
+type. Types are tested for equality, that is they can differ only in naming of
+type variables, for example, allowed answer for this question would be
+`Bool -> [[x]] -> Int` but neither `a -> [[b]] -> Int` nor `Bool -> [[Int]] -> Int`
+would be allowed.
 
-### Basic question
+### Expression comparison
+
+Expression comparing questions work in following way:
+
+*   one function together with its type is compared in each test,
+*   teacher's question file contains solution and name of function to be tested,
+    (and optionally some matadate and code to be injected into student's
+    solution -- see later),
+*   student's solution is submitted using questioner in IS and sent to testing service
+*   testing service performs preprocessing of student file (such as injection of
+    code),
+*   both student's and teacher's solutions are compiled,
+*   types of student's and teacher's version of functions are compared (as in
+    [type conparison](#Type comparison) case).
+*   QuickCheck testing expression is built based on type of solution and executed
+    (see [QuickCheck chapter](#QuickCheck) for details),
+*   test result is returned to IS.
+
+Example of very basic question definition:
 
     -- @ expr: binmap
     -- @ limit: 5000000
@@ -36,9 +58,9 @@ type.
     binmap _ [_]      = []
     binmap f (x:y:xs) = f x y : binmap f (y:xs)
 
-Here we can see simple expression comparison, in preamble, `-- @ expr: <name>`
-is needed to specify this is expression comparison and the name of expression
-to be compared. After this test follows. Other options are:
+In preamble, `-- @ expr: <name>` is needed to specify this is expression
+comparison and the name of expression to be compared. After this test follows.
+Other options are:
 
 *   `limit`: time limit (in milliseconds) for test execution,
 *   `inject`: To allow source injection (see later).
