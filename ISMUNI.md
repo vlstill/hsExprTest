@@ -147,9 +147,11 @@ should be.
 ### Range modifier
 
 To simplify commonly used pattern when parameters has to be from certain
-range module `Test.QuickCheck.Rang` (from `hsExprTest` package) provides
-ranges with type-specified bounds (using GHC type literals `-XTypeLits`).
-See documentation of this module for more details, simple example follows.
+range module `Test.QuickCheck.Rang` (from `hsExprTest` package,
+[Haddock](https://paradise.fi.muni.cz/~xstill/doc/hsExprTest/Test-QuickCheck-Range.html))
+provides ranges with type-specified bounds (using GHC type literals
+`-XTypeLits`).  See documentation of this module for more details, simple
+example follows.
 
     -- @ expr: wrap_clock
     -- @ limit: 2000000
