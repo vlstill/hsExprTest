@@ -18,6 +18,7 @@ module Testing (
 
 import Control.Exception
 import Control.Applicative
+import Control.Monad
 import Control.Monad.Trans.Except
 
 import Data.Monoid
@@ -52,7 +53,7 @@ data Typecheck = NoTypecheck -- ^ do not perform any typechecking step
 data CompareMode = JustCompile -- ^ run just compilation (type parsing for type comparison)
                  | CompileAndTypecheck -- ^ run compilation and typechecking
                  | FullComparison -- ^ perform full test
-                 deriving (Eq, Read, Show)
+                 deriving (Eq, Ord, Read, Show)
 
 -- | Test definition
 data Test
@@ -94,33 +95,28 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
         studf <- createStudentFile c student
         solf <- createSolutionFile c solution
         withInterpreter c [ studf, solf ] [ importQ "Student", importQ "Solution" ] $ do
-            sttype <- typeOf stexpr
-            sotype <- typeOf soexpr
-            case compareTypesCmd sttype sotype typecheckMode compareMode of
-                Success -> if compareMode == FullComparison
-                    then cmp sttype sotype
-                    else return Success
+            sttypeStr <- typeOf stexpr
+            sotypeStr <- typeOf soexpr
+            case compareTypesCmd sttypeStr sotypeStr typecheckMode compareMode of
+                Success -> if compareMode < CompileAndTypecheck then return Success else do
+                    -- this is after typechecking, so type parsing and unification
+                    -- must succeed
+                    let Right sttype = parseType sttypeStr
+                        Right sotype = parseType sotypeStr
+                        Right mgu = unifyTypes (getType sttype) (getType sotype)
+                        comtype = sttype // fst mgu
+                    runExceptT (getDegeneralizedTypes comtype) >>= \case
+                        Left emsg       -> return . RuntimeError $ emsg
+                        Right testtypes -> fmap mconcat . forM testtypes $ \testtype -> do
+                            expr <- buildTestExpression stexpr soexpr testtype
+                            prop <- interpret expr (as :: AnyProperty)
+                            if compareMode == FullComparison
+                                then liftIO $ qcRunProperty limit prop
+                                else return Success
                 r -> return r
   where
     stexpr = "Student." ++ expressionName
     soexpr = "Solution." ++ expressionName
-
-    cmp :: String -> String -> Interpreter TestResult
-    cmp sttype0 sotype0 = runExceptT (getDegeneralizedTypes comtype) >>= \case
-        Right testtypes -> mconcat <$> mapM test testtypes
-        Left emsg       -> return . RuntimeError $ emsg
-      where
-        -- this is after typechecking, so type parsing and unification
-        -- must succeed
-        Right sttype = parseType sttype0
-        Right sotype = parseType sotype0
-        Right mgu = unifyTypes (getType sttype) (getType sotype)
-        comtype = sttype // fst mgu
-
-    test testtype = do
-        expr <- buildTestExpression stexpr soexpr testtype
-        prop <- interpret expr (as :: AnyProperty)
-        liftIO $ qcRunProperty limit prop
 
 compareTypesCmd :: String -> String -> Typecheck -> CompareMode -> TestResult
 compareTypesCmd student solution typecheckMode compareMode =
