@@ -5,6 +5,7 @@ Automatic comparison of Haskell expressions and types based on QuickCheck.
 
 For documentation of testing setup for IS MUNI see 
 [IS MUNI](https://github.com/vlstill/hsExprTest/blob/master/ISMUNI.md).
+For source documentation see [Haddock docs](https://paradise.fi.muni.cz/~xstill/doc/hsExprTest/).
 
 Originally developed as bachelor thesis by Martin Jonáš on Faculty of
 Informatics, Masaryk University in Brno, Czech Republic, the code was

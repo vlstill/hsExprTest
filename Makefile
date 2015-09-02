@@ -56,5 +56,14 @@ haddock : .cabal-sandbox/bin/haddock
 	cabal haddock --html --with-haddock=./.cabal-sandbox/bin/haddock
 	@echo "file://$$PWD/dist/doc/html/hsExprTest/index.html"
 
+deploy-haddock :
+	rm -rf _deploy_haddock
+	mkdir _deploy_haddock
+	cd _deploy_haddock
+	[[ -x ./.cabal-sandbox/bin/standalone-haddock ]] || cabal install standalone-haddock
+	./.cabal-sandbox/bin/standalone-haddock --package-db .cabal-sandbox/*.conf.d/ . -o _deploy_haddock
+	rsync -a --del _deploy_haddock/hsExprTest/ antea:public_html/doc/hsExprTest
+
+
 hlint :
 	hlint --hint support/HLint.hs src exec tests examples
