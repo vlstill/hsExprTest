@@ -68,11 +68,13 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
                                          = (mconcat <$> mapM (gtt True) args) >>= \x -> checkTestable >> return x
         | otherwise                      = throwE $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
       where
-        checkTestable = lift (isTypeclasses typ $
-                                ifL ["Eq"] (not nested && isret)
-                                ++ bool ["Arbitrary"] ["CoArbitrary", "Function"] (nested && not isret))
-                            >>= flip when (throwE ("Not testable: `" ++ formatType typ ++ "'.")) . not
-                            >> return mempty
+        checkTestable = lift (isTypeclasses typ classes) >>=
+                        flip when (throwE ("Not testable: `" ++ formatType typ ++ "'.")) . not >>
+                        return mempty
+        classes
+            | not nested && isret = [ "Eq", "Show", "NFData" ]
+            | nested && not isret = [ "CoArbitrary", "Function" ]
+            | otherwise           = ["Arbitrary"]
         mkTestable var = fromList . map (, [TypeVariable var]) $
               "Show" : bool ["Arbitrary"] [ "CoArbitrary", "Function" ] (nested && not isret)
                      ++ ifL ["Eq"] (not nested && isret)
