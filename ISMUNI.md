@@ -69,6 +69,13 @@ student files, or disallow imports. It is enabled by `-- @ inject` in preamble
 and source between `-- @ INJECT BEGIN` and `-- @ INJECT END` is copied to the
 beginning of student's file, just after module header.
 
+The inject section can be anywhere in teacher's file, but it is recommended to
+put it in the beginning as it is left in place in teacher's and put at the
+beginning of student's file.  There can be only one inject section. Data types
+should not be defined directly in inject section, as they would be distinct in
+student's and teacher's module, see
+[Importing data types](#importing-data-types) for more details.
+
 ### Hiding functions from prelude
 
 ```haskell
