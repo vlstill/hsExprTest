@@ -120,9 +120,7 @@ in student and solution module.
     -- @ INJECT END
 
     numbers :: Int -> Int -> Bool
-    numbers x y = digits x == digits y
-      where digits 0 = 0
-            digits x = x `mod` 10 + digits (x `div` 10)
+    numbers x y = /* ... */
 
 If QuickCheck (or hsExprTest's) modifiers should be used you have to wrap
 tested expression in wrapper provided in inject section. Note that currently
