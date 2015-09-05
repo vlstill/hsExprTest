@@ -123,7 +123,7 @@ runQuery (Query {..}) sock = do
             Left emsg -> void $ err ("FATAL: Invalid question: " ++ emsg)
             Right q   -> do
                 doLog "running expressionTester"
-                (ok, msg) <- fmap (isSuccess &&& pp) $ runTest q
+                (ok, msg) <- fmap (isSuccess &&& (pp >>> map fixTicks)) $ runTest q
                 doLog "done"
                 let reply = concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
@@ -137,6 +137,10 @@ runQuery (Query {..}) sock = do
     decodeQ student q = case span ("-- @ " `isPrefixOf`) (lines q) of
         ([], _)           -> Left "Missing instructions"
         (instr, solution) -> fromInstr student (unlines solution) (map (drop 5) instr)
+
+    fixTicks '‘' = '`'
+    fixTicks '’' = '\''
+    fixTicks x   = x
 
     fromInstr student0 solution instrs0 =
         case (lookup "type" instrs, lookup "expr" instrs) of
