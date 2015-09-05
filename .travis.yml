@@ -3,14 +3,14 @@ ghc:
   - 7.8
 
 env:
-    - GHC_PATH=/opt/ghc/7.8.2/bin
+    - GHC_PATH=/opt/ghc/7.10.2/bin
     - GHC_PATH="" # default ghc specified above
 
 before_install:
     - ls /opt/ghc/
     - ls /usr/local/ghc/
     - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
-    - echo $PATH
+    - env
     - ghc --version
 
 install:
