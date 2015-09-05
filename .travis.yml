@@ -23,6 +23,8 @@ sudo: false
 
 addons:
   apt:
+    sources:
+      - hvr-ghc
     packages:
       - socat
       - time
