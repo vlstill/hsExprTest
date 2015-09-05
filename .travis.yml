@@ -2,9 +2,17 @@ language: haskell
 ghc:
   - 7.8
 
-install:
+env:
+    - GHC_PATH=/opt/ghc/7.8.2/bin
+    - GHC_PATH="" # default ghc specified above
+
+before_install:
     - ls /opt/ghc/
     - ls /usr/local/ghc/
+    - [ -z $GHC_PATH ] || PATH=$GHC_PATH:$PATH
+    - ghc --version
+
+install:
     - cabal install --only-dependencies --enable-tests
 
 script:
