@@ -12,7 +12,8 @@ before_install:
     - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
     - env
     - ghc --version
-    - ghc-pkg init # for GHC 7.10
+    - rm .cabal .ghc -rf
+    - cabal update
 
 install:
     - cabal install --only-dependencies --enable-tests
