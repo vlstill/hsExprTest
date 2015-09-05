@@ -10,6 +10,7 @@ before_install:
     - ls /opt/ghc/
     - ls /usr/local/ghc/
     - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
+    - echo $PATH
     - ghc --version
 
 install:
