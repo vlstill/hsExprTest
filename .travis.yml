@@ -4,6 +4,7 @@ ghc:
 
 env:
     - GHC_PATH=/opt/ghc/7.10.2/bin
+    - GHC_PATH=/opt/ghc/head/bin
     - GHC_PATH="" # default ghc specified above
 
 before_install:
@@ -42,4 +43,5 @@ addons:
       - socat
       - time
       - ghc-7.10.2
-      - cabal-install-1.22
+      - ghc-head
+      - cabal-install-1.22 # newer GHCs fail with old cabal
