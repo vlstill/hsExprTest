@@ -3,7 +3,7 @@ version:             0.1.99
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
-        See https://github.com/vlstill/hsExprTest/README.md for usage details.
+        See https://github.com/vlstill/hsExprTest/blob/master/README.md for usage details.
 synopsis:           Expression Testing
 category:           Testing
 author:             Martin Jonáš <359542@mail.muni.cz>, Vladimír Štill <xstill@mail.muni.cz>
