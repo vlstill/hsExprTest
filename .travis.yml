@@ -1,11 +1,13 @@
 language: haskell
+ghc:
+  - 7.8
 
 install:
+    - ls /opt/ghc/
+    - ls /usr/local/ghc/
     - cabal install --only-dependencies --enable-tests
 
 script:
-    - ls /opt/ghc/
-    - ls /usr/local/ghc/
     - cabal configure
     - cabal build
     - cabal install
