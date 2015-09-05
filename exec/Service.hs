@@ -3,7 +3,10 @@
 
 module Main ( main ) where
 
-import UI
+import Testing
+import Result
+import PrettyPrint
+import Types
 
 import Control.Exception
 import Control.Arrow
@@ -119,7 +122,7 @@ runQuery (Query { transactId, questionId, content }) sock = do
             Left emsg -> void $ err ("FATAL: Invalid question: " ++ emsg)
             Right q   -> do
                 doLog "running expressionTester"
-                (ok, msg) <- runExpressionTester q
+                (ok, msg) <- fmap (isSuccess &&& pp) $ runTest q
                 doLog "done"
                 let reply = concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
@@ -129,19 +132,16 @@ runQuery (Query { transactId, questionId, content }) sock = do
                 doLog "reply sent"
                 return ()
   where
-    decodeQ :: String -> String -> Either String Main
+    decodeQ :: String -> String -> Either String Test
     decodeQ student q = case span ("-- @ " `isPrefixOf`) (lines q) of
         ([], _)           -> Left "Missing instructions"
         (instr, solution) -> fromInstr student (unlines solution) (map (drop 5) instr)
 
-    fromInstr student0 solution instrs0 = do
-        let instrs = map (span (/= ':') >>> second (drop 2)) instrs0
+    fromInstr student0 solution instrs0 =
         case (lookup "type" instrs, lookup "expr" instrs) of
-            (Just _, Nothing) -> return CompareTypes { student = student0, solution }
+            (Just _, Nothing) -> addmode CompareTypes { student = student0, solution }
             (Nothing, Just expressionName) -> do
-                limit <- fmap Just $ case lookup "limit" instrs of
-                    Nothing   -> Right deflimit
-                    Just sLim -> readEither sLim
+                limit <- fmap Just . maybe (Right deflimit) readEither $ lookup "limit" instrs
                 student <- if isJust (lookup "inject" instrs)
                     then do
                         let toInject = unlines . takeWhile (/= "-- @ INJECT END")
@@ -154,20 +154,28 @@ runQuery (Query { transactId, questionId, content }) sock = do
                                         , student0
                                         ]
                     else Right student0
-                return CompareExpressions { student, solution, expressionName, limit }
-            _ -> Left "Invalid instructions"
+                addmode CompareExpressions { student, solution, expressionName, limit }
+            _ -> Left "Invalid instructions (expected either '-- @ type' or '-- @ expr: NAME')"
+      where
+        instrs = map (span (/= ':') >>> second (drop 2)) instrs0
+        addmode :: Test -> Either String Test
+        addmode test = do
+            compareMode <- maybe (Right FullComparison) parseCompareMode $ lookup "mode" instrs
+            typecheckMode <- maybe (Right $ RequireTypeOrdering [ Equal ]) parseTypecheck $ lookup "typecheck" instrs
+            return $ test { compareMode, typecheckMode }
+        parseCompareMode :: String -> Either String CompareMode
+        parseCompareMode str
+            | str == "compile"   = Right JustCompile
+            | str == "typecheck" = Right CompileAndTypecheck
+            | str == "full"      = Right FullComparison
+            | otherwise           = Left "Expected one of 'compile', 'typecheck', 'full'"
 
-{-
-            do
-                (ok, msg) <- runExpressionTester conf
-                send sock $ unlines
-                    [ if ok then "OK" else "FAIL"
-                    , ""
-                    , msg
-                    , ""
-                    ]
+        parseTypecheck :: String -> Either String Typecheck
+        parseTypecheck = words >>> mapM (`lookupE` cms) >>> fmap RequireTypeOrdering
+        cms = [ ("=", Equal), ("<", LessGeneral), (">", MoreGeneral)
+              , ("u", Unifiable), ("n", NotUnifiable) ]
 
--}
+        lookupE x m = maybe (Left $ "Could not parse " ++ show x) Right $ x `lookup` m
 
 both :: Monoid e => (Either e a, Either e b) -> Either e (a, b)
 both (Right x, Right y) = Right (x, y)
@@ -180,7 +188,10 @@ parseQ :: String -> Either String Query
 parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fmap toQuery $ qs
   where
     parseQuestion :: String -> Either String (Integer, String)
-    parseQuestion ('Q':qs) = span isDigit >>> readEither *** parseContent >>> both $ qs
+    parseQuestion ('Q':qs) = ($ qs) $
+            span isDigit >>>
+            (readEither >>> left (const "Expected number after 'Q'")) *** parseContent >>>
+            both
     parseQuestion _        = Left "Expected 'Q'. "
 
     parseContent :: String -> Either String String

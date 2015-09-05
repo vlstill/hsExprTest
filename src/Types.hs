@@ -84,7 +84,7 @@ data Type = TypeApplication Type Type -- ^ Application of the (partially applied
 type TypeClass = String
 type TypeVar = String
 
--- | Type costructors: build-in type constructors @(->)@, @[]@, @(,)@, @(,,)@… 
+-- | Type costructors: build-in type constructors @(->)@, @[]@, @(,)@, @(,,)@…
 -- are handled separatelly to allow for better analysis of those cases.
 -- Furthermore type literals are distinct from type user/library defined
 -- type constructors. Type constructor arity is not tracked, except for tuple
@@ -132,7 +132,7 @@ class CType t where
     -- | Type variables in order of first occurrence in type (first in type and
     -- then in context for TypeExpression)
     typeVars :: t -> [TypeVar]
-    -- | Type is plain if all type context constraints are of form 
+    -- | Type is plain if all type context constraints are of form
     -- @Class tyVar1 … tyVarN@, or if it is not polymorphic.
     plainType :: t -> Bool
 
@@ -374,7 +374,7 @@ compareTypes :: TypeExpression -> TypeExpression -> (TypeOrdering, String)
 compareTypes ea@(TypeExpression ca ta) eb@(TypeExpression cb tb) =
     case unifyTypes ta tb of
         Right (mgua, mgub) -> case (isTrivial mgua, isTrivial mgub, cas == cbs) of
-            (True, True, True)  -> (Equal, "Types equal")
+            (True, True, True)  -> (Equal, "Types equal.")
             (True, True, False) -> case (casl `subset` cbsl, cbsl `subset` casl) of
                 (True, False) -> (MoreGeneral, "First type context `" ++ formatContext ca ++
                                                "' is more permissive then second `" ++
@@ -384,11 +384,11 @@ compareTypes ea@(TypeExpression ca ta) eb@(TypeExpression cb tb) =
                                                formatContext cb ++ "'.")
                 _             -> (NotUnifiable, "Type context mismatch: `" ++ formatContext ca ++
                                                 "' /= `" ++ formatContext cb ++ "'.")
-            (True, False, _)    -> (MoreGeneral, "First type `" ++ formatType ea ++
+            (False, True, _)    -> (MoreGeneral, "First type `" ++ formatType ea ++
                                                  "' is more general then second `" ++
                                                  formatType eb ++ "'.")
-            (False, True, _)    -> (LessGeneral, "Second type `" ++ formatType ea ++
-                                                 "' is more general then first `" ++
+            (True, False, _)    -> (LessGeneral, "First type `" ++ formatType ea ++
+                                                 "' is less general then second `" ++
                                                  formatType eb ++ "'.")
             _                   -> (Unifiable, "Types are neither equal, not one more general then other. However, they are unifiable.")
           where
@@ -412,7 +412,7 @@ data Arg = Error
 apply :: Arg -> Arg -> Arg
 apply (Fun f)   (Val x) = f (Just x)
 apply (Fun f)   End     = f Nothing
-apply f@(Fun _) (Fun g) = f `apply` g Nothing 
+apply f@(Fun _) (Fun g) = f `apply` g Nothing
 apply _       _ = Error
 
 sfun :: (String -> Arg) -> Arg

@@ -25,6 +25,8 @@ type variables, for example, allowed answer for this question would be
 `Bool -> [[x]] -> Int` but neither `a -> [[b]] -> Int` nor `Bool -> [[Int]] -> Int`
 would be allowed.
 
+Available comparison options can be found in [test options](#test-options).
+
 ## Expression comparison
 
 Expression comparing questions work in following way:
@@ -57,10 +59,7 @@ binmap f (x:y:xs) = f x y : binmap f (y:xs)
 
 In preamble, `-- @ expr: <name>` is needed to specify this is expression
 comparison and the name of expression to be compared. After this test follows.
-Other options are:
-
-*   `limit`: time limit (in milliseconds) for test execution,
-*   `inject`: To allow source injection (see later).
+Available options can be found in [test options](#test-options).
 
 ## Using source injection
 
@@ -316,3 +315,38 @@ arbitrary (note that the size parameter is decremented in `arbitraryFSList`).
 with probability proportional to first value in the tuple.
 
 [arb]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Arbitrary.html
+
+
+## Test options
+
+Test options are written in special comments starting with `-- @ ` (the space
+after `@` is required). These comments must be at the beginning of file, and
+there must not be anything else between them (not even empty lines).
+
+Options can be unparametrized (such as `-- @ type`, or parametrized, in
+`-- @ key: value` format (space after `:` is required).
+
+Available options are:
+
+*   `type` -- this question is typechcekging question
+*   `expr: NAME` -- this is expresion comparing question using `NAME` as expresion
+    to compare
+*   `limit` -- time limit (in milliseconds) for test execution,
+*   `inject` -- allow source injection (see
+    [Using source injection](#using-source-injection)).
+*   `typecheck: LIST-OF { = | < | > | u | n }` -- a space separated list of
+    allowed type comparison results:
+    *   `=` student's and teacher's type are equal (up to naming of type
+        variables)
+    *   `<` student's type is less general
+    *   `>` student's type is more general
+    *   `u` types are unifiable (also includes cases when they are equal,
+        less/more general)
+    *   `n` types are not unifiable (**this option is not available for expression
+        comparing**)
+*   `mode: { compile | typecheck | full }` -- how to compare: either just
+    `compile`, or run compilation and `typecheck`, or `full` comparison (for type
+    comparison, `compile` will only parse types). For expression mode, `compile`
+    will just independently compile student's and teacher's solution, while
+    `typecheck` will also check that type of student's solutoion match teacher's
+    solution, and that comparison is possible.
