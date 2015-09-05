@@ -44,6 +44,7 @@ module Types (
     -- * Comparing
     , expressionsEqual
     , TypeOrdering (..)
+    , addImpliedOrderings
     , compareTypes
     -- * Formating
     , FormatType ( formatType )
@@ -357,6 +358,15 @@ expressionsEqual a b = (== Equal) . fst $ compareTypes a b
 -- | Type order based on unification result.
 data TypeOrdering = Equal | MoreGeneral | LessGeneral | Unifiable | NotUnifiable
                     deriving (Eq, Show, Read)
+
+-- | add implied ordering to list of 'TypeOrdering' (which can be seen as list
+-- of "one of orderings which should apply". Result is deduplicated.
+-- More specifically, if list contains 'Unifiable' result will also contain
+-- 'Equal', 'MoreGeneral', 'LessGeneral'.
+addImpliedOrderings :: [TypeOrdering] -> [TypeOrdering]
+addImpliedOrderings ord
+  | Unifiable `elem` ord = nub (ord ++ [Equal, MoreGeneral, LessGeneral])
+  | otherwise            = nub ord
 
 -- | Compare type expressions, return 'TypeOrdering' and string message with
 -- humar readable description.

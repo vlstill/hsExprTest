@@ -75,7 +75,7 @@ data Test
                          , compareMode    :: CompareMode
                          }
     -- | Compare types by given specification (if @'NoTypecheck'@ is given,
-    -- just parse types and return parse errors).
+    -- just parse types and return parse errors (if any)).
     --
     -- If 'compareMode' is 'JustCompile', types are only parsed. Otherwise
     -- types are compared.
@@ -131,7 +131,8 @@ compareTypesCmd student solution typecheckMode compareMode =
                | otherwise -> TypeError $ "Expected one of " ++ show required ++
                                   " but got " ++ show result ++ " (" ++ message ++ ")."
             where
-              RequireTypeOrdering required = typecheckMode
+              RequireTypeOrdering required0 = typecheckMode
+              required = addImpliedOrderings required0
               (result, message) = compareTypes stt sot
   where
     perr who what = "could not parse " ++ who ++ " type: `" ++ pp what ++ "'"
