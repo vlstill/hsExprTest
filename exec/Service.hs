@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
--- (c) 2014 Vladimír Štill
+-- (c) 2014-2015 Vladimír Štill
 
 module Main ( main ) where
 
@@ -88,7 +88,7 @@ runSocket sockaddr0 qdir = do
                 Left msg -> void $ send sock ("INVALID: " ++ msg ++ "\n\n")
                 Right query -> do
                     doLog . ("Running query: " ++ ) . show $ query
-                    runQuery qdir query sock
+                    runQuery query sock
                     doLog "query done"
             end <- getTime Monotonic
             doLog $ "took " ++ show (diffTime (10^3) end start) ++ " milliseconds"
@@ -108,9 +108,9 @@ runSocket sockaddr0 qdir = do
         ndiff = (`div` (10^9 `div` prec)) . fromIntegral $ nsec a - nsec b
         sdiff = (* prec) . fromIntegral $ sec a - sec b
 
-runQuery :: FilePath -> Query -> Socket -> IO ()
-runQuery qpath (Query { transactId, questionId, content }) sock = do
-    let qfile = qpath </> show questionId `addExtension` "q.hs"
+runQuery :: Query -> Socket -> IO ()
+runQuery (Query { transactId, questionId, content }) sock = do
+    let qfile = show questionId `addExtension` "q.hs"
     let err str = send sock $ concat [ "I", show transactId, "Pnok", "C", str ]
     fe <- doesFileExist qfile
     if not fe then void (err "FATAL: Question does not exits") else do
