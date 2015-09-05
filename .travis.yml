@@ -20,3 +20,10 @@ notifications:
     on_failure: always # default: always
 
 sudo: false
+
+addons:
+  apt:
+    packages:
+      - socat
+      - time
+      - ghc-7.10.2
