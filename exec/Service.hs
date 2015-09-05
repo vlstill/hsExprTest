@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
 -- (c) 2014-2015 Vladimír Štill
 
 module Main ( main ) where
@@ -36,6 +36,7 @@ data Query
     = Query { transactId :: Integer
             , questionId :: Integer
             , content    :: String
+            , hintOnly   :: Bool
             }
     deriving ( Eq, Show, Read )
 
@@ -112,7 +113,7 @@ runSocket sockaddr0 qdir = do
         sdiff = (* prec) . fromIntegral $ sec a - sec b
 
 runQuery :: Query -> Socket -> IO ()
-runQuery (Query { transactId, questionId, content }) sock = do
+runQuery (Query {..}) sock = do
     let qfile = show questionId `addExtension` "q.hs"
     let err str = send sock $ concat [ "I", show transactId, "Pnok", "C", str ]
     fe <- doesFileExist qfile
@@ -126,7 +127,7 @@ runQuery (Query { transactId, questionId, content }) sock = do
                 doLog "done"
                 let reply = concat [ "I", show transactId
                                    , "P", if ok then "ok" else "nok"
-                                   , "C", msg ]
+                                   , "C", if hintOnly then "" else msg ]
                 doLog $ "replying on socket, reply = " ++ reply
                 send sock reply
                 doLog "reply sent"
@@ -160,7 +161,9 @@ runQuery (Query { transactId, questionId, content }) sock = do
         instrs = map (span (/= ':') >>> second (drop 2)) instrs0
         addmode :: Test -> Either String Test
         addmode test = do
-            compareMode <- maybe (Right FullComparison) parseCompareMode $ lookup "mode" instrs
+            let modename = if hintOnly then "hintmode" else "mode"
+                defmode = if hintOnly then CompileAndTypecheck else FullComparison
+            compareMode <- maybe (Right defmode) parseCompareMode $ lookup modename instrs
             typecheckMode <- maybe (Right $ RequireTypeOrdering [ Equal ]) parseTypecheck $ lookup "typecheck" instrs
             return $ test { compareMode, typecheckMode }
         parseCompareMode :: String -> Either String CompareMode
@@ -183,10 +186,16 @@ both (Left x, Left y)   = Left (x `mappend` y)
 both (Left x, _)        = Left x
 both (_, Left y)        = Left y
 
--- FORMAT: "I<xid>Q<id>S<len><odp>";
+-- FORMAT: "I<xid>Q<id>S<solution>" or "HI<xid>Q<id>S<solution>";
 parseQ :: String -> Either String Query
-parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fmap toQuery $ qs
+parseQ query = case query of
+                    'H':'I':qs -> addHint True <$> parseQ' qs
+                    'I':qs     -> addHint False <$> parseQ' qs
+                    _          -> Left "Expected 'I' or 'HI' at the beginning. "
   where
+    parseQ' = span isDigit >>> readEither *** parseQuestion >>> both >>> fmap toQuery
+    addHint h x = x { hintOnly = h }
+
     parseQuestion :: String -> Either String (Integer, String)
     parseQuestion ('Q':qs) = ($ qs) $
             span isDigit >>>
@@ -199,5 +208,4 @@ parseQ ('I':qs) = span isDigit >>> readEither *** parseQuestion >>> both >>> fma
     parseContent _        = Left "Expected 'S'. "
 
     toQuery (transactId, (questionId, content)) = Query { transactId, questionId, content }
-parseQ _ = Left "Expected 'I' at the beginning. "
 

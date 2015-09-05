@@ -337,16 +337,26 @@ Available options are:
 *   `typecheck: LIST-OF { = | < | > | u | n }` -- a space separated list of
     allowed type comparison results:
     *   `=` student's and teacher's type are equal (up to naming of type
-        variables)
-    *   `<` student's type is less general
-    *   `>` student's type is more general
+        variables),
+    *   `<` student's type is less general,
+    *   `>` student's type is more general,
     *   `u` types are unifiable (also includes cases when they are equal,
-        less/more general)
+        less/more general),
     *   `n` types are not unifiable (**this option is not available for expression
-        comparing**)
+        comparing**).
+
+    Default for `typecheck` is `=`, that is equality checking.
+
 *   `mode: { compile | typecheck | full }` -- how to compare: either just
     `compile`, or run compilation and `typecheck`, or `full` comparison (for type
     comparison, `compile` will only parse types). For expression mode, `compile`
     will just independently compile student's and teacher's solution, while
     `typecheck` will also check that type of student's solutoion match teacher's
     solution, and that comparison is possible.
+
+    Default for `mode` is `full` comparison.
+
+*   `hintmode: { compile | typecheck }` -- how to handle hints (interactive
+    queries form questionaries): option mean the same as for `mode`.
+
+    Default `hintmode` is `typecheck`.
