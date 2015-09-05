@@ -9,8 +9,8 @@ env:
 before_install:
     - ls /opt/ghc/
     - ls /usr/local/ghc/
-    - PATH=$HOME/.cabal/bin:$PATH
-    - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; cabal install cabal-install; fi
+    - PATH=/opt/cabal/1.22/bin:$PATH
+    - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
     - env
     - cabal --version
     - ghc --version
@@ -42,3 +42,4 @@ addons:
       - socat
       - time
       - ghc-7.10.2
+      - cabal-install-1.22
