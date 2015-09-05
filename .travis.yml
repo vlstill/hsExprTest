@@ -9,11 +9,11 @@ env:
 before_install:
     - ls /opt/ghc/
     - ls /usr/local/ghc/
-    - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
+    - PATH=$HOME/.cabal/bin:$PATH
+    - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; cabal install cabal-install; fi
     - env
+    - cabal --version
     - ghc --version
-    - rm .cabal .ghc -rf
-    - cabal update
 
 install:
     - cabal install --only-dependencies --enable-tests
