@@ -4,7 +4,6 @@ ghc:
 
 env:
     - GHC_PATH=/opt/ghc/7.10.2/bin
-    - GHC_PATH=/opt/ghc/head/bin
     - GHC_PATH="" # default ghc specified above
 
 before_install:
