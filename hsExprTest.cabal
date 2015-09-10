@@ -32,7 +32,9 @@ Library
                     QuickCheck >= 2.7,
                     deepseq >= 1.2,
                     temporary >= 1.1,
-                    filepath >= 1.3
+                    filepath >= 1.3,
+                    template-haskell >= 2.9,
+                    th-expand-syns >= 0.3.0.6
 
   -- due to limitations of ghc package, we must use older transformers (+ mtl)
   -- on 7.8.*
@@ -47,6 +49,7 @@ Library
   exposed-modules:    Types
                       Types.Parser
                       Types.Curry
+                      Types.TH
                       Testing
                       Testing.Test
                       Testing.DataTypes
@@ -58,7 +61,7 @@ Library
                       Test.QuickCheck.Range
 					  
   ghc-options:        -O1 -threaded -Wall
-  extensions:         StandaloneDeriving
+  extensions:         StandaloneDeriving, CPP
                       DeriveDataTypeable
 
 Executable hsExprTest
