@@ -172,6 +172,8 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
             , "-XDeriveDataTypeable"
             , "-XStandaloneDeriving"
             , "-XDataKinds"
-            , "-Werror", "-i" ++ getContext ctx ]
+            , "-XTemplateHaskell"
+            , "-Werror"
+            , "-i" ++ getContext ctx ]
     pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
 

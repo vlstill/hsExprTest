@@ -34,7 +34,7 @@ createCodeFile (FileContext fc) moduleName content safe = do
     let name = fc </> moduleName <.> "hs"
     withFile name WriteMode $ \h -> do
         hPutStr h $ unlines
-            [ if safe then "{-# LANGUAGE Safe #-}" else "{-# LANGUAGE Unsafe #-}"
+            [ if safe then "{-# LANGUAGE Safe, NoTemplateHaskell #-}" else "{-# LANGUAGE Unsafe #-}"
             , "module " ++ moduleName ++ " where"
             , ""
             , "{-# LINE 1 \"" ++ moduleName ++ ".hs\" #-}"
