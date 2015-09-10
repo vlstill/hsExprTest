@@ -42,5 +42,4 @@ addons:
       - socat
       - time
       - ghc-7.10.2
-      - ghc-head
       - cabal-install-1.22 # newer GHCs fail with old cabal
