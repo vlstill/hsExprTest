@@ -5,6 +5,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.ExpandSyns
 import Control.Arrow
 import Control.Monad
+import Control.Applicative
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 
