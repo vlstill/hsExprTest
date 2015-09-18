@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns, RecordWildCards, MultiWayIf #-}
 -- (c) 2014-2015 Vladimír Štill
 
 module Main ( main ) where
@@ -166,7 +166,9 @@ runQuery (Query {..}) sock = do
         addmode :: Test -> Either String Test
         addmode test = do
             let modename = if hintOnly then "hintmode" else "mode"
-                defmode = if hintOnly then CompileAndTypecheck else FullComparison
+                defmode = if | hintOnly && isTypecheck test -> JustCompile
+                             | hintOnly  -> CompileAndTypecheck
+                             | otherwise -> FullComparison
             compareMode <- maybe (Right defmode) parseCompareMode $ lookup modename instrs
             typecheckMode <- maybe (Right $ RequireTypeOrdering [ Equal ]) parseTypecheck $ lookup "typecheck" instrs
             return $ test { compareMode, typecheckMode }
@@ -176,6 +178,10 @@ runQuery (Query {..}) sock = do
             | str == "typecheck" = Right CompileAndTypecheck
             | str == "full"      = Right FullComparison
             | otherwise           = Left "Expected one of 'compile', 'typecheck', 'full'"
+
+        isTypecheck :: Test -> Bool
+        isTypecheck CompareTypes {} = True
+        isTypecheck _ = False
 
         parseTypecheck :: String -> Either String Typecheck
         parseTypecheck = words >>> mapM (`lookupE` cms) >>> fmap RequireTypeOrdering

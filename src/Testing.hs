@@ -53,7 +53,7 @@ data Typecheck = NoTypecheck -- ^ do not perform any typechecking step
 data CompareMode = JustCompile -- ^ run just compilation (type parsing for type comparison)
                  | CompileAndTypecheck -- ^ run compilation and typechecking
                  | FullComparison -- ^ perform full test
-                 deriving (Eq, Ord, Read, Show)
+                 deriving (Eq, Ord, Read, Show, Enum)
 
 -- | Test definition
 data Test
