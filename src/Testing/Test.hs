@@ -47,7 +47,7 @@ data AnyProperty = forall a. Testable a => AnyProperty a
 qcToResult :: QCT.Result -> TestResult
 qcToResult (QCT.Success {}) = Success
 qcToResult (QCT.GaveUp {})  = Success
-qcToResult (QCT.Failure { QCT.reason = r, QCT.output = o, QCT.theException = exc }) = case exc of
+qcToResult (QCT.Failure { QCT.output = o, QCT.theException = exc }) = case exc of
     Just se -> case fromException se of
                  Just ex -> (ex :: AsyncException) `seq` Timeout (show ex)
                  _       -> TestFailure o
@@ -123,7 +123,7 @@ instance Show a => Show (Wrapper a) where
 
 instance NFData a => NFData (Wrapper a) where
     rnf (OK a)  = rnf a
-    rnf (Exc !e) = ()
+    rnf (Exc !_) = ()
 
 -- | specalized version of 'const', returns first value and type is unified
 -- with type of second value (which can be 'unified' as it is not evaluated).

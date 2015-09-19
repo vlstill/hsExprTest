@@ -16,7 +16,7 @@
 -- (c) 2014 Vladimír Štill
 
 module Test.QuickCheck.Range
-    ( Range, Ranges ( Range ), unRange
+    ( Range, Ranges ( Range, unRange )
     , CRange ( toRanges )
     , inRanges
     ) where
