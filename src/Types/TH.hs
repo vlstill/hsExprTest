@@ -67,10 +67,12 @@ th2ecType typ = case typ of
     getLit (StrTyLit x) = return $ show x
     
     
-
+{-
 
 foo :: QCR.Range Int 0 1
 foo = undefined
 
 bar :: QCR.Ranges Int [(0, 1), (3,4)]
 bar = undefined
+
+-}
