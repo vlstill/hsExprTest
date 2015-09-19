@@ -1,4 +1,8 @@
+#if MIN_VERSION_base(4,8,0)
+{-# LANGUAGE Safe #-}
+#else
 {-# LANGUAGE Trustworthy #-}
+#endif
 
 -- | Some usefull data types that can be used in tests.
 --

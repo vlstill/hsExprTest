@@ -1,12 +1,11 @@
-{-# LANGUAGE DataKinds
-           , KindSignatures
-           , PolyKinds
-           , TypeOperators
-           , GADTs
-           , ExplicitForAll
-           , ScopedTypeVariables
-           , Trustworthy
-           #-}
+{-# LANGUAGE DataKinds, KindSignatures, PolyKinds, TypeOperators, GADTs
+           , ExplicitForAll, ScopedTypeVariables #-}
+#if MIN_VERSION_base(4,8,0)
+{-# LANGUAGE Safe #-}
+#else
+{-# LANGUAGE Trustworthy #-}
+#endif
+
 
 -- | Entenstion of QuickCheck's modifiers with Integral ranges with type
 -- defined bounds.
