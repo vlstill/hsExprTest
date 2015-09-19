@@ -82,6 +82,8 @@ main = runTests $
                 , "binmap f (x:y:xs) = f x y : binmap f xs" ]
       , "binmap", TestFailure ignored )
     , ( "f :: Maybe a -> Maybe (b -> a); f = undefined", "f :: Maybe a -> Maybe (b -> a); f = undefined", "f", RuntimeError ignored )
+    , ( "f :: String -> String; f _ = []", "f :: [Char] -> [Char]; f _ = []", "f", Success )
+    , ( "f :: [String] -> String; f _ = []", "f :: [[Char]] -> String; f _ = []", "f", Success )
     ]
     -- ranges
     ++ map (\(x, y, f, r) -> let ir = ("import Test.QuickCheck.Range\n" ++) in (ir x, ir y, f, r))

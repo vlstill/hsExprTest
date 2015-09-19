@@ -11,7 +11,7 @@ main = bool exitFailure exitSuccess . and =<< sequence (
     map runTest
        [ "a", "b", "blabla", "blaBla", "Int", "Double", "BlaBla"
        , "Maybe Integer", "IO a", "IO Int", "Either Int Bool"
-       , "(Int, Bool)", "[String]", "[a]", "()", "([a], (b, Int))"
+       , "(Int, Bool)", "[a]", "()", "([a], (b, Int))"
        , "a -> b", "b -> b", "a -> b -> c", "a -> Int", "r -> Int -> r"
        , "[a -> b]", "(a -> b) -> [a] -> [b]", "a -> b -> (a, b)", "(a, b) -> a"
        , "(a -> b) -> c", "(a -> b -> c) -> (d -> e) -> f"
@@ -35,6 +35,7 @@ main = bool exitFailure exitSuccess . and =<< sequence (
         [ ("a->b", "a -> b"), ("a->t a", "a -> t a"), ("a_->a'", "a_ -> a'"), ("a'->a'", "a' -> a'")
         , ("__->___", "__ -> ___"), ("A_b c=>c", "A_b c => c"), ("A __=>__->__", "A __ => __ -> __")
         , ("  a      ->  a    ", "a -> a"), ("   Ord       a   =>   a  ", "Ord a => a")
+        , ("[String]", "[[Char]]")
         ]
     )
 

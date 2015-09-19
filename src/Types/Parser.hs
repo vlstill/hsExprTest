@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- | Parser for Haskell data types.
 -- It should support most of Haslell 98 types, with exception
 -- of freestanding list and typle constructors (such as in 'MaybeT []').
@@ -7,7 +9,7 @@
 -- * (c) 2012 Martin Jonáš
 -- * (c) 2014,2015 Vladimír Štill
 
-module Types.Parser ( parseType ) where 
+module Types.Parser ( parseType ) where
 
 import Types
 import Text.Parsec
@@ -96,4 +98,23 @@ spaced = between spaces spaces
 
 -- | Returns parse error or syntactic tree as a result.
 parseType :: String -> Either ParseError TypeExpression
-parseType = parse typeExpression "(unknown)"
+parseType = fmap normalize . parseType'
+
+-- | Expand some known type synonyms
+normalize :: TypeExpression -> TypeExpression
+normalize (TypeExpression con ty) = TypeExpression con (nt ty)
+  where
+    nt :: Type -> Type
+    nt ty = foldl' nt1 ty [ ( "String", lchar )
+                          , ( "FilePath", lchar )
+                          ]
+    nt1 :: Type -> (String, Type) -> Type
+    nt1 ty (match, replace) = foldType TypeApplication (\case
+                                    TyCon x | x == match -> replace
+                                    x                    -> TypeConstructor x
+                                ) TypeVariable ty
+    lchar :: Type
+    lchar = TypeConstructor ListTyCon `TypeApplication` TypeConstructor (TyCon "Char")
+
+parseType' :: String -> Either ParseError TypeExpression
+parseType' = parse typeExpression "(unknown)"
