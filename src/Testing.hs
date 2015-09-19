@@ -89,8 +89,17 @@ data Test
 
 -- | Run a test defined by 'Test'.
 runTest :: Test -> IO TestResult
-runTest (CompareTypes { student, solution, typecheckMode, compareMode }) = undefined
---    return $ compareTypesCmd student solution typecheckMode compareMode
+runTest (CompareTypes { student, solution, typecheckMode, compareMode }) = withContext $ \c -> do
+    file <- createStudentFile c $ unlines
+                [ "st :: " ++ student
+                , "st = undefined"
+                , "so :: " ++ solution
+                , "so = undefined"
+                ]
+    withInterpreter c [ file ] [ ("Student", Nothing) ] $ do
+        stt <- typeOf' "st"
+        sot <- typeOf' "so"
+        return $ compareTypesCmd stt sot typecheckMode compareMode
 
 runTest (CompareExpressions { student, solution, expressionName, limit, typecheckMode, compareMode }) =
     withContext $ \c -> do
