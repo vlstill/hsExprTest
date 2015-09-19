@@ -62,7 +62,9 @@ th2ecType = \case
     get (ForallT _ [] typ) = get typ
     get (ForallT {})       = error "th2ecType: RankNTypes not supported"
     get (UnboxedTupleT _)  = error "th2ecType: Unboxed tuples not supported"
+#if MIN_VERSION_template_haskell(2,10,0)
     get EqualityT          = return . TypeConstructor $ TyCon "(~)"
+#endif
     get StarT              = error "th2ecType: Unexpected kind signature (*)"
     get ConstraintT        = error "th2ecType: Unexpected kind signature (Constraint)"
 
