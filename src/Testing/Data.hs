@@ -11,8 +11,8 @@ module Testing.Data
     , conArgsNames
     , constrArgs
     , constrArgsNames
-    , DataDecl (DataDecl)
-    , DataCon (DataCon)
+    , DataDecl (..)
+    , DataCon (..)
     , canonizeData
     , deepCanonizeData
     ) where

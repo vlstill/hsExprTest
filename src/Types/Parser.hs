@@ -102,7 +102,7 @@ parseType = fmap normalize . parseType'
 
 -- | Expand some known type synonyms
 normalize :: TypeExpression -> TypeExpression
-normalize (TypeExpression con ty) = TypeExpression con (nt ty)
+normalize (TypeExpression con typ) = TypeExpression con (nt typ)
   where
     nt :: Type -> Type
     nt ty = foldl' nt1 ty [ ( "String", lchar )

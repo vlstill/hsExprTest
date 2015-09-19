@@ -23,8 +23,6 @@ module Testing.Test (
 import Result
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
-import Test.QuickCheck.Arbitrary ( Arbitrary, CoArbitrary )
-import Test.QuickCheck.Function ( Function, Fun ( Fun ) )
 import Test.QuickCheck ( Testable )
 import Data.Monoid
 import Data.List

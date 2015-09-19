@@ -17,7 +17,6 @@ module Testing (
     ) where
 
 import Control.Exception
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Except
 

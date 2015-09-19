@@ -25,11 +25,6 @@ intToNat n
     | n < 0 = error "Argument cannot be negative"
     | otherwise = Succ (intToNat (n - 1))
 
--- | Function natToInt converts Nat value into coresponding integer value.
-natToInt :: Nat -> Int
-natToInt Zero = 0
-natToInt (Succ x) = natToInt x + 1
-
 -- | Data type BinaryTree represents binary tree with labeled vertices.
 data BinaryTree a = Empty | BinaryNode a (BinaryTree a) (BinaryTree a) deriving (Eq, Show)
 
@@ -43,7 +38,3 @@ arbitraryBinaryTree n
                          (4, liftM3 BinaryNode arbitrary (arbitraryBinaryTree (n `div`2)) (arbitraryBinaryTree (n `div`2)))]
     | otherwise = error "arbitraryBinaryTree: Negative value"
 
--- | Function binaryTreeNodes returns total number of nodes in given binary tree.
-binaryTreeNodes :: BinaryTree a -> Int
-binaryTreeNodes Empty = 0
-binaryTreeNodes (BinaryNode _ left right) = 1 + binaryTreeNodes left + binaryTreeNodes right
