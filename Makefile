@@ -65,11 +65,14 @@ deploy-haddock :
 	rsync -a --del _deploy_haddock/hsExprTest/ antea:public_html/doc/hsExprTest
 
 
+HINT_OPTS=--hint support/HLint.hs --cpp-define="MIN_VERSION_base(x,y,z) 1" \
+		  --cpp-define="MIN_VERSION_template_haskell(x,y,z) 1"
+
 hlint : $(shell if which hlint 2>/dev/null; then echo hlint-global; else echo hlint-local; fi)
 
 hlint-global :
-	hlint --hint support/HLint.hs src exec tests examples
+	hlint $(HINT_OPTS) src exec tests examples
 
 hlint-local : .cabal-sandbox
 	[[ -x ./.cabal-sandbox/bin/hlint ]] || cabal install hlint
-	./.cabal-sandbox/bin/hlint --hint support/HLint.hs src exec tests examples
+	./.cabal-sandbox/bin/hlint $(HINT_OPTS) src exec tests examples
