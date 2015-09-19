@@ -25,7 +25,7 @@ typeOf'' :: Name -> Q TypeExpression
 typeOf'' = thTypeOf >=> th2ecType >=> simplifyNames >>> fmap simplifyVars
 
 -- | get normalize (with expanded synonyms) 'TypeExpression' from interpreted function name
-typeOf' :: MonadInterpreter m => String -> m TypeExpression
+typeOf' :: (Functor m, MonadInterpreter m) => String -> m TypeExpression
 typeOf' fun = read <$> interpret ("$(stringE . show =<< typeOf'' '" ++ fun ++")") (as :: String)
 
 -- | get Template Haskell's type ('Language.Haskell.TH.Type') of function
