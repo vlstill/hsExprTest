@@ -69,12 +69,12 @@ import Control.Applicative
 data TypeExpression = TypeExpression { getTypeContext :: TypeContext
                                      , getType :: Type
                                      }
-    deriving ( Show, Typeable, Data )
+    deriving ( Show, Read, Typeable, Data )
 
 -- | Represents data type context. Multiparameter type classes, and
 -- generalized contexts (such as @Show (Foo a)@) are supported.
 data TypeContext = TypeContext [(TypeClass, [Type])]
-    deriving ( Show, Typeable, Data )
+    deriving ( Show, Read, Typeable, Data )
 
 -- | Represents data type witnout the type context. Type literals
 -- are supported.
@@ -82,7 +82,7 @@ data Type = TypeApplication Type Type -- ^ Application of the (partially applied
             -- type constructor or variable on another type
           | TypeConstructor TypeConstr
           | TypeVariable TypeVar
-          deriving ( Show, Eq, Ord, Typeable, Data )
+          deriving ( Show, Read, Eq, Ord, Typeable, Data )
 
 type TypeClass = String
 type TypeVar = String
@@ -97,7 +97,7 @@ data TypeConstr = FunTyCon -- @(->)@
                 | TupleTyCon Int -- ^ tuple with arity
                 | TyLit String -- ^ type literal (@-XDataKinds@)
                 | TyCon String -- ^ any other type constructor
-                deriving ( Show, Eq, Ord, Typeable, Data )
+                deriving ( Show, Read, Eq, Ord, Typeable, Data )
 
 -- | Katamorphism of 'TypeConstr'.
 foldType :: (a -> a -> a) -- ^ TypeApplication
