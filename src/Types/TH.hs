@@ -5,9 +5,12 @@ import Language.Haskell.TH
 import Language.Haskell.TH.ExpandSyns
 import Control.Arrow
 import Control.Monad
-import Control.Applicative
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+#endif
 
 import Types hiding ( Type )
 

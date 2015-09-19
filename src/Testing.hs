@@ -20,7 +20,9 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans.Except
 
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid
+#endif
 import Data.List
 import Data.Typeable ( Typeable )
 

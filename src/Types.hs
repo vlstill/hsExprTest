@@ -54,13 +54,16 @@ module Types (
 
 import Control.Arrow
 import Control.Monad
-import Control.Applicative
 import Data.Maybe
 import Data.List
 import Data.Data ( Data )
 import Data.Typeable ( Typeable )
 import Data.Function ( on )
 import PrettyPrint
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+#endif
 
 -- | Represents data type expression, with type context.
 data TypeExpression = TypeExpression { getTypeContext :: TypeContext

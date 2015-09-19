@@ -11,16 +11,19 @@ module Testing.Arguments
     ) where
 
 import Control.Monad
-import Control.Applicative
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Arrow
 import Data.Bool
 import Data.Set ( Set, toList, fromList )
-import Data.Monoid
 import Types
 import Types.Parser ( parseType )
 import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+import Data.Monoid
+#endif
 
 -- | Note that polymorphic type (both uncostrained and constrained) can belong
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns

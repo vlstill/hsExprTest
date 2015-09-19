@@ -21,18 +21,23 @@ module Testing.Test (
     ) where
 
 import Result
+
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Test as QCT
 import Test.QuickCheck ( Testable )
-import Data.Monoid
+
 import Data.List
 import Data.Typeable
 import Control.Concurrent
 import Control.Exception
-import Control.Applicative
+import Control.DeepSeq
 
 import System.IO.Unsafe ( unsafePerformIO )
-import Control.DeepSeq
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid
+import Control.Applicative
+#endif
 
 -- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
