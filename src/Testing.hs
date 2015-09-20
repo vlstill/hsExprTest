@@ -34,7 +34,6 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Testing.Test ( qcRunProperty, AnyProperty )
 import Types
 import Types.Parser
-import Types.TH ( typeOf' )
 import Testing.Arguments
 import Files
 import Result
@@ -89,21 +88,23 @@ data Test
 
 -- | Run a test defined by 'Test'.
 runTest :: Test -> IO TestResult
-runTest (CompareTypes { student, solution, typecheckMode, compareMode }) = undefined
---    return $ compareTypesCmd student solution typecheckMode compareMode
+runTest (CompareTypes { student, solution, typecheckMode, compareMode }) =
+    return $ compareTypesCmd student solution typecheckMode compareMode
 
 runTest (CompareExpressions { student, solution, expressionName, limit, typecheckMode, compareMode }) =
     withContext $ \c -> do
         studf <- createStudentFile c student
         solf <- createSolutionFile c solution
         withInterpreter c [ studf, solf ] [ importQ "Student", importQ "Solution" ] $ do
-            sttype <- typeOf' stexpr
-            sotype <- typeOf' soexpr
-            case compareTypesCmd sttype sotype typecheckMode compareMode of
+            sttypeStr <- typeOf stexpr
+            sotypeStr <- typeOf soexpr
+            case compareTypesCmd sttypeStr sotypeStr typecheckMode compareMode of
                 Success -> if compareMode < CompileAndTypecheck then return Success else do
                     -- this is after typechecking, so type parsing and unification
                     -- must succeed
-                    let Right mgu = unifyTypes (getType sttype) (getType sotype)
+                    let Right sttype = parseType sttypeStr
+                        Right sotype = parseType sotypeStr
+                        Right mgu = unifyTypes (getType sttype) (getType sotype)
                         comtype = sttype // fst mgu
                     runExceptT (getDegeneralizedTypes comtype) >>= \case
                         Left emsg       -> return . RuntimeError $ emsg
@@ -118,16 +119,23 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
     stexpr = "Student." ++ expressionName
     soexpr = "Solution." ++ expressionName
 
-compareTypesCmd :: TypeExpression -> TypeExpression -> Typecheck -> CompareMode -> TestResult
-compareTypesCmd stt sot typecheckMode compareMode =
-    if | compareMode == JustCompile || typecheckMode == NoTypecheck -> Success
-       | result `elem` required -> Success
-       | otherwise -> TypeError $ "Expected one of " ++ show required ++
-                          " but got " ++ show result ++ " (" ++ message ++ ")."
+compareTypesCmd :: String -> String -> Typecheck -> CompareMode -> TestResult
+compareTypesCmd student solution typecheckMode compareMode =
+    case (parseType student, parseType solution) of
+        (Left ste, Left soe) -> CompileError $ "Parse error: " ++ perr "student" ste ++
+                                  ", " ++ perr "solution" soe ++ "."
+        (Left ste, _) -> CompileError $ "Parse error: " ++ perr "student" ste ++ "."
+        (_, Left soe) -> CompileError $ "Parse error: " ++ perr "solution" soe ++ "."
+        (Right stt, Right sot) ->
+            if | compareMode == JustCompile || typecheckMode == NoTypecheck -> Success
+               | result `elem` required -> Success
+               | otherwise -> TypeError $ "Expected one of " ++ show required ++
+                                  " but got " ++ show result ++ " (" ++ message ++ ")."
+            where
+              RequireTypeOrdering required0 = typecheckMode
+              required = addImpliedOrderings required0
+              (result, message) = compareTypes stt sot
   where
-    RequireTypeOrdering required0 = typecheckMode
-    required = addImpliedOrderings required0
-    (result, message) = compareTypes stt sot
     perr who what = "could not parse " ++ who ++ " type: `" ++ pp what ++ "'"
 
 importQ :: String -> (String, Maybe String)
@@ -144,8 +152,7 @@ withInterpreter ctx modules imports action = fmap output . try . unsafeRunInterp
         [ "Prelude", "Data.Word", "Data.Int", "Test.QuickCheck"
         , "Test.QuickCheck.Modifiers", "Test.QuickCheck.Function"
         , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
-        , "Testing.Test", "Types.Curry", "Control.DeepSeq"
-        , "Language.Haskell.TH", "Types.TH" ]
+        , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
         ++ imports
     action
   where
