@@ -78,8 +78,8 @@ nameIsSyn n = do
     FamilyI (FamilyD flavour name _ _) _ -> maybeWarnTypeFamily flavour name >> return Nothing
 #endif
     _ -> do
---            warn ("Don't know how to interpret the result of reify "++show n++" (= "++show i++").\n"++
---                  "I will assume that "++show n++" is not a type synonym.")
+            warn ("Don't know how to interpret the result of reify "++show n++" (= "++show i++").\n"++
+                  "I will assume that "++show n++" is not a type synonym.")
             return Nothing
 
 

@@ -20,7 +20,7 @@ flag service
     default: True
 					
 Library
-  hs-source-dirs:   src, th-expand-syns
+  hs-source-dirs:   src
 
   build-depends:    base >= 4.7,
                     hint >= 0.3.3.4 && < 0.4.3,
@@ -34,8 +34,7 @@ Library
                     temporary >= 1.1,
                     filepath >= 1.3,
                     template-haskell >= 2.9,
---                    th-expand-syns >= 0.3.0.6
-                    syb, containers
+                    th-expand-syns >= 0.3.0.6
 
   -- due to limitations of ghc package, we must use older transformers (+ mtl)
   -- on 7.8.*
@@ -60,7 +59,6 @@ Library
                       Files
                       PrettyPrint
                       Test.QuickCheck.Range
-                      Language.Haskell.TH.ExpandSyns
 					  
   ghc-options:        -O1 -threaded -Wall
   extensions:         StandaloneDeriving, CPP
