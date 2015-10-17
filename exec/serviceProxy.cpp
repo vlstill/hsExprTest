@@ -11,6 +11,7 @@
 #include <functional>
 #include <random>
 #include <chrono>
+#include <thread>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -177,7 +178,7 @@ std::string resend( const std::string &data ) {
     for ( int i = 0; i < 16 && toSeconds( Timer::now() - start ) < Seconds( 3 ); ++i ) {
         ensureServices( i );
         if ( i > 0 )
-            usleep( 100 );
+            std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
 
         FD fds[2];
         struct pollfd socks[2];

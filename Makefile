@@ -7,7 +7,7 @@ build: .cabal-sandbox serviceProxy
 	ln -s wrap/hsExprTestService.sh hsExprTestService || true
 
 serviceProxy : exec/serviceProxy.cpp
-	g++ -std=c++11 -Wall -Wextra -Wold-style-cast $< -o $@
+	g++ -std=c++11 -Wall -Wextra -Wold-style-cast -pthread $< -o $@
 
 sandbox : .cabal-sandbox
 
