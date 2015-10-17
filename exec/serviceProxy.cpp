@@ -207,11 +207,14 @@ std::string resend( const std::string &data ) {
             socks[ i ].events = POLLOUT | POLLIN;
         }
 
-        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 0 && !killed ) {
-            WARN( "No ready sockets, killing services" );
+        auto killswitch = [&]( std::string msg ) {
+            WARN( msg );
             for ( auto &p : services )
                 kill( p.pid, SIGKILL );
             killed = true;
+        };
+        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 0 && !killed ) {
+            killswitch( "No ready sockets, killing services" );
             continue;
         }
 
@@ -249,8 +252,9 @@ std::string resend( const std::string &data ) {
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
                 SYSWARN( "poll" );
-            else
-                WARN( "Timeout while waiting for reply" );
+            else {
+                killswitch( "Timeout while waiting for reply, killing services" );
+            }
             break; // give up
         }
         for ( auto &s : socks ) {
