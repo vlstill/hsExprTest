@@ -75,6 +75,31 @@ should not be defined directly in inject section, as they would be distinct in
 student's and teacher's module, see
 [Importing data types](#importing-data-types) for more details.
 
+### Wrapping function
+
+Sometimes it is required to modify input and/or output of assigned function
+before testing it. In this case `INJECT` section and wrapper function can be used:
+
+```haskell
+-- @ expr: inInterval_wrap
+-- @ limit: 2000000
+-- @ inject
+
+-- @ INJECT BEGIN
+inInterval_wrap :: Int -> Int -> Int -> Bool
+inInterval_wrap x a b = inInterval x (min a b) (max a b)
+-- @ INJECT END
+
+inInterval :: Int -> Int -> Int -> Bool
+inInterval x a b = a <= x && x <= b
+```
+
+Note that: `expr` is set to wrapper function, which will be copied at the
+beginning of student's solution. In this example, the task is to imlement check
+whether number is in interval, and it should be assumed that interval is valid
+($a \le b$), to ensure this, we wrap tested function in wrapper which swaps interval
+bounds if necessary.
+
 ### Hiding functions from prelude
 
 ```haskell
