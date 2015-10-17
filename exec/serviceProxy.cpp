@@ -26,6 +26,7 @@ using Timer = std::chrono::steady_clock;
 using Time = Timer::time_point;
 using Duration = Timer::duration;
 using Seconds = std::chrono::seconds;
+using Milliseconds = std::chrono::milliseconds;
 
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
 
@@ -278,6 +279,17 @@ void setupSignals() {
         } );
 }
 
+struct RQT {
+    RQT() : start( Timer::now() ) { }
+    ~RQT() {
+        Time end = Timer::now();
+        long ms = std::chrono::duration_cast< Milliseconds >( end - start ).count();
+        INFO( "Request handled in " + std::to_string( ms ) + "ms" );
+    }
+
+    Time start;
+};
+
 int main( int argc, char **argv ) {
     std::string insock = argc > 1 ? argv[1] : "/var/lib/checker/socket";
     serviceExec = argc > 2 ? argv[2] : "./hsExprTestService";
@@ -312,6 +324,7 @@ int main( int argc, char **argv ) {
             continue;
         }
 
+        RQT _;
         INFO( "connection established" );
         int rsize = recv( isSock, &buffer[0], MAX_PKG_LEN, 0 );
         if ( rsize < 0 ) {
