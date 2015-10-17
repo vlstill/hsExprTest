@@ -174,7 +174,6 @@ int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
 
 std::string resend( const std::string &data ) {
     auto start = Timer::now();
-    bool killed = false;
 
     for ( int i = 0; i < 32 && toSeconds( Timer::now() - start ) < Seconds( 3 ); ++i ) {
         ensureServices( i );
@@ -205,17 +204,6 @@ std::string resend( const std::string &data ) {
             }
 
             socks[ i ].events = POLLOUT | POLLIN;
-        }
-
-        auto killswitch = [&]( std::string msg ) {
-            WARN( msg );
-            for ( auto &p : services )
-                kill( p.pid, SIGKILL );
-            killed = true;
-        };
-        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 0 && !killed ) {
-            killswitch( "No ready sockets, killing services" );
-            continue;
         }
 
         int rpoll = niPoll( socks, 2, 500 );
@@ -253,7 +241,7 @@ std::string resend( const std::string &data ) {
             if ( rpoll < 0 )
                 SYSWARN( "poll" );
             else {
-                killswitch( "Timeout while waiting for reply, killing services" );
+                WARN( "Timeout while waiting for reply" );
             }
             break; // give up
         }
@@ -271,7 +259,10 @@ std::string resend( const std::string &data ) {
             }
         }
     }
-    WARN( "Given up on this, replying timeout to IS" );
+    WARN( "Given up on this, replying timeout to IS and killing services" );
+    for ( auto &p : services )
+        kill( p.pid, SIGKILL );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
     return "I0PnokCTimeout";
 }
 
