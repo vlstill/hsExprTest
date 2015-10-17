@@ -216,6 +216,11 @@ std::string resend( const std::string &data ) {
             socks[ i ].events = POLLOUT | POLLIN;
         }
 
+        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 1 ) {
+            WARN( "No ready sockets" );
+            continue;
+        }
+
         int rpoll = niPoll( socks, 2, 500 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
