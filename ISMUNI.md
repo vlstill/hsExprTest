@@ -97,7 +97,7 @@ inInterval x a b = a <= x && x <= b
 Note that: `expr` is set to wrapper function, which will be copied at the
 beginning of student's solution. In this example, the task is to imlement check
 whether number is in interval, and it should be assumed that interval is valid
-($a \le b$), to ensure this, we wrap tested function in wrapper which swaps interval
+(`a <= b`), to ensure this, we wrap tested function in wrapper which swaps interval
 bounds if necessary.
 
 ### Hiding functions from prelude
