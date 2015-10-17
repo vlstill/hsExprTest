@@ -283,9 +283,12 @@ void setupSignals() {
 struct RQT {
     RQT() : start( Timer::now() ) { }
     ~RQT() {
-        Time end = Timer::now();
-        long ms = std::chrono::duration_cast< Milliseconds >( end - start ).count();
+        long ms = elapsed();
         INFO( "Request handled in " + std::to_string( ms ) + "ms" );
+    }
+
+    long elapsed() {
+        return std::chrono::duration_cast< Milliseconds >( Timer::now() - start ).count();
     }
 
     Time start;
