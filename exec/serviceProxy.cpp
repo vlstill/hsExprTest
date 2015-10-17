@@ -174,7 +174,7 @@ int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
 
 std::string resend( const std::string &data ) {
     auto start = Timer::now();
-    int err[2] = { 0, 0 };
+    bool killed = false;
 
     for ( int i = 0; i < 32 && toSeconds( Timer::now() - start ) < Seconds( 3 ); ++i ) {
         ensureServices( i );
@@ -201,23 +201,17 @@ std::string resend( const std::string &data ) {
             if ( con == -1 && errno != EINPROGRESS ) {
                 socks[ i ].fd *= -1; // disable polling
                 SYSWARN( "connect" );
-                ++err[ i ];
-                if ( err[ 0 ] > 10 ) {
-                    WARN( "Killing service 0 for more then 10 errors in row" );
-                    services[ 0 ].ttl = 0;
-                }
-                if ( err[ 1 ] > 10 ) {
-                    WARN( "Killing service 1 for more then 10 errors in row" );
-                    services[ 1 ].ttl = 0;
-                }
                 continue;
             }
 
             socks[ i ].events = POLLOUT | POLLIN;
         }
 
-        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 1 ) {
-            WARN( "No ready sockets" );
+        if ( socks[ 0 ].fd < 0 && socks[ 1 ].fd < 0 && !killed ) {
+            WARN( "No ready sockets, killing services" );
+            for ( auto &p : services )
+                kill( p.pid, SIGKILL );
+            killed = true;
             continue;
         }
 
