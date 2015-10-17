@@ -10,6 +10,7 @@
 #include <atomic>
 #include <functional>
 #include <random>
+#include <chrono>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -19,6 +20,13 @@
 #include <sys/stat.h>
 #include <alloca.h>
 #include <poll.h>
+
+using Timer = std::chrono::steady_clock;
+using Time = Timer::time_point;
+using Duration = Timer::duration;
+using Seconds = std::chrono::seconds;
+
+Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
 
 enum class Level { Info, Warning, Error };
 
@@ -164,7 +172,9 @@ int niPoll( struct pollfd *fds, nfds_t nfds, int timeout ) {
 }
 
 std::string resend( const std::string &data ) {
-    for ( int i = 0; i < 3; ++i ) {
+    auto start = Timer::now();
+
+    for ( int i = 0; i < 16 && toSeconds( Timer::now() - start ) < Seconds( 3 ); ++i ) {
         ensureServices( i );
         if ( i > 0 )
             usleep( 100 );
