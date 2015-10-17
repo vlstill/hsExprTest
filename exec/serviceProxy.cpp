@@ -260,8 +260,11 @@ std::string resend( const std::string &data ) {
         }
     }
     WARN( "Given up on this, replying timeout to IS and killing services" );
-    for ( auto &p : services )
+    for ( auto &p : services ) {
         kill( p.pid, SIGKILL );
+        p.pid = -1;
+    }
+    ensureServices();
     std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
     return "I0PnokCTimeout";
 }
