@@ -262,7 +262,8 @@ std::string resend( const std::string &data ) {
     }
     WARN( "Given up on this, replying timeout to IS and killing services" );
     for ( auto &p : services ) {
-        kill( p.pid, SIGKILL );
+        if ( p.pid > 0 )
+            kill( p.pid, SIGKILL );
         p.pid = -1;
     }
     ensureServices();
