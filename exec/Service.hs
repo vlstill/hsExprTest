@@ -129,6 +129,7 @@ runQuery (Query {..}) sock = do
                                    , "P", if ok then "ok" else "nok"
                                    , "C", if hintOnly then "" else msg ]
                 doLog $ "replying on socket, reply = " ++ reply
+                when hintOnly $ doLog $ "hint hidden message: " ++ msg
                 send sock reply
                 doLog "reply sent"
                 return ()
