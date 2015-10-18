@@ -123,6 +123,14 @@ runQuery (Query {..}) sock = do
             Left emsg -> void $ err ("FATAL: Invalid question: " ++ emsg)
             Right q   -> do
                 doLog "running expressionTester"
+                doLog $ unlines [ "Testing:"
+                                , "    Student:"
+                                , unlines (map ("    " ++) (lines (student q)))
+                                , ""
+                                , "    Solution:"
+                                , unlines (map ("    " ++) (lines (solution q)))
+                                , ""
+                                ]
                 (ok, msg) <- fmap (isSuccess &&& (pp >>> map fixTicks)) $ runTest q
                 doLog "done"
                 let reply = concat [ "I", show transactId
