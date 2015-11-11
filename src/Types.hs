@@ -418,9 +418,6 @@ apply (Fun f)   End     = f Nothing
 apply f@(Fun _) (Fun g) = f `apply` g Nothing
 apply _       _ = Error
 
-sfun :: (String -> Arg) -> Arg
-sfun f = Fun (\case Nothing -> Error; Just x -> f x)
-
 unwrap :: Arg -> String
 unwrap (Val x) = x
 unwrap (Fun f) = unwrap (f Nothing)
@@ -433,8 +430,14 @@ instance FormatType Type where
     formatType = unwrap . foldType apply formatCon apcon
       where
         formatCon :: TypeConstr -> Arg
-        formatCon FunTyCon = sfun (\x -> sfun $ \y -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y)
-        formatCon ListTyCon = sfun (\x -> Val $ "[" ++ x ++ "]")
+        formatCon FunTyCon = Fun $ \case
+                              Nothing -> Val "(->)"
+                              Just x  -> Fun $ \case
+                                  Nothing -> Val $ "(->) " ++ _parens x
+                                  Just y  -> Val $ _parens' ("->" `isInfixOf`) x ++ " -> " ++ y
+        formatCon ListTyCon = Fun $ \case
+                                Nothing -> Val "[]"
+                                Just x -> Val $ "[" ++ x ++ "]"
         formatCon (TupleTyCon n) = aptuple [] n
         formatCon (TyLit con) = apcon con
         formatCon (TyCon con) = apcon con
@@ -442,7 +445,8 @@ instance FormatType Type where
         aptuple :: [String] -> Int -> Arg
         aptuple args 0 = Val $ "(" ++ intercalate ", " args ++ ")"
         aptuple args n = Fun $ \case
-                            Nothing -> Val $ "(" ++ replicate (n + length args) ',' ++ ") " ++ unwords (map _parens args)
+                            Nothing -> Val $ "(" ++ replicate (n + length args - 1) ',' ++ ")" ++
+                                        if null args then "" else " " ++ unwords (map _parens args)
                             Just v  -> aptuple (args ++ [v]) (n - 1)
         apcon :: String -> Arg
         apcon con = Fun $ \case
