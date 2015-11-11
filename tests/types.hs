@@ -2,6 +2,7 @@ module Main ( main ) where
 
 import Data.Bool
 import Control.Applicative
+import Control.Exception
 import System.Exit
 
 import Types.Parser
@@ -37,7 +38,24 @@ main = bool exitFailure exitSuccess . and =<< sequence (
         , ("  a      ->  a    ", "a -> a"), ("   Ord       a   =>   a  ", "Ord a => a")
         , ("[String]", "[[Char]]")
         ]
+    ++
+    map (uncurry runTestPrint)
+        -- partial application of constructors
+        [ (TypeConstructor ListTyCon, "[]")
+        , (TypeConstructor (TyCon "Maybe"), "Maybe")
+        , (TypeConstructor (TupleTyCon 2), "(,)")
+        , (TypeConstructor (TupleTyCon 2) `TypeApplication` TypeConstructor (TyCon "Int"), "(,) Int")
+        , (TypeConstructor FunTyCon, "(->)")
+        , (TypeConstructor FunTyCon `TypeApplication` TypeConstructor (TyCon "Int"), "(->) Int")
+        ]
     )
+
+runTestPrint :: Type -> String -> IO Bool
+runTestPrint t s = handle h $ if formatType t == s then return True
+                      else putStrLn ("FAILED: " ++ formatType t ++ " /= " ++ s) >> return False
+  where
+    h :: SomeException -> IO Bool
+    h e =  putStrLn ("FAILED: could not show " ++ s ++ " (" ++ show e ++ ")") >> return False
 
 runTest :: String -> IO Bool
 runTest x = runTest' x x
