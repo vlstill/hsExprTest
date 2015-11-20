@@ -237,7 +237,7 @@ std::string resend( const std::string &data ) {
             continue;
 
         INFO( "Wainting for reply" );
-        rpoll = niPoll( socks, 2, 6000 );
+        rpoll = niPoll( socks, 2, 10000 );
         if ( rpoll <= 0 ) {
             if ( rpoll < 0 )
                 SYSWARN( "poll" );
