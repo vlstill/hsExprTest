@@ -16,7 +16,7 @@ module Testing (
     , runTest
     ) where
 
-import Control.Exception
+import Control.Exception ( SomeException (..), try )
 import Control.Monad
 import Control.Monad.Trans.Except
 
