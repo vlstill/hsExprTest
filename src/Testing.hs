@@ -19,7 +19,7 @@ module Testing (
 import Control.Exception ( SomeException (..), try )
 import Control.Monad
 import Control.Monad.Trans.Except
-import Control.Applicative ( (<$>) )
+import Control.Applicative ( (<$>), pure )
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid
