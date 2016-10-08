@@ -32,6 +32,7 @@ test (passed, failed) (student, solution, expr, expected) = do
                                       , student = student
                                       , compareMode = FullComparison
                                       , typecheckMode = RequireTypeOrdering [ Equal ]
+                                      , comparer = Nothing
                                       }
     if toConstr res == toConstr expected
         then return (passed + 1, failed)
