@@ -18,7 +18,7 @@ tested-with:        GHC == 7.8.3, GHC == 7.8.4, GHC == 7.10.1
 
 flag service
     default: True
-					
+
 Library
   hs-source-dirs:   src
 
@@ -59,8 +59,8 @@ Library
                       Files
                       PrettyPrint
                       Test.QuickCheck.Range
-					  
-  ghc-options:        -O1 -threaded -Wall
+
+  ghc-options:        -O1 -Wall
   extensions:         StandaloneDeriving, CPP
                       DeriveDataTypeable
 
