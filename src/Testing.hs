@@ -4,7 +4,7 @@
 -- | Core module of hsExprTest, most of test processing and running takes
 -- place here.
 --
--- * (c) 2014, 2015 Vladimír Štill
+-- * (c) 2014 - 2016 Vladimír Štill
 -- * (c) 2012 Martin Jonáš
 
 module Testing (
