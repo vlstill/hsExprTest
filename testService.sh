@@ -22,4 +22,4 @@ while read line; do
     data="$data$line\n"
 done
 
-echo -en "I0Q${id}S${data}" | socat - UNIX-CLIENT:sock
+echo -en "I0Q${id}S${data}" | socat -t 10 - UNIX-CONNECT:sock
