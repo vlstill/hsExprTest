@@ -152,9 +152,9 @@ runQuery (Query {..}) sock = do
     fixTicks x   = x
 
     fromInstr student0 solution instrs0 =
-        case (lookup "type" instrs, lookup "expr" instrs) of
-            (Just _, Nothing) -> addmode CompareTypes { student = student0, solution }
-            (Nothing, Just expressionName) -> do
+        case (lookup "type" instrs, lookup "expr" instrs, lookup "comparer" instrs) of
+            (Just _, Nothing, _) -> addmode CompareTypes { student = student0, solution }
+            (Nothing, Just expressionName, comparer) -> do
                 limit <- fmap Just . maybe (Right deflimit) readEither $ lookup "limit" instrs
                 student <- if isJust (lookup "inject" instrs)
                     then do
@@ -168,7 +168,7 @@ runQuery (Query {..}) sock = do
                                         , student0
                                         ]
                     else Right student0
-                addmode CompareExpressions { student, solution, expressionName, limit }
+                addmode CompareExpressions { student, solution, expressionName, limit, comparer }
             _ -> Left "Invalid instructions (expected either '-- @ type' or '-- @ expr: NAME')"
       where
         instrs = map (span (/= ':') >>> second (drop 2)) instrs0

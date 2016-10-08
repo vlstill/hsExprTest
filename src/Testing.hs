@@ -25,6 +25,7 @@ import Data.Monoid
 #endif
 import Data.List
 import Data.Typeable ( Typeable )
+import Data.Maybe ( fromMaybe )
 
 import qualified Test.QuickCheck as QC ( Result )
 
@@ -34,7 +35,7 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Testing.Test ( qcRunProperty, AnyProperty )
 import Types
 import Types.Parser
-import Testing.Arguments
+import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer, getDegeneralizedTypes )
 import Files
 import Result
 import PrettyPrint
@@ -74,6 +75,7 @@ data Test
                          , limit          :: Maybe Int
                          , typecheckMode  :: Typecheck
                          , compareMode    :: CompareMode
+                         , comparer       :: Maybe String
                          }
     -- | Compare types by given specification (if @'NoTypecheck'@ is given,
     -- just parse types and return parse errors (if any)).
@@ -91,7 +93,7 @@ runTest :: Test -> IO TestResult
 runTest (CompareTypes { student, solution, typecheckMode, compareMode }) =
     return $ compareTypesCmd student solution typecheckMode compareMode
 
-runTest (CompareExpressions { student, solution, expressionName, limit, typecheckMode, compareMode }) =
+runTest (CompareExpressions { student, solution, expressionName, limit, typecheckMode, compareMode, comparer }) =
     withContext $ \c -> do
         studf <- createStudentFile c student
         solf <- createSolutionFile c solution
@@ -109,13 +111,16 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
                     runExceptT (getDegeneralizedTypes comtype) >>= \case
                         Left emsg       -> return . RuntimeError $ emsg
                         Right testtypes -> fmap mconcat . forM testtypes $ \testtype -> do
-                            expr <- buildTestExpression stexpr soexpr testtype
+                            expr <- fromMaybe (buildTestExpression stexpr soexpr testtype)
+                                    (pure . buildTestExpressionsWithComparer stexpr soexpr <$> compexpr)
+                            liftIO $ putStrLn expr
                             prop <- interpret expr (as :: AnyProperty)
                             if compareMode == FullComparison
                                 then liftIO $ qcRunProperty limit prop
                                 else return Success
                 r -> return r
   where
+    compexpr = ("Solution." ++) <$> comparer
     stexpr = "Student." ++ expressionName
     soexpr = "Solution." ++ expressionName
 

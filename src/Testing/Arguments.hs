@@ -8,6 +8,7 @@ module Testing.Arguments
     , getDegeneralizedTypes
     , degeneralize
     , buildTestExpression
+    , buildTestExpressionsWithComparer
     ) where
 
 import Control.Monad
@@ -107,6 +108,10 @@ buildTestExpression st so ty = do
         parF = bool ("f" ++ i) ("(gcurry (f" ++ i ++ " :: " ++ formatType tftype ++ "))") docurry
         tftype = uncurry (-->) . first tupleType . functionTypes $ typ
         xi = "x" ++ i
+
+buildTestExpressionsWithComparer :: String -> String -> String -> String
+buildTestExpressionsWithComparer student solution comparer =
+      unwords [ "AnyProperty (", comparer, student, solution, ")" ]
 
 -- | This function generates monomorphic instances out of possibly polymorphic
 -- arguments
