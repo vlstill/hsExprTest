@@ -113,7 +113,6 @@ runTest (CompareExpressions { student, solution, expressionName, limit, typechec
                         Right testtypes -> fmap mconcat . forM testtypes $ \testtype -> do
                             expr <- fromMaybe (buildTestExpression stexpr soexpr testtype)
                                     (pure . buildTestExpressionsWithComparer stexpr soexpr <$> compexpr)
-                            liftIO $ putStrLn expr
                             prop <- interpret expr (as :: AnyProperty)
                             if compareMode == FullComparison
                                 then liftIO $ qcRunProperty limit prop
