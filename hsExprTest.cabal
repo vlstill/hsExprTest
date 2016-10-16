@@ -60,7 +60,7 @@ Library
                       PrettyPrint
                       Test.QuickCheck.Range
 
-  ghc-options:        -O1 -Wall
+  ghc-options:        -O1 -Wall -rtsopts
   extensions:         StandaloneDeriving, CPP
                       DeriveDataTypeable
 
@@ -71,7 +71,7 @@ Executable hsExprTest
                     base,
                     cmdlib >= 0.3.5
 
-  ghc-options:      -O1 -threaded -Wall
+  ghc-options:      -O1 -threaded -rtsopts -Wall
   main-is:          Main.hs
   other-modules:    UI
 
@@ -90,7 +90,7 @@ Executable hsExprTestService
 
   hs-source-dirs:   exec
 
-  ghc-options:      -O1 -threaded -Wall
+  ghc-options:      -O1 -threaded -rtsopts -Wall
 
   main-is:          Service.hs
   extensions:       CPP
@@ -125,4 +125,4 @@ Test-Suite security
                     hsExprTest == 0.1.99,
                     Cabal >= 1.9.2
 
-  ghc-options:      -O0 -threaded
+  ghc-options:      -O0 -threaded -rtsopts
