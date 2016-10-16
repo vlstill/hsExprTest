@@ -11,15 +11,14 @@ if ! echo $TERM | grep -iq screen; then
     exit
 fi
 
-echo | socat - UNIX-CONNECT:sock >&/dev/null || screen ./hsExprTestService sock $QDIR
+echo | socat - UNIX-CONNECT:sock >&/dev/null || screen -t service bash -c "./hsExprTestService sock $QDIR 2>&1 | tee test.log"
 
 echo "enter question id:"
 read id
 
 echo "enter the question:"
-data=""
-while read line; do
-    data="$data$line\n"
-done
+data=`cat`
 
-echo -en "I0Q${id}S${data}" | socat -t 10 - UNIX-CONNECT:sock
+Q="I0Q${id}S${data}"
+echo -en "$Q"
+echo -en "$Q" | socat -t 10 - UNIX-CONNECT:sock
