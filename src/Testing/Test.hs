@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns, Unsafe, DeriveDataTypeable
-           , ExistentialQuantification, Rank2Types, BangPatterns #-}
+           , ExistentialQuantification, Rank2Types, BangPatterns, CPP #-}
 
 -- | Simple interface to testing.
 --
