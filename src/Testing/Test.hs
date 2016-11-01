@@ -23,6 +23,7 @@ module Testing.Test (
 import Result
 
 import qualified Test.QuickCheck as QC
+import Test.QuickCheck.Random ( mkQCGen )
 import qualified Test.QuickCheck.Test as QCT
 import Test.QuickCheck ( Testable )
 
@@ -82,6 +83,10 @@ qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
   where
     args = QCT.stdArgs { QCT.chatty = False
                        , QCT.maxSuccess = 1000
+                       -- QC has no direct support for seeding, however,
+                       -- replay also modifies size but it should only
+                       -- (possibly) change size of the first testcase
+                       , QCT.replay = Just (mkQCGen 0, 0)
                        }
 
 -- | Exception aware comparison, if no exception is thrown when evaluating
