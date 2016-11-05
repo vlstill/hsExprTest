@@ -8,11 +8,12 @@ For documentation of testing setup for IS MUNI see
 For source documentation see [Haddock docs](https://paradise.fi.muni.cz/~xstill/doc/hsExprTest/).
 
 Originally developed as bachelor thesis by Martin Jonáš on Faculty of
-Informatics, Masaryk University in Brno, Czech Republic, the code was
-later extended by Vladimír Štill and is going to be used as a testing tool
-in the course IB015 Non-Imperative Programming on the same faculty.
+Informatics, Masaryk University in Brno, Czech Republic, the code was later
+extended by Vladimír Štill and is used as a testing tool in the course IB015
+Non-Imperative Programming on the same faculty.
 
-It is currently in alpha state, so don't expect everything to be perfect.
+It is used for the third year now and while not being perfect, it is working
+decently for our cases.
 
 [![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
 
