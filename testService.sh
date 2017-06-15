@@ -21,4 +21,4 @@ data=`cat`
 
 Q="I0Q${id}S${data}"
 echo -en "$Q"
-echo -en "$Q" | socat -t 10 - UNIX-CONNECT:sock
+echo -en "$Q" | socat -t 70 - UNIX-CONNECT:sock
