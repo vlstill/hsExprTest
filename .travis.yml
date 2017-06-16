@@ -13,14 +13,11 @@ before_install:
     - $CXX --version
 
 install:
-    - cabal install --only-dependencies --enable-tests
+    - make configure
 
 script:
-    - cabal configure
-    - cabal build
-    - cabal install
-    - cabal configure --enable-tests
-    - cabal test --show-details=always
+    - make build
+    - make test
 
 notifications:
   email:

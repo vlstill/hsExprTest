@@ -14,13 +14,13 @@ homepage:           https://github.com/vlstill/hsExprTest
 
 cabal-version:      >= 1.9.2
 build-type:         Simple
-tested-with:        GHC == 7.8.3, GHC == 7.8.4, GHC == 7.10.1
+tested-with:        GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2
 
 flag service
     default: True
 
 Library
-  hs-source-dirs:   src
+  hs-source-dirs:   testlib
 
   build-depends:    base >= 4.7,
                     hint >= 0.3.3.4 && < 0.8,
@@ -65,7 +65,7 @@ Library
                       DeriveDataTypeable
 
 Executable hsExprTest
-  hs-source-dirs:   exec
+  hs-source-dirs:   comparer
 
   build-depends:    hsExprTest == 0.1.99,
                     base,
@@ -88,7 +88,7 @@ Executable hsExprTestService
                       filepath,
                       clock >= 0.4 && < 0.4.1.1
 
-  hs-source-dirs:   exec
+  hs-source-dirs:   comparer
 
   ghc-options:      -O1 -threaded -rtsopts -Wall
 
