@@ -18,14 +18,14 @@ install:
 	cabal install
 
 clean:
-	cabal clean
-	rm -rf dist || true
-	rm hsExprTest hsExprTestService || true
+	-cabal clean
+	rm -rf dist
+	rm -f hsExprTest hsExprTestService
 
 clean-all: clean
 	find -name '*.hi' -exec rm {} \;
 	find -name '*.o' -exec rm {} \;
-	cabal sandbox delete
+	-cabal sandbox delete
 
 env : build
 	chmod +x wrap/env.sh
@@ -51,7 +51,7 @@ test : .cabal-sandbox
 .cabal-sandbox/bin/haddock : .cabal-sandbox
 	cabal install haddock
 	touch $@
-		
+
 haddock : .cabal-sandbox/bin/haddock
 	cabal haddock --html --with-haddock=./.cabal-sandbox/bin/haddock
 	@echo "file://$$PWD/dist/doc/html/hsExprTest/index.html"
