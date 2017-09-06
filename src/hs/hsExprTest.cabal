@@ -56,62 +56,10 @@ Library
 Executable hsExprTest
   hs-source-dirs:   comparer
 
-  build-depends:    hsExprTest == 0.1.99,
+  build-depends:    hsExprTest,
                     base,
                     cmdlib >= 0.3.5
 
   ghc-options:      -O1 -threaded -rtsopts -Wall
   main-is:          Main.hs
   other-modules:    UI
-
-Executable hsExprTestService
-  if !flag( service ) || os(windows)
-    buildable: False
-  else
-    build-depends:    hsExprTest == 0.1.99,
-                      base,
-                      directory,
-                      cmdlib >= 0.3.5,
-                      network >= 2.4,
-                      unix,
-                      filepath,
-                      clock >= 0.4 && < 0.4.1.1
-
-  hs-source-dirs:   comparer
-
-  ghc-options:      -O1 -threaded -rtsopts -Wall
-
-  main-is:          Service.hs
-  extensions:       CPP
-
-Test-Suite types
-  hs-source-dirs:   tests
-  type:             exitcode-stdio-1.0
-  main-is:          types.hs
-
-  build-depends:    base,
-                    hsExprTest == 0.1.99,
-                    Cabal >= 1.9.2
-
-
-Test-Suite basic
-  hs-source-dirs:   tests
-  type:             exitcode-stdio-1.0
-  main-is:          basic.hs
-  other-modules:    Harness
-
-  build-depends:    base,
-                    hsExprTest == 0.1.99,
-                    Cabal >= 1.9.2
-
-Test-Suite security
-  hs-source-dirs:   tests
-  type:             exitcode-stdio-1.0
-  main-is:          security.hs
-  other-modules:    Harness
-
-  build-depends:    base,
-                    hsExprTest == 0.1.99,
-                    Cabal >= 1.9.2
-
-  ghc-options:      -O0 -threaded -rtsopts
