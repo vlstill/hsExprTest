@@ -3,12 +3,15 @@ ghc:
   - 7.10
   - 8.0
 
+env:
+    - CC=clang-4.0
+    - CXX=clang++-4.0
+
 before_install:
     - env
     - cabal --version
     - ghc --version
-    - gcc --version
-    - clang --version
+    - $CXX --version
 
 install:
     - cabal install --only-dependencies --enable-tests
@@ -31,6 +34,9 @@ sudo: false
 
 addons:
   apt:
+    sources:
+      - llvm-toolchain-trusty-4.0
     packages:
       - socat
       - time
+      - clang-4.0
