@@ -22,7 +22,7 @@ flag service
 Library
   hs-source-dirs:   testlib
 
-  build-depends:    base >= 4.7,
+  build-depends:    base >= 4.8,
                     hint >= 0.3.3.4 && < 0.8,
                     parsec >= 3.1.2,
                     containers >= 0.4.2.1,
@@ -51,7 +51,7 @@ Library
                       Test.QuickCheck.Range
 
   ghc-options:        -O1 -Wall -rtsopts
-  extensions:         StandaloneDeriving, CPP
+  extensions:         StandaloneDeriving
                       DeriveDataTypeable
 
 Executable hsExprTest

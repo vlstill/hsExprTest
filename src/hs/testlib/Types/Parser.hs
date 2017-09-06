@@ -16,10 +16,6 @@ import Text.Parsec
 import Text.Parsec.String
 import Data.List
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative hiding (many, (<|>))
-#endif
-
 -- | Haskell identifier symbol
 identSymbols :: Parser Char
 identSymbols = alphaNum <|> oneOf "_'"

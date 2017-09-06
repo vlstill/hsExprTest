@@ -8,9 +8,6 @@
 module Result ( TestResult(..), isSuccess ) where
 
 import Data.Data
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid
-#endif
 import Text.PrettyPrint
 
 -- | Result of test, success should be tested by 'isSuccess',

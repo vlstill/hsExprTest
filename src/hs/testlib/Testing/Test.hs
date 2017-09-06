@@ -35,11 +35,6 @@ import Control.DeepSeq
 
 import System.IO.Unsafe ( unsafePerformIO )
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid
-import Control.Applicative
-#endif
-
 -- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
     deriving ( Typeable )

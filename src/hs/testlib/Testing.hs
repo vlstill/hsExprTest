@@ -21,9 +21,6 @@ import Control.Monad
 import Control.Monad.Trans.Except
 import Control.Applicative ( (<$>), pure )
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid
-#endif
 import Data.List
 import Data.Typeable ( Typeable )
 import Data.Maybe ( fromMaybe )
