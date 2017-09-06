@@ -1,87 +1,51 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, DeriveDataTypeable 
-           , NamedFieldPuns, DisambiguateRecordFields #-}
+-- (c) 2017 Vladimír Štill
 
--- (c) 2012 Martin Jonáš
--- (c) 2014,2015 Vladimír Štill
+module UI ( runUI ) where
 
-module UI ( runUI, runExpressionTester, Main ( .. ) ) where
+import System.Exit ( exitSuccess, exitFailure )
+import Data.Monoid ( Monoid(..), (<>), First ( First ), getFirst )
+import Data.List.Split ( splitOn )
+import Testing ( runTest )
+import Testing.Options
+import Control.Monad ( (<=<), foldM )
+import Control.Arrow ( second )
+import System.IO ( hPutStrLn, stderr )
 
-import System.Exit
-import Data.Data
-import Control.Arrow
+instance Monoid Options where
+    mempty = Options { assignment = "", student = "", extraFiles = [], hint = False, logfile = Nothing, output = Nothing }
+    mappend o1 o2 = Options { assignment = query assignment
+                            , student = query student
+                            , extraFiles = extraFiles o1 <> extraFiles o2
+                            , hint = hint o1 || hint o2
+                            , logfile = getFirst $ First (logfile o1) <> First (logfile o2)
+                            , output = getFirst $ First (output o1) <> First (output o2)
+                            }
+      where
+        query get = if null (get o1) then get o2 else get o1
 
-import System.Console.CmdLib
+getOptions :: [String] -> Either String Options
+getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
+  where
+    base = mempty { assignment = a, student = s }
+    dup = zip options (map Just (drop 1 options) ++ [Nothing])
+    get ("--hint", _)        = next $ mempty { hint = True }
+    get ("--extra", Just fs) = eat $ mempty { extraFiles = splitOn "," fs }
+    get ("--log", Just log)  = eat $ mempty { logfile = Just log }
+    get ("--out", Just o) = eat $ mempty { output = Just o }
+    get (opt, _)             = Left $ "unknown option " ++ opt ++ ", or expecting argument and found none\n" ++ usage
+    validate x
+      | null (assignment x) = Left $ "missing assignment\n" ++ usage
+      | null (student x)    = Left $ "missing student's solution\n" ++ usage
+      | otherwise           = Right x
+    next x = Right (False, x)
+    eat x  = Right (True, x)
+    compose (True, opts) _  = Right (False, opts)
+    compose (False, opts) x = fmap (second (opts <>)) (get x)
+getOptions _ = Left usage
 
-import Text.PrettyPrint
-import Result
-import Types
-import qualified Testing as T
+usage = "usage: assignment student [--hint] [--extra file] [--log file] [--out file]"
 
-data Main 
-    = CompareTypes { student  :: String
-                   , solution :: String
-                   }
-    | CompareExpressions { student        :: String
-                         , solution       :: String
-                         , expressionName :: String
-                         , limit          :: Maybe Int
-                         }
---    | Testfile { student  :: String
---               , testfile :: FilePath
---               }
-    deriving ( Typeable, Data, Eq, Show, Read )
-
-
-
-instance Attributes Main where
-
-instance RecordCommand Main where
-    mode_summary (CompareTypes { }) = "Compare types"
-    mode_summary (CompareExpressions { }) = "Compare expressions"
---    mode_summary (Testfile { }) = "Test student's solution using given testfile"
-
-    rec_options (CompareTypes { }) = group "Compare types" [
-        student            %> [ Help "student's answer", ArgHelp "TYPE", Required True ],
-        solution           %> [ Help "teacher's solution", ArgHelp "TYPE", Required True ]
-      ]
-    rec_options (CompareExpressions { }) = group "Compare expressions" [
-        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
-        solution           %> [ Help "teacher's solution", ArgHelp "CODE", Required True ],
-        expressionName     %> [ Help "name of expression", ArgHelp "NAME", Required True ],
-        limit              %> [ Help "time limit, in microseconds"
-                              , Default (Nothing :: Maybe Int)
-                              , Required False ]
-      ]
---    rec_options (Testfile { }) = group "Run testfile" [
---        student            %> [ Help "student's answer", ArgHelp "CODE", Required True ],
---        testfile           %> [ Help "theacher's file with predefined test", ArgHelp "PATH", Required True ]
---      ]
-
-    run' conf _ = runExpressionTester conf >>= \(success, msg) -> do
-        putStrLn msg
-        if success then exitSuccess else exitWith (ExitFailure 32)
-
-runExpressionTester :: Main -> IO (Bool, String)
-runExpressionTester (CompareTypes { student, solution }) =
-    fmap formatResult . T.runTest $ T.CompareTypes { student, solution
-                                         , typecheckMode = T.RequireTypeOrdering [ Equal ]
-                                         , compareMode = T.FullComparison
-                                         }
-
-runExpressionTester (CompareExpressions { student, solution, expressionName, limit }) =
-    fmap formatResult . T.runTest $
-        T.CompareExpressions { limit, expressionName, solution, student
-                             , typecheckMode = T.RequireTypeOrdering [ Equal ]
-                             , compareMode = T.FullComparison
-                             }
-
--- runExpressionTester (Testfile { student, testfile }) =
---    Testing.runTestfile testfile student >>= return . formatResult
-
-formatResult :: TestResult -> (Bool, String)
-formatResult = isSuccess &&& pp
-
--- | Main function, behaves differently according to the command line arguments
-runUI :: [ String ] -> IO ()
-runUI = dispatch [] (recordCommands (undefined :: Main))
--- execute (recordCommands (error "a" :: Main))
+runUI :: [String] -> IO ()
+runUI opts = case getOptions opts of
+                Right options -> if runTest options then exitSuccess else exitFailure
+                Left msg      -> hPutStrLn stderr msg >> exitFailure
