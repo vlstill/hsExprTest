@@ -1,0 +1,3 @@
+[submodule "ext/bricks"]
+	path = ext/bricks
+	url = https://github.com/paradise-fi/bricks.git
