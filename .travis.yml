@@ -7,6 +7,8 @@ before_install:
     - env
     - cabal --version
     - ghc --version
+    - gcc --version
+    - clang --version
 
 install:
     - cabal install --only-dependencies --enable-tests
