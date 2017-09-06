@@ -1,16 +1,8 @@
 language: haskell
 ghc:
-  - 7.8
-
-env:
-    - GHC_PATH=/opt/ghc/7.10.2/bin
-    - GHC_PATH="" # default ghc specified above
+  - 7.10
 
 before_install:
-    - ls /opt/ghc/
-    - ls /usr/local/ghc/
-    - PATH=/opt/cabal/1.22/bin:$PATH
-    - if [ -z $GHC_PATH ]; then :; else PATH=$GHC_PATH:$PATH; fi
     - env
     - cabal --version
     - ghc --version
@@ -36,10 +28,6 @@ sudo: false
 
 addons:
   apt:
-    sources:
-      - hvr-ghc
     packages:
       - socat
       - time
-      - ghc-7.10.2
-      - cabal-install-1.22 # newer GHCs fail with old cabal
