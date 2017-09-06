@@ -1,5 +1,5 @@
 name:                hsExprTest
-version:             0.1.99
+version:             0.1.99.1
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
@@ -39,7 +39,6 @@ Library
   exposed-modules:    Types
                       Types.Parser
                       Types.Curry
---                    Types.TH
                       Testing
                       Testing.Test
                       Testing.DataTypes
