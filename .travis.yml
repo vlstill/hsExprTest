@@ -4,8 +4,7 @@ ghc:
   - 8.0
 
 env:
-    - CC=clang-4.0
-    - CXX=clang++-4.0
+    - CC=clang-4.0 CXX=clang++-4.0
 
 before_install:
     - env
