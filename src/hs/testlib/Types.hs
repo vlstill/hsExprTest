@@ -59,11 +59,11 @@ import Data.List
 import Data.Data ( Data )
 import Data.Typeable ( Typeable )
 import Data.Function ( on )
-import PrettyPrint
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
 #endif
+import Text.PrettyPrint
 
 -- | Represents data type expression, with type context.
 data TypeExpression = TypeExpression { getTypeContext :: TypeContext

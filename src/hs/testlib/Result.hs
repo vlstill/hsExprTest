@@ -8,10 +8,10 @@
 module Result ( TestResult(..), isSuccess ) where
 
 import Data.Data
-import PrettyPrint
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid
 #endif
+import Text.PrettyPrint
 
 -- | Result of test, success should be tested by 'isSuccess',
 -- pattern matchin on 'Success' might be deprecated in future versions.

@@ -3,7 +3,7 @@
 --
 -- * (c) 2015 Vladimír Štill
 
-module PrettyPrint ( PrettyPrint(..) ) where
+module Text.PrettyPrint ( PrettyPrint(..) ) where
 
 
 import Text.Parsec.Error

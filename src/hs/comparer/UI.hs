@@ -12,7 +12,7 @@ import Control.Arrow
 
 import System.Console.CmdLib
 
-import PrettyPrint
+import Text.PrettyPrint
 import Result
 import Types
 import qualified Testing as T

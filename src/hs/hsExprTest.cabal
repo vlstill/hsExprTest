@@ -47,7 +47,7 @@ Library
                       Testing.Arguments
                       Result
                       Files
-                      PrettyPrint
+                      Text.PrettyPrint
                       Test.QuickCheck.Range
 
   ghc-options:        -O1 -Wall -rtsopts

@@ -39,7 +39,7 @@ import Types.Parser
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer, getDegeneralizedTypes )
 import Files
 import Result
-import PrettyPrint
+import Text.PrettyPrint
 
 deriving instance Typeable QC.Result
 
