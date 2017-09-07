@@ -1,11 +1,26 @@
-{-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification,
+             LambdaCase,
+             FlexibleContexts #-}
 
 -- (c) 2017 Vladimír Štill
 
-module Testing.Assignment where
+module Testing.Assignment ( Typecheck (..)
+                          , HintMode (..)
+                          , Assignment (..)
+                          , parseAssignment
+                          , WithAssignment
+                          , withAssignment
+                          , readAssignment
+                          , doStudentOut
+                          , doStudentOut'
+                          ) where
 
+import Prelude hiding ( fail )
 import Control.Arrow ( (>>>), (***) )
-import Control.Monad ( foldM )
+import Control.Monad ( foldM, when )
+import Control.Monad.Fail ( MonadFail, fail )
+import Control.Monad.IO.Class ( MonadIO, liftIO )
+import Control.Monad.Reader.Generalized ( ReaderT, runReaderT, GMonadReader, greader )
 import Data.Char ( isSpace )
 import Data.Default.Class
 import Data.List ( lines, unlines )
@@ -15,6 +30,7 @@ import Text.Read ( readEither )
 import qualified Data.Map as M ( lookup )
 
 import Types ( TypeOrdering ( Equal ) )
+import Testing.Options ( Options, optAssignment, optStudent, optHint, doLog, doOut )
 
 -- | Specify how typechecking should be performed
 data Typecheck = NoTypecheck -- ^ do not perform any typechecking step
@@ -31,42 +47,69 @@ instance Default Typecheck where
 -- | Determines how much information is provided before the task is submitted
 data HintMode = NoOutput -- ^ nothing
               | ExpressionCompile -- ^ whether the comparison expression compiled
-              | StudentCompiled -- ^ ExpressionCompile + whether the student code compiled
-              | StudentCompileOut -- ^ StudentCompiled + compilation output from student file
-              | HLint -- ^ StudentCompileOut + HLint output
-              | Test -- ^ HLint + whether test passed
+              | StudentCompileOut -- ^ ExpressionCompile + compilation output from student file
+              | Lint -- ^ StudentCompileOut + lint output
+              | Test -- ^ Lint + whether test passed
               | TestOutput -- ^ Full output as for full test
-              deriving ( Eq, Read, Show )
+              deriving ( Eq, Ord, Read, Show )
 
 instance Default HintMode where
     def = StudentCompileOut
 
 -- | Parsed data of the assignment
-data Assignment = Assignment { expression :: Maybe String
-                             , wrapper    :: Maybe String
-                             , comparer   :: Maybe String
-                             , limit      :: Maybe Int
-                             , typecmp    :: Bool -- ^ compare student-provided
-                                             -- type with contents, do not
-                                             -- compare as expressions
-                             , typecheck  :: Typecheck
-                             , hint       :: HintMode
-                             , inject     :: String
-                             , contents   :: String
+data Assignment = Assignment { asgnExpr      :: Maybe String
+                             , asgnWrapper   :: Maybe String
+                             , asgnComparer  :: Maybe String
+                             , asgnLimit     :: Maybe Int
+                             , asgnTypecmp   :: Bool -- ^ compare student-provided
+                                               -- type with contents, do not
+                                               -- compare as expressions
+                             , asgnTypecheck :: Typecheck
+                             , asgnHint      :: HintMode
+                             , asgnInject    :: String
+                             , asgnSolution  :: String
+                             , asgnStudent   :: String
                              }
                              deriving ( Eq, Read, Show )
 
 instance Default Assignment where
-    def = Assignment { expression = Nothing
-                     , wrapper = Nothing
-                     , comparer = Nothing
-                     , limit = Nothing
-                     , typecmp = False
-                     , typecheck = def
-                     , hint = def
-                     , inject = ""
-                     , contents = ""
+    def = Assignment { asgnExpr = Nothing
+                     , asgnWrapper = Nothing
+                     , asgnComparer = Nothing
+                     , asgnLimit = Nothing
+                     , asgnTypecmp = False
+                     , asgnTypecheck = def
+                     , asgnHint = def
+                     , asgnInject = ""
+                     , asgnSolution = ""
+                     , asgnStudent = ""
                      }
+
+type WithAssignment = ReaderT Assignment
+
+withAssignment :: MonadIO m => Assignment -> WithAssignment m a -> m a
+withAssignment asgn act = runReaderT act asgn
+
+readAssignment :: (MonadFail m, MonadIO m, GMonadReader Options m)
+               => WithAssignment m a -> m a
+readAssignment act = do
+    asgn <- liftIO . readFile =<< greader optAssignment
+    sol <- liftIO . readFile =<< greader optStudent
+    case parseAssignment asgn sol of
+        Left msg -> fail msg
+        Right asgn -> withAssignment asgn act
+
+doStudentOut' :: (GMonadReader Options m, GMonadReader Assignment m, MonadIO m)
+              => String -> m ()
+doStudentOut' = doStudentOut NoOutput
+
+doStudentOut :: (GMonadReader Options m, GMonadReader Assignment m, MonadIO m)
+             => HintMode -> String -> m ()
+doStudentOut hm msg = do
+    mode <- greader asgnHint
+    hint <- greader optHint
+    when (not hint || hm <= mode) $ doOut msg
+    doLog msg
 
 -- | Extract YAML data from the assignment text, these are prefixed by "-- @ "
 getAssignmentConfigData :: String -> String
@@ -86,24 +129,32 @@ getInject = lines >>> dropWhile (/= beg) >>> drop 1 >>> takeWhile (/= end) >>> u
 
 data ParseEntry = forall a. PE String (String -> Either String a) (Assignment -> a -> Assignment)
 
-parseAssignment :: String -> Either String Assignment
-parseAssignment contents = finalize =<< foldM collapse def
-    [ PE "expression" pure (\v x -> v { expression = Just x })
-    , PE "wrapper" pure (\v x -> v { wrapper = Just x })
-    , PE "comparer" pure (\v x -> v { comparer = Just x })
-    , PE "limit" (errinfo "limit must be a number" . readEither) (\v x -> v { limit = Just x })
-    , PE "type" pure (\v _ -> v { typecmp = True })
-    , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { hint = x })
+parseAssignment :: String -> String -> Either String Assignment
+parseAssignment asgn stud = finalize =<< foldM collapse def
+    [ PE "expr" pure (\v x -> v { asgnExpr = Just x })
+    , PE "wrapper" pure (\v x -> v { asgnWrapper = Just x })
+    , PE "comparer" pure (\v x -> v { asgnComparer = Just x })
+    , PE "limit" (errinfo "limit must be a number" . readEither) (\v x -> v { asgnLimit = Just x })
+    , PE "type" pure (\v _ -> v { asgnTypecmp = True })
+    , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { asgnHint = x })
     ]
   where
-    optData = getAssignmentConfigData contents
+    optData = getAssignmentConfigData asgn
     decoded = fromList . map ((trim *** (trim . drop 1)) . span (/= ':')) $ lines optData
     collapse :: Assignment -> ParseEntry -> Either String Assignment
     collapse a (PE key parse set) = case M.lookup key decoded of
         Nothing -> pure a
         Just v  -> parse v >>= pure . set a
     trim = dropWhile isSpace >>> reverse >>> dropWhile isSpace >>> reverse
-    finalize v = pure $ v { contents = contents, inject = getInject contents }
+    inj = getInject asgn
+    finalize v = pure $ v { asgnSolution = asgn
+                          , asgnInject = inj
+                          , asgnStudent = concat [ "{-# LINE 1 \"Inject.hs\" #-}\n"
+                                                 , inj
+                                                 , "\n{-# LINE 1 \"Student.hs\" #-}\n"
+                                                 , stud
+                                                 ]
+                          }
 
 errinfo :: String -> Either String a -> Either String a
 errinfo _   (Right x) = Right x
