@@ -5,6 +5,7 @@ module UI ( runUI ) where
 import System.Exit ( exitSuccess, exitFailure )
 import Data.Monoid ( Monoid(..), (<>), First ( First ), getFirst )
 import Data.List.Split ( splitOn )
+import Data.Bool ( bool )
 import Testing ( runTest )
 import Testing.Options
 import Control.Monad ( (<=<), foldM )
@@ -47,5 +48,5 @@ usage = "usage: assignment student [--hint] [--extra file] [--log file] [--out f
 
 runUI :: [String] -> IO ()
 runUI opts = case getOptions opts of
-                Right options -> if runTest options then exitSuccess else exitFailure
+                Right options -> runTest options >>= bool exitFailure exitSuccess
                 Left msg      -> hPutStrLn stderr msg >> exitFailure
