@@ -40,7 +40,8 @@ Library
                     process >= 1.2
 
   if impl( ghc < 8.0 )
-    build-depends:  fail
+    build-depends:  fail,
+                    semigroups >= 0.18
     cpp-options: -DNO_BASE_FAIL
 
   exposed-modules:    Types
