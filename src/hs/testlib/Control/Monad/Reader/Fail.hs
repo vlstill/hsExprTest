@@ -9,5 +9,5 @@ import Control.Monad.Reader ( ReaderT )
 import Control.Monad.Trans.Class ( lift )
 
 instance MonadFail m => MonadFail (ReaderT r m) where
-    fail = lift . fail
+    fail msg = lift (fail msg)
 #endif
