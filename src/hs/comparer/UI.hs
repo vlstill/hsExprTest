@@ -15,16 +15,16 @@ import System.IO ( hPutStrLn, stderr )
 getOptions :: [String] -> Either String Options
 getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
   where
-    base = mempty { assignment = a, student = s }
+    base = mempty { optAssignment = a, optStudent = s }
     dup = zip options (map Just (drop 1 options) ++ [Nothing])
-    get ("--hint", _)        = next $ mempty { hint = True }
-    get ("--extra", Just fs) = eat $ mempty { extraFiles = splitOn "," fs }
-    get ("--log", Just log)  = eat $ mempty { logfile = Just log }
-    get ("--out", Just o) = eat $ mempty { output = Just o }
+    get ("--hint", _)        = next $ mempty { optHint = True }
+    get ("--extra", Just fs) = eat $ mempty { optExtraFiles = splitOn "," fs }
+    get ("--log", Just log)  = eat $ mempty { optLogFile = Just log }
+    get ("--out", Just o) = eat $ mempty { optOutFile = Just o }
     get (opt, _)             = Left $ "unknown option " ++ opt ++ ", or expecting argument and found none\n" ++ usage
     validate x
-      | null (assignment x) = Left $ "missing assignment\n" ++ usage
-      | null (student x)    = Left $ "missing student's solution\n" ++ usage
+      | null (optAssignment x) = Left $ "missing assignment\n" ++ usage
+      | null (optStudent x)    = Left $ "missing student's solution\n" ++ usage
       | otherwise           = Right x
     next x = Right (False, x)
     eat x  = Right (True, x)
