@@ -48,6 +48,7 @@ instance Default Typecheck where
 data HintMode = NoOutput -- ^ nothing
               | ExpressionCompile -- ^ whether the comparison expression compiled
               | StudentCompileOut -- ^ ExpressionCompile + compilation output from student file
+              | TypeMismatchInfo -- ^ StudentCompileOut + detailed information about type mismatch between student and solution type
               | Lint -- ^ StudentCompileOut + lint output
               | Test -- ^ Lint + whether test passed
               | TestOutput -- ^ Full output as for full test

@@ -1,7 +1,12 @@
-{-# LANGUAGE TupleSections, NamedFieldPuns, PatternGuards #-}
+{-# LANGUAGE TupleSections,
+             NamedFieldPuns,
+             PatternGuards,
+             ScopedTypeVariables,
+             FlexibleContexts
+             #-}
 
 -- | Support for building test expressions and type monomorphiscation.
--- (c) 2014, 2015 Vladimír Štill
+-- (c) 2014-2017 Vladimír Štill
 
 module Testing.Arguments
     ( getTestableType
@@ -11,20 +16,20 @@ module Testing.Arguments
     , buildTestExpressionsWithComparer
     ) where
 
-import Control.Monad
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.Except
-import Control.Arrow
-import Data.Bool
+import Prelude hiding ( fail )
+import Control.Monad ( when )
+import Control.Monad.Fail ( fail, MonadFail )
+import Control.Arrow ( (>>>), first )
+import Data.Bool ( bool )
 import Data.Set ( Set, toList, fromList )
 import Types
 import Types.Parser ( parseType )
-import Language.Haskell.Interpreter ( Interpreter, typeChecks, typeOf )
+import Language.Haskell.Interpreter ( MonadInterpreter, Interpreter, typeChecks, typeOf )
 
 -- | Note that polymorphic type (both uncostrained and constrained) can belong
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns
 -- always true.
-isTypeclass :: Type -> String -> Interpreter Bool
+isTypeclass :: MonadInterpreter m => Type -> String -> m Bool
 isTypeclass ty typeclass = do
     tc <- typeChecks expr
     if not tc
@@ -35,24 +40,25 @@ isTypeclass ty typeclass = do
                   , " undefined :: ", typeclass, " a => a ]"
                   ]
 
-isTypeclasses :: Type -> [String] -> Interpreter Bool
+isTypeclasses :: MonadInterpreter m => Type -> [String] -> m Bool
 isTypeclasses ty = fmap and . mapM (ty `isTypeclass`)
 
 -- | Get degeneralized (monomorphised) types form type expression (which can
 -- be polymoprhic). Uses 'getTestableType' and 'degeneralize'.
-getDegeneralizedTypes :: TypeExpression -> ExceptT String Interpreter [Type]
+getDegeneralizedTypes :: (MonadFail m, MonadInterpreter m) => TypeExpression -> m [Type]
 getDegeneralizedTypes = fmap degeneralize . getTestableType
 
 -- | Get type expression of testable polymorphic type, or error message if
 -- type is not testable. Typeclasses are added to type context to facilitate
 -- testability if necessary.
-getTestableType :: TypeExpression -> ExceptT String Interpreter TypeExpression
+getTestableType :: forall m. (MonadFail m, MonadInterpreter m)
+                => TypeExpression -> m TypeExpression
 getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
   where
     finalize :: Set (TypeClass, [Type]) -> TypeExpression
     finalize ctxnew = TypeExpression (TypeContext . toList $ ctxnew `mappend` fromList ctx) ty
     
-    gtt :: Bool -> Type -> ExceptT String Interpreter (Set (TypeClass, [Type]))
+    gtt :: Bool -> Type -> m (Set (TypeClass, [Type]))
     gtt nested = foldArgumentsM funapp (arg nested)
     funapp a b = return $ a `mappend` b
     arg nested isret typ
@@ -65,10 +71,10 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         | TypeVariable var <- typ        = return $ mkTestable var
         | Just (TyCon _, args) <- splitConApp typ
                                          = (mconcat <$> mapM (gtt True) args) >>= \x -> checkTestable >> return x
-        | otherwise                      = throwE $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
+        | otherwise                      = fail $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
       where
-        checkTestable = lift (isTypeclasses typ classes) >>=
-                        flip when (throwE ("Not testable: `" ++ formatType typ ++ "'.")) . not >>
+        checkTestable = isTypeclasses typ classes >>=
+                        flip when (fail ("Not testable: `" ++ formatType typ ++ "'.")) . not >>
                         return mempty
         classes
             | not nested && isret = [ "Eq", "Show", "NFData" ]
@@ -82,7 +88,7 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
         ifL _ False = []
 
 -- | Get test expression of type 'AnyProperty' which can be run in interpreter.
-buildTestExpression :: String -> String -> Type -> Interpreter String
+buildTestExpression :: forall m. MonadInterpreter m => String -> String -> Type -> m String
 buildTestExpression st so ty = do
     (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
     return . unwords $ if null binds
@@ -91,7 +97,7 @@ buildTestExpression st so ty = do
                    pars ++ [ "<==>", withWitness so ] ++ pars ++ [ ")" ]
   where
     withWitness fn = "((" ++ fn ++ ") `withTypeOf` (undefined :: " ++ formatType ty ++ "))"
-    arg :: String -> Type -> Interpreter (String, String)
+    arg :: String -> Type -> m (String, String)
     arg i typ
         | isHigherOrderFunction typ = return (bindBF, parF)
         | isFunction typ            = return (bindF, parF)
