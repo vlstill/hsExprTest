@@ -1,19 +1,13 @@
 {-# LANGUAGE NamedFieldPuns, Unsafe, DeriveDataTypeable
-           , ExistentialQuantification, Rank2Types, BangPatterns, CPP #-}
+           , ExistentialQuantification, Rank2Types, BangPatterns #-}
 
 -- | Simple interface to testing.
 --
--- (c) 2014,2015 Vladimír Štill
+-- (c) 2014-2017 Vladimír Štill
 
 module Testing.Test (
-    -- * Result re-exports
-      TestResult(..)
     -- * Utility functions
-    , firstFailed
-    , qcToResult
-    , qcFirstFailed
-    , qcRunProperties
-    , qcRunProperty
+       runProperty
     , mainRunProperty
     , (<==>)
     -- * Utility
@@ -21,53 +15,31 @@ module Testing.Test (
     , withTypeOf
     ) where
 
-import Result
-
-import qualified Test.QuickCheck as QC
+import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
+                       , quickCheckWithResult, counterexample )
 import Test.QuickCheck.Random ( mkQCGen )
-import qualified Test.QuickCheck.Test as QCT
 import Test.QuickCheck ( Testable )
 
-import Data.List
-import Data.Typeable
-import Control.Concurrent
-import Control.Exception
-import Control.DeepSeq
+import Data.List ( isInfixOf )
+import Data.Typeable ( typeOf )
+import Control.Concurrent ( myThreadId, threadDelay, killThread, forkIO )
+import Control.Exception ( AsyncException ( UserInterrupt )
+                         , SomeException ( SomeException )
+                         , fromException, Exception, bracket, throwTo, catch
+                         , throw )
+import Control.DeepSeq ( rnf, ($!!), NFData )
+import System.IO ( hPutStrLn, stderr )
 import System.Exit ( exitSuccess, exitFailure )
 
 import System.IO.Unsafe ( unsafePerformIO )
 
 -- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
-    deriving ( Typeable )
-
--- | Format QuickCheck's 'QCT.Result' into 'TestResult'
-qcToResult :: QCT.Result -> TestResult
-qcToResult (QCT.Success {}) = Success
-qcToResult (QCT.GaveUp {})  = Success
-qcToResult (QCT.Failure { QCT.output = o, QCT.theException = exc }) = case exc of
-    Just se -> case fromException se of
-                 Just ex -> (ex :: AsyncException) `seq` Timeout (show ex)
-                 _       -> TestFailure o
-    Nothing -> TestFailure o
-qcToResult (QCT.NoExpectedFailure { QCT.output = o }) = TestFailure o
-
--- | Get first failing result.
-firstFailed :: [ TestResult ] -> TestResult
-firstFailed = mconcat
-
--- | Get first failing result after conversion using 'qcToResult'
-qcFirstFailed :: [ QCT.Result ] -> TestResult
-qcFirstFailed = firstFailed . map qcToResult
-
--- | Run list of properties, possibly with limit.
-qcRunProperties :: Maybe Int -> [ AnyProperty ] -> IO TestResult
-qcRunProperties lim props = firstFailed <$> mapM (qcRunProperty lim) props
 
 -- | Run property, possibly with limit.
-qcRunProperty :: Maybe Int -> AnyProperty -> IO TestResult
-qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
-    Nothing -> QCT.quickCheckWithResult args p
+runProperty :: Maybe Int -> AnyProperty -> IO Result
+runProperty lim (AnyProperty p) = case lim of
+    Nothing -> quickCheckWithResult args p
     Just limit -> do
         -- we are throwing UserInterrupt because it is the only exception
         -- which does not allow shrinking in QuickCheck (which is very
@@ -76,32 +48,40 @@ qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
         pid <- myThreadId
         bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
                 killThread
-                (const (QCT.quickCheckWithResult args p))
+                (const (quickCheckWithResult args p))
   where
-    args = QCT.stdArgs { QCT.chatty = False
-                       , QCT.maxSuccess = 1000
-                       -- QC has no direct support for seeding, however,
-                       -- replay also modifies size but it should only
-                       -- (possibly) change size of the first testcase
-                       , QCT.replay = Just (mkQCGen 0, 0)
-                       }
+    args = stdArgs { chatty = False
+                   , maxSuccess = 1000
+                   -- QC has no direct support for seeding, however,
+                   -- replay also modifies size but it should only
+                   -- (possibly) change size of the first testcase
+                   , replay = Just (mkQCGen 0, 0)
+                   }
 
 mainRunProperty :: Int -> AnyProperty -> IO ()
 mainRunProperty lim prop = do
-    r <- qcRunProperty (pure lim) prop
+    r <- runProperty (pure lim) prop
     case r of
-        Success -> exitSuccess
-        TestFailure msg -> do putStrLn msg
-                              exitFailure
+        Success {} -> exitSuccess
+        GaveUp {} -> exitSuccess
+        Failure { output, theException } -> case theException >>= fromException of
+                 Just ex -> (ex :: AsyncException) `seq` do
+                                putStrLn $ "Timeout: " ++ show ex
+                                hPutStrLn stderr "timeout"
+                 _       -> testFailure output
+        NoExpectedFailure { output } -> testFailure output
         _ -> do print r
                 exitFailure
+  where
+    testFailure output = do putStrLn output
+                            exitFailure
 
 -- | Exception aware comparison, if no exception is thrown when evaluating
 -- either of the values, compares them using '(==)', if exception is thrown
 -- in both, exception type and message is compared, otherwise if exception
 -- is thrown only in one, property fails. Mismatching values are returned
 -- using 'QC.counterexample' on failure.
-(<==>) :: (Eq a, Show a, NFData a) => a -> a -> QC.Property
+(<==>) :: (Eq a, Show a, NFData a) => a -> a -> Property
 infix 4 <==>
 x <==> y = x `comp` y
   where
@@ -111,7 +91,7 @@ x <==> y = x `comp` y
         Nothing -> if "<<timeout>>" `isInfixOf` show e
                         then throw e
                         else return (Exc e)
-    comp x0 y0 = QC.counterexample (sx ++ " /= " ++ sy) (wx == wy)
+    comp x0 y0 = counterexample (sx ++ " /= " ++ sy) (wx == wy)
       where
         wx = wrap x0
         wy = wrap y0

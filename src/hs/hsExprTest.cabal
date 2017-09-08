@@ -54,7 +54,6 @@ Library
                       Testing.Arguments
                       Testing.Options
                       Testing.Assignment
-                      Result
                       Files
                       Text.PrettyPrint
                       Test.QuickCheck.Range
