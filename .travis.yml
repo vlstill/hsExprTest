@@ -6,7 +6,7 @@ ghc:
 cabal: 1.24
 
 env:
-    - CC=gcc-4.0 CXX=g++-4.0
+    - CC=gcc-6 CXX=g++-6
 
 before_install:
     - env
