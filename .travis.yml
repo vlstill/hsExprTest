@@ -33,7 +33,7 @@ sudo: false
 addons:
   apt:
     sources:
-      - buntu-toolchain-r-test
+      - ubuntu-toolchain-r-test
       - hvr-ghc
     packages:
       - socat
