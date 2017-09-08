@@ -6,7 +6,7 @@ ghc:
 cabal: 1.24
 
 env:
-    - CC=clang-4.0 CXX=clang++-4.0
+    - CC=gcc-4.0 CXX=g++-4.0
 
 before_install:
     - env
@@ -33,10 +33,10 @@ sudo: false
 addons:
   apt:
     sources:
-      - llvm-toolchain-trusty-4.0
+      - buntu-toolchain-r-test
       - hvr-ghc
     packages:
       - socat
       - time
-      - clang-4.0
+      - g++-6
       - ghc-8.2
