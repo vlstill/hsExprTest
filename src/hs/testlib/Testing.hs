@@ -28,7 +28,7 @@ import Data.Maybe ( fromMaybe, isNothing )
 
 import System.Process ( cwd, std_in, std_out, std_err, proc
                       , createProcess, waitForProcess
-                      , StdStream ( NoStream, UseHandle ) )
+                      , StdStream ( Inherit, UseHandle ) )
 import System.Exit ( ExitCode ( ExitSuccess ) )
 
 import Language.Haskell.Interpreter ( InterpreterT
@@ -146,7 +146,7 @@ runHaskellAssignment = do
             let opts = [ "-i" ++ wd, test ]
                 runghc = (proc "runghc" (ghcOptions ++ opts))
                           { cwd = Just wd
-                          , std_in = NoStream
+                          , std_in = Inherit
                           , std_out = UseHandle outs
                           , std_err = UseHandle errs
                           }
