@@ -33,7 +33,7 @@ build : ${CONFIG_STAMP} ${BUILD_DIR}/service ${BUILD_DIR}/hsExprTest
 	cd ${BUILD_DIR} && cabal install ${HS_CABAL} --enable-tests
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/serviceProxy.cpp ${BUILD_DIR}/obj
-	$(CXX) -c -Wall -Wextra -Wold-style-cast -std=c++11 -pthread $< -o $@
+	$(CXX) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
 
 ${BUILD_DIR}/service :	${BUILD_DIR}/obj/service.o
 	$(CXX) $< -o $@
