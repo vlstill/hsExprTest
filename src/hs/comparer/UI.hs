@@ -19,7 +19,7 @@ getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
     dup = zip options (map Just (drop 1 options) ++ [Nothing])
     get ("--hint", _)        = next $ mempty { optHint = True }
     get ("--extra", Just fs) = eat $ mempty { optExtraFiles = splitOn "," fs }
-    get ("--log", Just log)  = eat $ mempty { optLogFile = Just log }
+    get ("--log", Just logf)  = eat $ mempty { optLogFile = Just logf }
     get ("--out", Just o) = eat $ mempty { optOutFile = Just o }
     get (opt, _)             = Left $ "unknown option " ++ opt ++ ", or expecting argument and found none\n" ++ usage
     validate x
@@ -32,6 +32,7 @@ getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
     compose (False, opts) x = fmap (second (opts <>)) (get x)
 getOptions _ = Left usage
 
+usage :: String
 usage = "usage: assignment student [--hint] [--extra file] [--log file] [--out file]"
 
 runUI :: [String] -> IO ()
