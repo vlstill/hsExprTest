@@ -14,7 +14,7 @@ homepage:           https://github.com/vlstill/hsExprTest
 
 cabal-version:      >= 1.22
 build-type:         Simple
-tested-with:        GHC == 7.10.3, GHC == 8.0.2
+tested-with:        GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1
 
 flag service
     default: True
