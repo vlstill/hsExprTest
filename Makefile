@@ -29,7 +29,7 @@ ${CONFIG_STAMP} :
 	make ${BUILD_DIR}/${SANDBOX_DIR}
 	touch $@
 
-build : ${CONFIG_STAMP} ${BUILD_DIR}/service ${BUILD_DIR}/hsExprTestService ${BUILD_DIR}/hsExprTest
+build : ${CONFIG_STAMP} ${BUILD_DIR}/service ${BUILD_DIR}/hsExprTest
 	cd ${BUILD_DIR} && cabal install ${HS_CABAL} --enable-tests
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/serviceProxy.cpp ${BUILD_DIR}/obj
@@ -38,7 +38,7 @@ ${BUILD_DIR}/obj/service.o : ${SRC}/core/serviceProxy.cpp ${BUILD_DIR}/obj
 ${BUILD_DIR}/service :	${BUILD_DIR}/obj/service.o
 	$(CXX) -std=c++11 -c $< -o $@
 
-${BUILD_DIR}/hsExprTestService ${BUILD_DIR}/hsExprTest :
+${BUILD_DIR}/hsExprTest :
 	echo "#!/usr/bin/env bash" > $@
 	echo 'export ${GHC_PACKAGE_PATH_VAR}' >> $@
 	echo 'export PATH="$(shell cd ${BUILD_DIR} && pwd)/${SANDBOX_DIR}/bin:$$PATH"' >> $@
@@ -51,7 +51,7 @@ test : build
 clean :
 	rm -rf ${BUILD_DIR}
 
-.PHONY: all clean configure build
+.PHONY: all clean configure build ${BUILD_DIR}/hsExprTest
 
 # test : .cabal-sandbox
 # 	cabal install --only-dependencies --enable-tests
