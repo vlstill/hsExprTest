@@ -1,5 +1,4 @@
-{-# LANGUAGE NamedFieldPuns, Unsafe, DeriveDataTypeable
-           , ExistentialQuantification, Rank2Types, BangPatterns #-}
+{-# LANGUAGE NamedFieldPuns, Unsafe, ExistentialQuantification, BangPatterns #-}
 
 -- | Simple interface to testing.
 --
@@ -16,9 +15,8 @@ module Testing.Test (
     ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
-                       , quickCheckWithResult, counterexample )
+                       , quickCheckWithResult, counterexample, Testable )
 import Test.QuickCheck.Random ( mkQCGen )
-import Test.QuickCheck ( Testable )
 
 import Data.List ( isInfixOf )
 import Data.Typeable ( typeOf )
