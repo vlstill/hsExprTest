@@ -33,7 +33,6 @@ import Data.Typeable
 import Control.Concurrent
 import Control.Exception
 import Control.DeepSeq
-import Control.Monad ( unless )
 import System.Exit ( exitSuccess, exitFailure )
 
 import System.IO.Unsafe ( unsafePerformIO )
@@ -90,10 +89,12 @@ qcRunProperty lim (AnyProperty p) = qcToResult <$> case lim of
 mainRunProperty :: Int -> AnyProperty -> IO ()
 mainRunProperty lim prop = do
     r <- qcRunProperty (pure lim) prop
-    unless (isSuccess r) $ do
-        print r
-        exitFailure
-    exitSuccess
+    case r of
+        Success -> exitSuccess
+        TestFailure msg -> do putStrLn msg
+                              exitFailure
+        _ -> do print r
+                exitFailure
 
 -- | Exception aware comparison, if no exception is thrown when evaluating
 -- either of the values, compares them using '(==)', if exception is thrown
