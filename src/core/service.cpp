@@ -13,6 +13,8 @@
 #include <chrono>
 #include <thread>
 #include <string_view>
+#include <chrono>
+#include <iomanip>
 
 #include <brick-assert>
 #include <brick-fs>
@@ -49,6 +51,9 @@ struct Msg {
 
     ~Msg() {
         if ( !inhibit ) {
+            time_t now = std::chrono::system_clock::to_time_t( std::chrono::system_clock::now() );
+            std::cerr << std::put_time( std::localtime( &now ), "[%d-%m-%Y %T] " );
+
             if ( level == Level::Error )
                 std::cerr << "FATAL: ";
             else if ( level == Level::Warning )
