@@ -16,6 +16,7 @@ import System.IO ( hPutStrLn, stdout, stderr, withFile, IOMode( AppendMode ), Ha
 import Data.Time.Format ( formatTime, defaultTimeLocale )
 import Data.Time.LocalTime ( getZonedTime )
 import Data.List ( intercalate )
+import Data.Monoid ( Monoid, mappend, mempty, (<>), getFirst, First ( First ) )
 
 data Options = Options { optAssignment :: FilePath
                        , optStudent    :: FilePath
@@ -25,6 +26,23 @@ data Options = Options { optAssignment :: FilePath
                        , optOutFile    :: Maybe FilePath
                        }
     deriving ( Eq, Show, Read )
+
+instance Monoid Options where
+    mempty = Options { optAssignment = ""
+                     , optStudent = ""
+                     , optExtraFiles = []
+                     , optHint = False
+                     , optLogFile = Nothing
+                     , optOutFile = Nothing }
+    mappend o1 o2 = Options { optAssignment = query optAssignment
+                            , optStudent = query optStudent
+                            , optExtraFiles = optExtraFiles o1 <> optExtraFiles o2
+                            , optHint = optHint o1 || optHint o2
+                            , optLogFile = getFirst $ First (optLogFile o1) <> First (optLogFile o2)
+                            , optOutFile = getFirst $ First (optOutFile o1) <> First (optOutFile o2)
+                            }
+      where
+        query get = if null (get o1) then get o2 else get o1
 
 type WithOptions = ReaderT Options
 

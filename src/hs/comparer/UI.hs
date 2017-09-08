@@ -12,18 +12,6 @@ import Control.Monad ( (<=<), foldM )
 import Control.Arrow ( second )
 import System.IO ( hPutStrLn, stderr )
 
-instance Monoid Options where
-    mempty = Options { assignment = "", student = "", extraFiles = [], hint = False, logfile = Nothing, output = Nothing }
-    mappend o1 o2 = Options { assignment = query assignment
-                            , student = query student
-                            , extraFiles = extraFiles o1 <> extraFiles o2
-                            , hint = hint o1 || hint o2
-                            , logfile = getFirst $ First (logfile o1) <> First (logfile o2)
-                            , output = getFirst $ First (output o1) <> First (output o2)
-                            }
-      where
-        query get = if null (get o1) then get o2 else get o1
-
 getOptions :: [String] -> Either String Options
 getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
   where
