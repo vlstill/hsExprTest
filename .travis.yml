@@ -2,6 +2,7 @@ language: haskell
 ghc:
   - 7.10
   - 8.0
+  - 8.2
 cabal: 1.24
 
 env:
@@ -33,7 +34,9 @@ addons:
   apt:
     sources:
       - llvm-toolchain-trusty-4.0
+      - hvr-ghc
     packages:
       - socat
       - time
       - clang-4.0
+      - ghc-8.2
