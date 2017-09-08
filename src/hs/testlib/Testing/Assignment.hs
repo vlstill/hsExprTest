@@ -1,6 +1,4 @@
-{-# LANGUAGE ExistentialQuantification,
-             LambdaCase,
-             FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts #-}
 
 -- (c) 2017 Vladimír Štill
 

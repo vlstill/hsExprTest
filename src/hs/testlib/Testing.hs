@@ -1,12 +1,4 @@
-{-# LANGUAGE StandaloneDeriving,
-             NamedFieldPuns,
-             TupleSections,
-             LambdaCase,
-             FlexibleContexts,
-             FlexibleInstances,
-             MultiParamTypeClasses,
-             UndecidableInstances,
-             MultiWayIf #-}
+{-# LANGUAGE TupleSections, FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core module of hsExprTest, most of test processing and running takes
@@ -101,7 +93,7 @@ runHaskellTypesAssignmentParsed stt sot = do
     unless (typecheckMode == NoTypecheck || result `elem` required) $ do
        doStudentOut TypeMismatchInfo $ "Expected one of " ++ show required ++
                           " but got " ++ show result ++ " (" ++ message ++ ")."
-       fail $ "runHaskellTypesAssignment: type mismatch"
+       fail "runHaskellTypesAssignment: type mismatch"
 
 runHaskellAssignment :: MStack ()
 runHaskellAssignment = do

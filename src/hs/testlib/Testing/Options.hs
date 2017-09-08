@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase #-}
 
--- (c) 2017 Vladimír Å till
+-- (c) 2017 Vladimír Štill
 
 module Testing.Options ( Options ( Options )
                        , optAssignment, optStudent, optExtraFiles, optHint, optLogFile, optOutFile
@@ -53,7 +53,7 @@ genericDoOut :: (MonadIO m, GMonadReader Options m) => (Options -> Maybe FilePat
                                                    -> String -> m ()
 genericDoOut get h str = greader get >>= \case
     Nothing -> liftIO $ hPutStrLn h str
-    Just f -> liftIO $ withFile f AppendMode (flip hPutStrLn str)
+    Just f -> liftIO $ withFile f AppendMode (`hPutStrLn` str)
 
 -- | output logging information (not showed to students)
 doLog :: (MonadIO m, GMonadReader Options m) => String -> m ()

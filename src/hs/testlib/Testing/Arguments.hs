@@ -1,9 +1,4 @@
-{-# LANGUAGE TupleSections,
-             NamedFieldPuns,
-             PatternGuards,
-             ScopedTypeVariables,
-             FlexibleContexts
-             #-}
+{-# LANGUAGE TupleSections, ScopedTypeVariables #-}
 
 -- | Support for building test expressions and type monomorphiscation.
 -- (c) 2014-2017 Vladimír Štill
