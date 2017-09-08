@@ -7,11 +7,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <csignal>
-#include <atomic>
 #include <functional>
-#include <random>
-#include <chrono>
-#include <thread>
 #include <string_view>
 #include <chrono>
 #include <iomanip>
@@ -27,7 +23,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <alloca.h>
-#include <poll.h>
 
 using namespace std::literals;
 
