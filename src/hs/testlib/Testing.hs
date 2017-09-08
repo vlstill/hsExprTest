@@ -186,7 +186,7 @@ withInterpreter modules imports action = do
     -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
-    let pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck" ]
+    let pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
     let extra = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
                 , "-XDeriveDataTypeable"
                 , "-XStandaloneDeriving"
@@ -204,7 +204,7 @@ withInterpreter modules imports action = do
         setImportsQ $ map (, Nothing)
             [ "Prelude", "Data.Word", "Data.Int", "Test.QuickCheck"
             , "Test.QuickCheck.Modifiers", "Test.QuickCheck.Function"
-            , "Test.QuickCheck.Arbitrary", {- "Test.QuickCheck.Range" -- TODO
-            , "Testing.Test", "Types.Curry", -} "Control.DeepSeq" ]
+            , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
+            , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
             ++ imports
         action
