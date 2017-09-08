@@ -26,6 +26,11 @@ import Data.Either ( isLeft )
 import Data.List ( nub )
 import Data.Maybe ( fromMaybe, isNothing )
 
+import System.Process ( cwd, std_in, std_out, std_err, proc
+                      , createProcess, waitForProcess
+                      , StdStream ( NoStream, UseHandle ) )
+import System.Exit ( ExitCode ( ExitSuccess ) )
+
 import Language.Haskell.Interpreter ( InterpreterT
                                     , InterpreterError ( UnknownError, NotAllowed
                                                        , GhcException, WontCompile )
@@ -35,8 +40,9 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 
 
 import Files ( WorkDir, WithWorkDir, withWorkDir, createStudentFile
-             , createSolutionFile, getWorkDir )
-import Testing.Options ( Options, doLog, WithOptions, withOptions, optStudent )
+             , createSolutionFile, createTestFile, getWorkDir )
+import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions, optStudent
+                       , optHint, withIOStreams )
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
 import Testing.Assignment ( Assignment (..), Typecheck (..)
@@ -132,13 +138,47 @@ runHaskellAssignment = do
         testExpr <- interpreter' $ fromMaybe (buildTestExpression stexpr soexpr testtype)
                 (pure . buildTestExpressionsWithComparer stexpr soexpr <$> compexpr)
         doLog $ "testing expression: " ++ testExpr
-        undefined
+        isHint <- greader optHint
+        hintLevel <- greader asgnHint
+        when (not isHint || hintLevel >= Test) $ withIOStreams $ \outs errs -> do
+            test <- mkTestFile testExpr
+            wd <- greader getWorkDir
+            let opts = [ "-i" ++ wd, test ]
+                runghc = (proc "runghc" (ghcOptions ++ opts))
+                          { cwd = Just wd
+                          , std_in = NoStream
+                          , std_out = UseHandle outs
+                          , std_err = UseHandle errs
+                          }
+            (_, _, _, h) <- liftIO $ createProcess runghc
+            ec <- liftIO $ waitForProcess h
+            when (ec /= ExitSuccess) $ do
+                doOut "Test failed."
+                fail "test failed"
+            doStudentOut' "Test passed."
   where
     emsg :: Show e => String -> Either e a -> MStack a
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
                          fail "terminated by emsg"
     emsg _   (Right x) = pure x
     interpreter' = interpreter [] [] NoOutput
+
+mkTestFile :: String -> MStack FilePath
+mkTestFile expr = do
+    lim <- fromMaybe 10 <$> greader asgnLimit
+    let contents = unlines $
+            [ "import " ++ m | m <- loadedModules ] ++
+            [ ""
+            , "test :: AnyProperty"
+            , "test = " ++ expr
+            , "limit :: Int"
+            , "limit = " ++ show lim
+            , ""
+            , "main :: IO ()"
+            , "main = mainRunProperty limit test"
+            ]
+    createTestFile contents
+
 
 getExprType :: FilePath -> String -> String -> HintMode -> MStack String
 getExprType filePath moduleName expr hintModeCondition =
@@ -188,13 +228,7 @@ withInterpreter modules imports action = do
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
     let pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
-    let extra = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
-                , "-XDeriveDataTypeable"
-                , "-XStandaloneDeriving"
-                , "-XDataKinds"
-                , "-XTemplateHaskell"
-                , "-Werror"
-                , "-i" ++ wd ]
+    let extra = ghcOptions ++ [ "-i" ++ wd ]
     let args = pkgs ++ extra
 
     unsafeRunInterpreterWithArgs args $ do
@@ -202,10 +236,19 @@ withInterpreter modules imports action = do
         -- needed to make instances available
         set [ installedModulesInScope := True ]
         loadModules modules
-        setImportsQ $ map (, Nothing)
-            [ "Prelude", "Data.Word", "Data.Int", "Test.QuickCheck"
-            , "Test.QuickCheck.Modifiers", "Test.QuickCheck.Function"
-            , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
-            , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]
-            ++ imports
+        setImportsQ $ map (, Nothing) loadedModules ++ imports
         action
+
+ghcOptions :: [String]
+ghcOptions = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
+             , "-XDeriveDataTypeable"
+             , "-XStandaloneDeriving"
+             , "-XDataKinds"
+             , "-XTemplateHaskell"
+             , "-Werror"
+             ]
+loadedModules :: [String]
+loadedModules = [ "Prelude", "Data.Word", "Data.Int", "Test.QuickCheck"
+                , "Test.QuickCheck.Modifiers", "Test.QuickCheck.Function"
+                , "Test.QuickCheck.Arbitrary", "Test.QuickCheck.Range"
+                , "Testing.Test", "Types.Curry", "Control.DeepSeq" ]

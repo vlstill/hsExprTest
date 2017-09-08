@@ -7,12 +7,15 @@ module Testing.Options ( Options ( Options )
                        , doOut, doLog
                        , WithOptions
                        , withOptions
+                       , withIOStreams
                        )
                        where
 
+import Control.Monad.Catch ( MonadMask, bracket )
 import Control.Monad.Reader.Generalized ( greader, GMonadReader, ReaderT, runReaderT )
 import Control.Monad.IO.Class ( MonadIO, liftIO )
-import System.IO ( hPutStrLn, stdout, stderr, withFile, IOMode( AppendMode ), Handle )
+import System.IO ( hPutStrLn, stdout, stderr, withFile, IOMode( AppendMode )
+                 , Handle, openFile, hClose )
 import Data.Time.Format ( formatTime, defaultTimeLocale )
 import Data.Time.LocalTime ( getZonedTime )
 import Data.List ( intercalate )
@@ -66,3 +69,18 @@ doLog msg = liftIO stamp >>= \s -> genericDoOut optLogFile stderr (prefixed s)
 -- | output which will be showed to the student
 doOut :: (MonadIO m, GMonadReader Options m) => String -> m ()
 doOut = genericDoOut optOutFile stdout
+
+withIOStreams :: (GMonadReader Options m, MonadIO m, MonadMask m)
+              => (Handle -> Handle -> m a) -> m a
+withIOStreams act = do
+    logf <- greader optLogFile
+    outf <- greader optOutFile
+    withStream outf stdout $ \outs ->
+        withStream logf stderr $ \logs ->
+            act outs logs
+
+withStream :: (MonadMask m, MonadIO m) => Maybe FilePath -> Handle -> (Handle -> m a) -> m a
+withStream Nothing  str act = act str
+withStream (Just f) _   act = bracket (liftIO $ openFile f AppendMode)
+                                      (liftIO . hClose)
+                                      act
