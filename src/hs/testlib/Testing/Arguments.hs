@@ -24,7 +24,7 @@ import Data.Bool ( bool )
 import Data.Set ( Set, toList, fromList )
 import Types
 import Types.Parser ( parseType )
-import Language.Haskell.Interpreter ( MonadInterpreter, Interpreter, typeChecks, typeOf )
+import Language.Haskell.Interpreter ( MonadInterpreter, typeChecks, typeOf )
 
 -- | Note that polymorphic type (both uncostrained and constrained) can belong
 -- to any typeclass, and therefore isTypeclass "a" "AnyClassInScope" returns
@@ -90,7 +90,7 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
 -- | Get test expression of type 'AnyProperty' which can be run in interpreter.
 buildTestExpression :: forall m. MonadInterpreter m => String -> String -> Type -> m String
 buildTestExpression st so ty = do
-    (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
+    (binds, pars) <- ($ ty) $ functionTypes >>> fst >>> zip [0 :: Int ..] >>> mapM (first show >>> uncurry arg) >>> fmap unzip
     return . unwords $ if null binds
         then [ "AnyProperty (", withWitness st, "<==>", withWitness so, ")" ]
         else "AnyProperty (\\" : binds ++ [ "->", withWitness st ] ++

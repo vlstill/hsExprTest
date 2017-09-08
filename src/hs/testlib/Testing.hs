@@ -7,6 +7,7 @@
              MultiParamTypeClasses,
              UndecidableInstances,
              MultiWayIf #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core module of hsExprTest, most of test processing and running takes
 -- place here.
@@ -17,22 +18,20 @@
 module Testing ( runTest ) where
 
 import Prelude hiding ( fail )
-import qualified Control.Monad as M ( fail )
 
 import Control.Arrow ( (>>>) )
 import Control.Exception ( SomeException (..) )
 import Control.Monad ( when, unless, forM )
-import Control.Monad.Catch ( MonadMask, MonadCatch, MonadThrow, try )
+import Control.Monad.Catch ( MonadMask, try )
 import Control.Monad.Fail as F ( MonadFail, fail )
 import Control.Monad.IO.Class ( MonadIO, liftIO )
-import Control.Monad.Reader.Generalized ( ReaderT, GMonadReader, greader )
+import Control.Monad.Reader.Generalized ( GMonadReader, greader )
 import Control.Monad.Trans.Class ( lift )
-import Control.Monad.Trans.Maybe ( MaybeT (..), runMaybeT )
 
 import Data.Char ( isSpace )
-import Data.Either ( isLeft, isRight )
+import Data.Either ( isLeft )
 import Data.List ( nub )
-import Data.Maybe ( fromMaybe, isJust, isNothing )
+import Data.Maybe ( fromMaybe, isNothing )
 
 import Language.Haskell.Interpreter ( InterpreterT
                                     , InterpreterError ( UnknownError, NotAllowed
@@ -53,7 +52,6 @@ import Testing.Assignment ( Assignment (..), Typecheck (..)
 import Text.PrettyPrint ( pp )
 import Types ( unifyTypes, getType, (//), compareTypes, TypeExpression, addImpliedOrderings )
 import Types.Parser ( parseType )
-import Control.Monad.Reader.Generalized ( greader )
 
 instance MonadFail m => MonadFail (InterpreterT m) where
     fail = lift . fail
@@ -71,7 +69,8 @@ type MStack = WithWorkDir (WithAssignment (WithOptions IO))
 runAssignment :: MStack ()
 runAssignment = do
     doLog "starting assignment"
-    runHaskellAssignment
+    typecmp <- greader asgnTypecmp
+    if typecmp then runHaskellTypesAssignment else runHaskellAssignment
     doLog "assignment ended"
 
 runHaskellTypesAssignment :: MStack ()
@@ -137,9 +136,9 @@ runHaskellAssignment = do
 
     testtypes <- interpreter' $ getDegeneralizedTypes comtype
     fmap mconcat . forM testtypes $ \testtype -> do
-        expr <- interpreter' $ fromMaybe (buildTestExpression stexpr soexpr testtype)
+        testExpr <- interpreter' $ fromMaybe (buildTestExpression stexpr soexpr testtype)
                 (pure . buildTestExpressionsWithComparer stexpr soexpr <$> compexpr)
-        doLog $ "testing expression: " ++ expr
+        doLog $ "testing expression: " ++ testExpr
         undefined
   where
     emsg :: Show e => String -> Either e a -> MStack a

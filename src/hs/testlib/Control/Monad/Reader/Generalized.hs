@@ -7,14 +7,13 @@
              #-}
 
 -- | Generalizes 'Control.Monad.Reader.MonadReader' to stacks of readers
-module Control.Monad.Reader.Generalized ( GMonadReader
-                                        , greader
+module Control.Monad.Reader.Generalized ( GMonadReader ( greader, gask )
                                         -- * re-exports
                                         , ReaderT
                                         , runReaderT
                                         ) where
 
-import Control.Monad.Reader ( ReaderT, MonadReader, reader, local, runReaderT )
+import Control.Monad.Trans.Reader ( ReaderT, reader, runReaderT )
 import Control.Monad.Trans.Class ( MonadTrans, lift )
 import Data.Proxy ( Proxy ( Proxy ) )
 

@@ -24,7 +24,7 @@ import Control.Monad.Reader.Generalized ( ReaderT, runReaderT, GMonadReader, gre
 import Data.Char ( isSpace )
 import Data.Default.Class
 import Data.List ( lines, unlines )
-import Data.Map ( Map, fromList )
+import Data.Map ( fromList )
 import Text.Read ( readEither )
 
 import qualified Data.Map as M ( lookup )
@@ -94,9 +94,9 @@ withAssignment asgn act = runReaderT act asgn
 readAssignment :: (MonadFail m, MonadIO m, GMonadReader Options m)
                => WithAssignment m a -> m a
 readAssignment act = do
-    asgn <- liftIO . readFile =<< greader optAssignment
+    asgnData <- liftIO . readFile =<< greader optAssignment
     sol <- liftIO . readFile =<< greader optStudent
-    case parseAssignment asgn sol of
+    case parseAssignment asgnData sol of
         Left msg -> fail msg
         Right asgn -> withAssignment asgn act
 

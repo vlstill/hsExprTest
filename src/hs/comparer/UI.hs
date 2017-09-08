@@ -3,7 +3,7 @@
 module UI ( runUI ) where
 
 import System.Exit ( exitSuccess, exitFailure )
-import Data.Monoid ( Monoid(..), (<>), First ( First ), getFirst )
+import Data.Monoid ( Monoid(..), (<>) )
 import Data.List.Split ( splitOn )
 import Data.Bool ( bool )
 import Testing ( runTest )
