@@ -17,6 +17,7 @@ import Control.Monad ( when, unless, forM )
 import Control.Monad.Catch ( MonadMask, try )
 import Control.Monad.Fail as F ( MonadFail, fail )
 import Control.Monad.IO.Class ( MonadIO, liftIO )
+import Control.Monad.Reader.Fail ()
 import Control.Monad.Reader.Generalized ( GMonadReader, greader )
 import Control.Monad.Trans.Class ( lift )
 
