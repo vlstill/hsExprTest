@@ -125,6 +125,7 @@ runHaskellAssignment = do
 
     let getExprTypeStudent = getExprType stfile "Student"
         getExprTypeSolution = getExprType sofile "Solution"
+        interpreter' = interpreter [ sofile, stfile ] [ importQ "Solution", importQ "Student" ] NoOutput NoOutput
 
     studentType <- getExprTypeStudent stexpr StudentCompileOut TypeMismatchInfo
     studentWrapType <- getExprTypeStudent stwrap NoOutput TypeMismatchInfo
@@ -166,7 +167,6 @@ runHaskellAssignment = do
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
                          fail "terminated by emsg"
     emsg _   (Right x) = pure x
-    interpreter' = interpreter [] [] NoOutput NoOutput
 
 mkTestFile :: String -> MStack FilePath
 mkTestFile expr = do
