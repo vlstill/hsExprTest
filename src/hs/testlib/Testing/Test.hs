@@ -18,35 +18,21 @@ import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Prope
                        , quickCheckWithResult, counterexample, Testable )
 import Test.QuickCheck.Random ( mkQCGen )
 
-import Data.List ( isInfixOf )
 import Data.Typeable ( typeOf )
-import Control.Concurrent ( myThreadId, threadDelay, killThread, forkIO )
-import Control.Exception ( AsyncException ( UserInterrupt )
-                         , SomeException ( SomeException )
-                         , fromException, Exception, bracket, throwTo, catch
-                         , throw )
+import Control.Monad ( void )
+import Control.Exception ( SomeException ( SomeException ), Exception, catch )
 import Control.DeepSeq ( rnf, ($!!), NFData )
-import System.IO ( hPutStrLn, stderr )
 import System.Exit ( exitSuccess, exitFailure )
 
 import System.IO.Unsafe ( unsafePerformIO )
+import System.Posix.Signals ( scheduleAlarm )
 
 -- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
 
 -- | Run property, possibly with limit.
-runProperty :: Maybe Int -> AnyProperty -> IO Result
-runProperty lim (AnyProperty p) = case lim of
-    Nothing -> quickCheckWithResult args p
-    Just limit -> do
-        -- we are throwing UserInterrupt because it is the only exception
-        -- which does not allow shrinking in QuickCheck (which is very
-        -- important, as shirinking for example f = f will never end)
-        -- also QuickCheck's within does not work either
-        pid <- myThreadId
-        bracket (forkIO (threadDelay limit >> throwTo pid UserInterrupt))
-                killThread
-                (const (quickCheckWithResult args p))
+runProperty :: AnyProperty -> IO Result
+runProperty (AnyProperty p) = quickCheckWithResult args p
   where
     args = stdArgs { chatty = False
                    , maxSuccess = 1000
@@ -57,17 +43,14 @@ runProperty lim (AnyProperty p) = case lim of
                    }
 
 mainRunProperty :: Int -> AnyProperty -> IO ()
-mainRunProperty lim prop = do
-    r <- runProperty (pure lim) prop
+mainRunProperty lim0 prop = do
+    let lim = if lim0 > 1000 then lim0 `div` 1000000 else lim
+    void $ scheduleAlarm lim
+    r <- runProperty prop
     case r of
         Success {} -> exitSuccess
         GaveUp {} -> exitSuccess
-        Failure { output, theException } -> case theException >>= fromException of
-                 Just ex -> (ex :: AsyncException) `seq` do
-                                putStrLn $ "Timeout: " ++ show ex
-                                hPutStrLn stderr "timeout"
-                                exitFailure
-                 _       -> testFailure output
+        Failure { output } -> testFailure output
         NoExpectedFailure { output } -> testFailure output
         _ -> do print r
                 exitFailure
@@ -85,11 +68,7 @@ infix 4 <==>
 x <==> y = x `comp` y
   where
     wrap v = unsafePerformIO $ (return . OK $!! v) `catch` handler
-    handler se@(SomeException e) = case fromException se of
-        Just ae -> throw (ae :: AsyncException)
-        Nothing -> if "<<timeout>>" `isInfixOf` show e
-                        then throw e
-                        else return (Exc e)
+    handler (SomeException e) = return (Exc e)
     comp x0 y0 = counterexample (sx ++ " /= " ++ sy) (wx == wy)
       where
         wx = wrap x0

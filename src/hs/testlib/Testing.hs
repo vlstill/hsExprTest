@@ -29,7 +29,8 @@ import Data.Maybe ( fromMaybe, isNothing, isJust )
 import System.Process ( cwd, std_in, std_out, std_err, proc
                       , createProcess, waitForProcess
                       , StdStream ( Inherit, UseHandle ) )
-import System.Exit ( ExitCode ( ExitSuccess ) )
+import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
+import System.Posix.Signals ( sigALRM )
 
 import Language.Haskell.Interpreter ( InterpreterT
                                     , InterpreterError ( UnknownError, NotAllowed
@@ -158,10 +159,10 @@ runHaskellAssignment = do
                           }
             (_, _, _, h) <- liftIO $ createProcess runghc
             ec <- liftIO $ waitForProcess h
-            when (ec /= ExitSuccess) $ do
-                doOut "Test failed."
-                fail "test failed"
-            doStudentOut' "Test passed."
+            case ec of
+                ExitSuccess   -> doStudentOut' "Test passed."
+                ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> fail "timeout"
+                              | otherwise                  -> doOut "Test failed" >> fail "test failed"
   where
     emsg :: Show e => String -> Either e a -> MStack a
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
