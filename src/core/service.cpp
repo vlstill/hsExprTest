@@ -162,7 +162,7 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
                 return replyError( xid, "unknown ID: "s.append( id ) );
         }
 
-        std::vector< std::string > args = { exec, qfile, studentfile };
+        std::vector< std::string > args = { exec, qfile, studentfile, "-I" + qdir };
         if ( hint )
             args.push_back( "--hint" );
         auto r = brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
