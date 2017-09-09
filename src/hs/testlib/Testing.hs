@@ -23,8 +23,8 @@ import Control.Monad.Trans.Class ( lift )
 
 import Data.Char ( isSpace )
 import Data.Either ( isLeft )
-import Data.List ( nub )
-import Data.Maybe ( fromMaybe, isNothing )
+import Data.List ( nub, find )
+import Data.Maybe ( fromMaybe, isNothing, isJust )
 
 import System.Process ( cwd, std_in, std_out, std_err, proc
                       , createProcess, waitForProcess
@@ -202,9 +202,14 @@ interpreter files modules hintModeCondition hintModeConditionFull act = do
                                                 ++ moduleName ++ " file: " ++ str
             GhcException str -> doStudentOut' $ "Error 'GhcException' while interpreting "
                                                 ++ moduleName ++ " file: " ++ str
-            WontCompile msgs -> doStudentOut hintModeCondition $ "Compilation error in "
-                                                ++ moduleName ++ " file:\n"
-                                  ++ unlines (filter studentfile . nub $ map errMsg msgs)
+            WontCompile msgs0 -> do
+                let msgs = nub $ map errMsg msgs0
+                doStudentOut hintModeCondition $ "Compilation error in "
+                                  ++ moduleName ++ " file:\n"
+                                  ++ unlines (filter studentfile msgs)
+                                  ++ if isJust (find (not . studentfile) msgs)
+                                        then "Could find student function or could not call it due to type error"
+                                        else ""
         fail $ "interpreter failed on " ++ moduleName
     pure $ fromRight r
   where
