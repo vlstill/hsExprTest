@@ -145,7 +145,7 @@ runHaskellAssignment = do
         doLog $ "testing expression: " ++ testExpr
         isHint <- greader optHint
         hintLevel <- greader asgnHint
-        when (not isHint || hintLevel >= Test) $ withIOStreams $ \outs errs -> do
+        when (not isHint || hintLevel >= Test) $ withIOStreams $ \outs _ -> do
             test <- mkTestFile testExpr
             includes <- getIncludeOpts
             wd <- greader getWorkDir
@@ -154,7 +154,7 @@ runHaskellAssignment = do
                           { cwd = Just wd
                           , std_in = Inherit
                           , std_out = UseHandle outs
-                          , std_err = UseHandle errs
+                          , std_err = UseHandle outs
                           }
             (_, _, _, h) <- liftIO $ createProcess runghc
             ec <- liftIO $ waitForProcess h
