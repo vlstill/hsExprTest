@@ -41,7 +41,7 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 
 import Files ( WorkDir, WithWorkDir, withWorkDir, createStudentFile
              , createSolutionFile, createTestFile, getWorkDir )
-import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions, optStudent
+import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions
                        , optHint, withIOStreams )
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
@@ -104,7 +104,7 @@ runHaskellTypesAssignmentParsed stt sot = do
 
 runHaskellAssignment :: MStack ()
 runHaskellAssignment = do
-    stfile <- createStudentFile =<< liftIO . readFile =<< greader optStudent
+    stfile <- createStudentFile =<< greader asgnStudent
     sofile <- createSolutionFile =<< greader asgnSolution
   
     expr' <- greader asgnExpr
