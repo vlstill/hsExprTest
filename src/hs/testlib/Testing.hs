@@ -42,7 +42,7 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Files ( WorkDir, WithWorkDir, withWorkDir, createStudentFile
              , createSolutionFile, createTestFile, getWorkDir )
 import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions
-                       , optHint, withIOStreams )
+                       , optHint, optIncludeDirs, withIOStreams )
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
 import Testing.Assignment ( Assignment (..), Typecheck (..)
@@ -142,8 +142,9 @@ runHaskellAssignment = do
         hintLevel <- greader asgnHint
         when (not isHint || hintLevel >= Test) $ withIOStreams $ \outs errs -> do
             test <- mkTestFile testExpr
+            includes <- getIncludeOpts
             wd <- greader getWorkDir
-            let opts = [ "-i" ++ wd, test ]
+            let opts = includes ++ [test]
                 runghc = (proc "runghc" (ghcOptions ++ opts))
                           { cwd = Just wd
                           , std_in = Inherit
@@ -228,18 +229,24 @@ fromRight _ = error "fromRight: Left"
 importQ :: String -> (String, Maybe String)
 importQ m = (m, Just m)
 
+getIncludeOpts :: (Monad m, GMonadReader Options m, GMonadReader WorkDir m) => m [String]
+getIncludeOpts = do
+    wd <- greader getWorkDir
+    includes <- greader optIncludeDirs
+    pure $ map ("-i" ++) (wd:includes)
+
 withInterpreter :: (MonadIO m, MonadMask m, GMonadReader WorkDir m, GMonadReader Options m)
                 => [FilePath] -> [(String, Maybe String)]
                 -> InterpreterT m a -> m (Either InterpreterError a)
 withInterpreter modules imports action = do
-    wd <- greader getWorkDir
+    includes <- getIncludeOpts
     -- NOTE: it would seem better to use HINT's set feature to set language
     -- extensions (and it would be type safe) but there is bug somewhere
     -- which couses Prelude to go out of scope (at least on ghc 7.8.3 on nixos)
     -- if set [ languageExtensions := ... ] is used and prelude is not imported
     -- explicitly (which is kind of pain to do), so we do it here.
     let pkgs = map ("-package=" ++) [ "random", "tf-random", "QuickCheck", "hsExprTest" ]
-    let extra = ghcOptions ++ [ "-i" ++ wd ]
+    let extra = ghcOptions ++ includes
     let args = pkgs ++ extra
 
     unsafeRunInterpreterWithArgs args $ do

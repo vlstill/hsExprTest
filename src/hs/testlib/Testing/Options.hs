@@ -3,7 +3,7 @@
 -- (c) 2017 Vladimír Štill
 
 module Testing.Options ( Options ( Options )
-                       , optAssignment, optStudent, optExtraFiles, optHint, optLogFile, optOutFile
+                       , optAssignment, optStudent, optExtraFiles, optHint, optLogFile, optOutFile, optIncludeDirs
                        , doOut, doLog
                        , WithOptions
                        , withOptions
@@ -24,6 +24,7 @@ import Data.Semigroup ( Semigroup, Monoid, mappend, mempty, (<>), getFirst, Firs
 data Options = Options { optAssignment :: FilePath
                        , optStudent    :: FilePath
                        , optExtraFiles :: [FilePath]
+                       , optIncludeDirs :: [FilePath]
                        , optHint       :: Bool
                        , optLogFile    :: Maybe FilePath
                        , optOutFile    :: Maybe FilePath
@@ -34,6 +35,7 @@ instance Semigroup Options where
     o1 <> o2 = Options { optAssignment = query optAssignment
                        , optStudent = query optStudent
                        , optExtraFiles = optExtraFiles o1 <> optExtraFiles o2
+                       , optIncludeDirs = optIncludeDirs o1 <> optIncludeDirs o2
                        , optHint = optHint o1 || optHint o2
                        , optLogFile = getFirst $ First (optLogFile o1) <> First (optLogFile o2)
                        , optOutFile = getFirst $ First (optOutFile o1) <> First (optOutFile o2)
@@ -45,6 +47,7 @@ instance Monoid Options where
     mempty = Options { optAssignment = ""
                      , optStudent = ""
                      , optExtraFiles = []
+                     , optIncludeDirs = []
                      , optHint = False
                      , optLogFile = Nothing
                      , optOutFile = Nothing }

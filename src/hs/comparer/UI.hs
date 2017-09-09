@@ -21,6 +21,10 @@ getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
     get ("--extra", Just fs) = eat $ mempty { optExtraFiles = splitOn "," fs }
     get ("--log", Just logf)  = eat $ mempty { optLogFile = Just logf }
     get ("--out", Just o) = eat $ mempty { optOutFile = Just o }
+    get ("-i", Just i) = eat $ mempty { optIncludeDirs = [i] }
+    get ("-I", Just i) = eat $ mempty { optIncludeDirs = [i] }
+    get ('-':'i':i, _) = next $ mempty { optIncludeDirs = [i] }
+    get ('-':'I':i, _) = next $ mempty { optIncludeDirs = [i] }
     get (opt, _)             = Left $ "unknown option " ++ opt ++ ", or expecting argument and found none\n" ++ usage
     validate x
       | null (optAssignment x) = Left $ "missing assignment\n" ++ usage
@@ -33,7 +37,7 @@ getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
 getOptions _ = Left usage
 
 usage :: String
-usage = "usage: assignment student [--hint] [--extra file] [--log file] [--out file]"
+usage = "usage: assignment student [--hint] [--extra file]* [--log file] [--out file] [-idir | -i dir | -I dir | -Idir]*"
 
 runUI :: [String] -> IO ()
 runUI opts = case getOptions opts of
