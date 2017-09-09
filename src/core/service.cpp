@@ -110,7 +110,7 @@ int addrsize( const std::string &path ) {
     return offsetof( sockaddr_un, sun_path ) + path.size() + 1;
 }
 
-std::string replyError( int xid, std::string msg ) {
+std::string replyError( long xid, std::string msg ) {
     std::stringstream reply;
     reply << "I" << xid << "PnokC" << msg << std::endl;
     return reply.str();
@@ -129,7 +129,7 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
 
     auto qpos = packet.find( 'Q' );
     ASSERT_NEQ( qpos, std::string_view::npos );
-    int xid = std::stoi( std::string( packet.substr( 0, qpos ) ) );
+    long xid = std::stol( std::string( packet.substr( 0, qpos ) ) );
     try {
         packet.remove_prefix( qpos + 1 );
 
