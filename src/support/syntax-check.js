@@ -1,4 +1,7 @@
 // (c) 2015 Juraj Major
+// (c) 2017 Vladimír Štill
+
+// vim: set noexpandtab
 
 // Pouziti:
 // * nalinkovat tento skript do zadani (lze vicekrat)
@@ -40,11 +43,15 @@ if (typeof syntax_check !== 'function') {
 						xhr.onreadystatechange = function() {
 							if (this.readyState == 4 && this.status == 200) {
 								var text, barva;
+								var resp = "<pre>"
+								           + this.responseText.replace( /^n?ok~~/, '' ).replace( /check_id=.*/, '' )
+								           + "</pre>";
 								if (/^ok/.test(this.responseText)) {
-									text = 'V pořádku.';
+									text = 'V pořádku.\n' + resp;
 									barva = 'green';
 								} else {
-									text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.';
+									text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>'
+									       + resp;
 									barva = 'red';
 								}
 								res.innerHTML = text;
