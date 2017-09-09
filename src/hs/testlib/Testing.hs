@@ -122,10 +122,10 @@ runHaskellAssignment = do
     let getExprTypeStudent = getExprType stfile "Student"
         getExprTypeSolution = getExprType sofile "Solution"
 
-    studentType <- getExprTypeStudent stexpr StudentCompileOut
-    studentWrapType <- getExprTypeStudent stwrap NoOutput
-    solutionType <- getExprTypeSolution soexpr NoOutput
-    solutionWrapType <- getExprTypeSolution sowrap NoOutput
+    studentType <- getExprTypeStudent stexpr StudentCompileOut TypeMismatchInfo
+    studentWrapType <- getExprTypeStudent stwrap NoOutput TypeMismatchInfo
+    solutionType <- getExprTypeSolution soexpr NoOutput TypeMismatchInfo
+    solutionWrapType <- getExprTypeSolution sowrap NoOutput TypeMismatchInfo
 
     runHaskellTypesAssignment' studentType solutionType
     sttype <- emsg "parsing student type" $ parseType studentWrapType
@@ -161,7 +161,7 @@ runHaskellAssignment = do
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
                          fail "terminated by emsg"
     emsg _   (Right x) = pure x
-    interpreter' = interpreter [] [] NoOutput
+    interpreter' = interpreter [] [] NoOutput NoOutput
 
 mkTestFile :: String -> MStack FilePath
 mkTestFile expr = do
@@ -180,14 +180,20 @@ mkTestFile expr = do
     createTestFile contents
 
 
-getExprType :: FilePath -> String -> String -> HintMode -> MStack String
-getExprType filePath moduleName expr hintModeCondition =
-    interpreter [ filePath ] [ importQ moduleName ] hintModeCondition $ typeOf expr
+getExprType :: FilePath -> String -> String -> HintMode -> HintMode -> MStack String
+getExprType filePath moduleName expr hintModeCondition hintModeConditionFull =
+    interpreter [ filePath ] [ importQ moduleName ] hintModeCondition hintModeConditionFull $ typeOf expr
 
-interpreter :: [FilePath] -> [(String, Maybe String)] -> HintMode
+interpreter :: [FilePath] -> [(String, Maybe String)] -> HintMode -> HintMode
           -> InterpreterT MStack a -> MStack a
-interpreter files modules hintModeCondition act = do
+interpreter files modules hintModeCondition hintModeConditionFull act = do
     r <- withInterpreter files modules act
+    hint <- greader optHint
+    hintSettings <- greader asgnHint
+    let doFullHint = not hint || (hintModeConditionFull <= hintSettings)
+        studentfile x = doFullHint || f == "Student.hs"
+          where
+            f = takeWhile (/= ':') x
     when (isLeft r) $ do
         case fromLeft r of
             UnknownError str -> doStudentOut' $ "Error 'UnknownError' while interpreting "
@@ -198,7 +204,7 @@ interpreter files modules hintModeCondition act = do
                                                 ++ moduleName ++ " file: " ++ str
             WontCompile msgs -> doStudentOut hintModeCondition $ "Compilation error in "
                                                 ++ moduleName ++ " file:\n"
-                                  ++ unlines (nub (map errMsg msgs))
+                                  ++ unlines (filter studentfile . nub $ map errMsg msgs)
         fail $ "interpreter failed on " ++ moduleName
     pure $ fromRight r
   where
