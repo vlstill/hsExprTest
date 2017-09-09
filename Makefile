@@ -33,10 +33,10 @@ build : ${CONFIG_STAMP} ${BUILD_DIR}/service ${BUILD_DIR}/hsExprTest
 	cd ${BUILD_DIR} && cabal install ${HS_CABAL} --enable-tests
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp ${BUILD_DIR}/obj
-	$(CXX) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
+	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
 
 ${BUILD_DIR}/service :	${BUILD_DIR}/obj/service.o
-	$(CXX) $< -o $@ -pthread
+	$(CXX) $(LDFLAGS) $< -o $@ -pthread
 
 ${BUILD_DIR}/hsExprTest :
 	echo "#!/usr/bin/env bash" > $@
