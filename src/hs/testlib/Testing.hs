@@ -21,7 +21,6 @@ import Control.Monad.Reader.Fail ()
 import Control.Monad.Reader.Generalized ( GMonadReader, greader )
 import Control.Monad.Trans.Class ( lift )
 
-import Data.Char ( isSpace )
 import Data.Either ( isLeft )
 import Data.List ( nub, find )
 import Data.Maybe ( fromMaybe, isNothing, isJust )
@@ -79,11 +78,11 @@ runAssignment = do
 
 runHaskellTypesAssignment :: MStack ()
 runHaskellTypesAssignment = do
-    student <- filt <$> greader asgnStudent
-    solution <- filt <$> greader asgnSolution
+    student <- drop 1 <$> filt (/= "{-# LINE 1 \"Student.hs\" #-}") <$> greader asgnStudent
+    solution <- filt (\x -> take 2 x == "--") <$> greader asgnSolution
     runHaskellTypesAssignment' student solution
   where
-    filt = lines >>> filter (\x -> take 2 (dropWhile isSpace x) /= "--") >>> unlines
+    filt f = lines >>> dropWhile f >>> unlines
 
 runHaskellTypesAssignment' :: String -> String -> MStack ()
 runHaskellTypesAssignment' student solution =
