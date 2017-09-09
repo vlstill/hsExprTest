@@ -66,6 +66,7 @@ mainRunProperty lim prop = do
                  Just ex -> (ex :: AsyncException) `seq` do
                                 putStrLn $ "Timeout: " ++ show ex
                                 hPutStrLn stderr "timeout"
+                                exitFailure
                  _       -> testFailure output
         NoExpectedFailure { output } -> testFailure output
         _ -> do print r
