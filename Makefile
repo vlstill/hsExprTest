@@ -10,7 +10,7 @@ GHC_PACKAGE_PATH_VAR=GHC_PACKAGE_PATH="$(shell cd ${BUILD_DIR} && cabal sandbox 
 
 -include local.make
 
-all : build
+all : submodules build
 
 ${BUILD_DIR} :
 	mkdir -p $@
@@ -51,7 +51,10 @@ test : build
 clean :
 	rm -rf ${BUILD_DIR}
 
-.PHONY: all clean configure build ${BUILD_DIR}/hsExprTest
+submodules :
+	git submodule update -i
+
+.PHONY: all clean configure build ${BUILD_DIR}/hsExprTest submodules
 
 # test : .cabal-sandbox
 # 	cabal install --only-dependencies --enable-tests
