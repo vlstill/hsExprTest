@@ -60,7 +60,11 @@ runTest opts = withOptions opts . (res =<<) . try . readAssignment . withWorkDir
                $ runAssignment
   where
     res :: Either SomeException () -> WithOptions IO Bool
-    res (Left ex) = doLog ("EXCEPTION: " ++ show ex) >> pure False
+    res (Left ex) = do
+        let msg = "EXCEPTION: " ++ show ex
+        doLog msg
+        doOut msg
+        pure False
     res (Right ()) = pure True
 
 type MStack = WithWorkDir (WithAssignment (WithOptions IO))
