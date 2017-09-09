@@ -11,6 +11,7 @@ module Testing.Assignment ( Typecheck (..)
                           , readAssignment
                           , doStudentOut
                           , doStudentOut'
+                          , hintProceed
                           ) where
 
 import Prelude hiding ( fail )
@@ -107,10 +108,16 @@ doStudentOut' = doStudentOut NoOutput
 doStudentOut :: (GMonadReader Options m, GMonadReader Assignment m, MonadIO m)
              => HintMode -> String -> m ()
 doStudentOut hm msg = do
+    proceed <- hintProceed hm
+    when proceed $ doOut msg
+    doLog msg
+
+hintProceed :: (GMonadReader Options m, GMonadReader Assignment m, MonadIO m)
+            => HintMode -> m Bool
+hintProceed hm = do
     mode <- greader asgnHint
     hint <- greader optHint
-    when (not hint || hm <= mode) $ doOut msg
-    doLog msg
+    pure $ not hint || hm <= mode
 
 -- | Extract YAML data from the assignment text, these are prefixed by "-- @ "
 getAssignmentConfigData :: String -> String
