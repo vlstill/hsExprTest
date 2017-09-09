@@ -59,6 +59,9 @@ Library
                       Text.PrettyPrint
                       Test.QuickCheck.Range
                       Control.Monad.Reader.Generalized
+                      Testable.IO
+                      Testable.IO.Base
+                      Testable.IO.NoMonad
   other-modules:      Control.Monad.Reader.Fail
 
   default-language:   Haskell2010
