@@ -88,12 +88,15 @@ runHaskellTypesAssignment = do
 runHaskellTypesAssignment' :: String -> String -> MStack ()
 runHaskellTypesAssignment' student solution =
     case (parseType student, parseType solution) of
-        (Left ste, Left soe) -> perr "student" ste >> perr "solution" soe
+        (Left ste, Left soe) -> perr' "student" ste >> perr' "solution" soe >> end
         (Left ste, _) -> perr "student" ste
         (_, Left soe) -> perr "solution" soe
         (Right stt, Right sot) -> runHaskellTypesAssignmentParsed stt sot
   where
-    perr who what = doStudentOut' $ "could not parse " ++ who ++ " type: `" ++ pp what ++ "'"
+    perr who what = perr' who what >> end
+    perr' who what = doStudentOut' ("could not parse " ++ who ++ " type") >>
+                     doLog ("type parser failed: " ++ pp what)
+    end = fail "invalid type"
 
 runHaskellTypesAssignmentParsed :: TypeExpression -> TypeExpression -> MStack ()
 runHaskellTypesAssignmentParsed stt sot = do
