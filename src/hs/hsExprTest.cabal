@@ -72,6 +72,8 @@ Library
     ghc-options:        -Wcompat -Wmissing-monadfail-instances -Wsemigroup -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances
   if impl( ghc == 8.0.* )
     ghc-options:        -Werror
+  if impl ( ghc >= 8.2 )
+    ghc-options:        -Wno-simplifiable-class-constraints
 
 Executable hsExprTest
   hs-source-dirs:   comparer
