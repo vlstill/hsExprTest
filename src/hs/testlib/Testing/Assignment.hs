@@ -66,6 +66,7 @@ data Assignment = Assignment { asgnExpr      :: Maybe String
                              , asgnTypecheck :: Typecheck
                              , asgnHint      :: HintMode
                              , asgnInject    :: String
+                             , asgnImports   :: [String]
                              , asgnSolution  :: String
                              , asgnStudent   :: String
                              }
@@ -80,6 +81,7 @@ instance Default Assignment where
                      , asgnTypecheck = def
                      , asgnHint = def
                      , asgnInject = ""
+                     , asgnImports = []
                      , asgnSolution = ""
                      , asgnStudent = ""
                      }
@@ -136,6 +138,7 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
     , PE "limit" (errinfo "limit must be a number" . readEither) (\v x -> v { asgnLimit = Just x })
     , PE "type" pure (\v _ -> v { asgnTypecmp = True })
     , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { asgnHint = x })
+    , PE "import" (pure . words) (\v x -> v { asgnImports = x })
     ]
   where
     optData = getAssignmentConfigData asgn

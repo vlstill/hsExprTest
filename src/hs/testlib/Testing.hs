@@ -171,8 +171,9 @@ runHaskellAssignment = do
 mkTestFile :: String -> MStack FilePath
 mkTestFile expr = do
     lim <- fromMaybe 10 <$> greader asgnLimit
+    imports <- greader asgnImports
     let contents = unlines $
-            [ "import " ++ m | m <- loadedModules ] ++
+            [ "import " ++ m | m <- loadedModules ++ imports ] ++
             [ ""
             , "test :: AnyProperty"
             , "test = " ++ expr
