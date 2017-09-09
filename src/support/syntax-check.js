@@ -10,7 +10,7 @@
 
 // volany skript musi posilat
 // Access-Control-Allow-Origin: https://is.muni.cz
-// Access-Control-Allow-Methods: POST 
+// Access-Control-Allow-Methods: POST
 
 var syntax_check;
 
@@ -19,7 +19,7 @@ if (typeof syntax_check !== 'function') {
 		ib015: 'https://www.fi.muni.cz/~xstill/hs/proxy.cgi',
 		test: 'https://www.fi.muni.cz/~xmajor/cgi-bin/cors.pl'
 	}, otazky = {};
-	
+
 	var onl = window.onload || function() {};
 	window.onload = function() {
 		onl();
@@ -59,7 +59,7 @@ if (typeof syntax_check !== 'function') {
 							}
 						};
 						xhr.send(data);
-	
+
 						// odpocet 10 sekund do dalsi kontroly
 						this.disabled = true;
 						this.value += ' (10)';
@@ -82,14 +82,14 @@ if (typeof syntax_check !== 'function') {
 				};
 			})(n, txa, btn, res);
 			res.style.paddingLeft = '1em';
-	
+
 			wrap.appendChild(btn);
 			wrap.appendChild(res);
 			// textarea je zabalena v labelu
 			txa.parentNode.parentNode.insertBefore(wrap, txa.parentNode.nextSibling);
 		}
 	}
-	
+
 	syntax_check = function(id) {
 		// v okamziku volani funkce nase textarea jeste neexistuje, ale bude to hned ta nejblizsi
 		otazky[document.getElementsByTagName('textarea').length] = id;
