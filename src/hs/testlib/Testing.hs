@@ -78,11 +78,11 @@ runAssignment = do
 
 runHaskellTypesAssignment :: MStack ()
 runHaskellTypesAssignment = do
-    student <- drop 1 <$> filt (/= "{-# LINE 1 \"Student.hs\" #-}") <$> greader asgnStudent
-    solution <- filt (\x -> take 2 x == "--") <$> greader asgnSolution
+    student <- filt (/= "{-# LINE 1 \"Student.hs\" #-}") 1 <$> greader asgnStudent
+    solution <- filt (\x -> take 2 x == "--") 0 <$> greader asgnSolution
     runHaskellTypesAssignment' student solution
   where
-    filt f = lines >>> dropWhile f >>> unlines
+    filt f n = lines >>> dropWhile f >>> drop n >>> unlines
 
 runHaskellTypesAssignment' :: String -> String -> MStack ()
 runHaskellTypesAssignment' student solution =
