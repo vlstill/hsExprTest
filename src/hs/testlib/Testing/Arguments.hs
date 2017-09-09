@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections, ScopedTypeVariables, LambdaCase #-}
 
 -- | Support for building test expressions and type monomorphiscation.
 -- (c) 2014-2017 Vladimír Štill
@@ -12,7 +12,7 @@ module Testing.Arguments
     ) where
 
 import Prelude hiding ( fail )
-import Control.Monad ( when )
+import Control.Monad ( filterM )
 import Control.Monad.Fail ( fail, MonadFail )
 import Control.Arrow ( (>>>), first )
 import Data.Bool ( bool )
@@ -35,8 +35,12 @@ isTypeclass ty typeclass = do
                   , " undefined :: ", typeclass, " a => a ]"
                   ]
 
-isTypeclasses :: MonadInterpreter m => Type -> [String] -> m Bool
-isTypeclasses ty = fmap and . mapM (ty `isTypeclass`)
+isTypeclasses :: MonadInterpreter m => Type -> [String] -> m (Either [String] ())
+isTypeclasses ty = fmap finalize . filterM (fmap not . (ty `isTypeclass`))
+  where
+    finalize :: [String] -> Either [String] ()
+    finalize [] = Right ()
+    finalize xs = Left xs
 
 -- | Get degeneralized (monomorphised) types form type expression (which can
 -- be polymoprhic). Uses 'getTestableType' and 'degeneralize'.
@@ -68,9 +72,9 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
                                          = (mconcat <$> mapM (gtt True) args) >>= \x -> checkTestable >> return x
         | otherwise                      = fail $ "Not testable, don't know how to test `" ++ formatType typ ++ "'."
       where
-        checkTestable = isTypeclasses typ classes >>=
-                        flip when (fail ("Not testable: `" ++ formatType typ ++ "'.")) . not >>
-                        return mempty
+        checkTestable = isTypeclasses typ classes >>= \case
+                            Right _ -> pure mempty
+                            Left es -> fail $ "Not testable: `" ++ formatType typ ++ " missing: " ++ show es ++ "'."
         classes
             | not nested && isret = [ "Eq", "Show", "NFData" ]
             | nested && not isret = [ "CoArbitrary", "Function" ]
