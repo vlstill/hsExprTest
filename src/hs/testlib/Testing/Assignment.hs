@@ -161,12 +161,16 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
     inj = getInject asgn
     finalize v = pure $ v { asgnSolution = asgn
                           , asgnInject = inj
-                          , asgnStudent = concat [ "{-# LINE 1 \"Inject.hs\" #-}\n"
-                                                 , inj
-                                                 , "\n{-# LINE 1 \"Student.hs\" #-}\n"
-                                                 , stud
-                                                 ]
+                          , asgnStudent = student
                           }
+      where
+        student
+          | HaskellExpression <- asgnType v = concat [ "{-# LINE 1 \"Inject.hs\" #-}\n"
+                                                     , inj
+                                                     , "\n{-# LINE 1 \"Student.hs\" #-}\n"
+                                                     , stud
+                                                     ]
+          | otherwise = stud
 
 errinfo :: String -> Either String a -> Either String a
 errinfo _   (Right x) = Right x
