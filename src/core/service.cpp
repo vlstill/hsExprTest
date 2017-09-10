@@ -142,10 +142,15 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
         auto spos = packet.find( 'S' );
         ASSERT_NEQ( spos, std::string_view::npos );
         auto id = packet.substr( 0, spos );
+        INFO( "received solution with ID "s.append( id ) );
+
+        auto replyUnknown = [&]{ return replyError( xid, "unknown ID: "s.append( id ) ); };
+        if ( id.find( ".." ) != std::string_view::npos ) {
+            WARN( "Possible attempt to get out of qdir" );
+            return replyUnknown();
+        }
 
         auto solution = packet.substr( spos + 1 );
-
-        INFO( "received solution with ID "s.append( id ) );
 
         brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
                                brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
@@ -164,8 +169,10 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
                 if ( brick::fs::access( qf, R_OK ) )
                     qfile = qf;
             }
-            if ( qfile.empty() )
-                return replyError( xid, "unknown ID: "s.append( id ) );
+            if ( qfile.empty() ) {
+                INFO( "Unknown ID" );
+                return replyUnknown();
+            }
         }
 
         std::vector< std::string > args = { exec, qfile, studentfile, "-I" + qdir };
