@@ -4,6 +4,7 @@
 
 module Testing.Assignment ( Typecheck (..)
                           , HintMode (..)
+                          , AssignmentType (..)
                           , Assignment (..)
                           , parseAssignment
                           , WithAssignment
@@ -56,14 +57,16 @@ data HintMode = NoOutput -- ^ nothing
 instance Default HintMode where
     def = StudentCompileOut
 
+data AssignmentType = HaskellExpression
+                    | HaskellType
+                    deriving ( Eq, Read, Show )
+
 -- | Parsed data of the assignment
 data Assignment = Assignment { asgnExpr      :: Maybe String
                              , asgnWrapper   :: Maybe String
                              , asgnComparer  :: Maybe String
                              , asgnLimit     :: Maybe Int
-                             , asgnTypecmp   :: Bool -- ^ compare student-provided
-                                               -- type with contents, do not
-                                               -- compare as expressions
+                             , asgnType      :: AssignmentType
                              , asgnTypecheck :: Typecheck
                              , asgnHint      :: HintMode
                              , asgnInject    :: String
@@ -78,7 +81,7 @@ instance Default Assignment where
                      , asgnWrapper = Nothing
                      , asgnComparer = Nothing
                      , asgnLimit = Nothing
-                     , asgnTypecmp = False
+                     , asgnType = HaskellExpression
                      , asgnTypecheck = def
                      , asgnHint = def
                      , asgnInject = ""
@@ -139,11 +142,11 @@ data ParseEntry = forall a. PE String (String -> Either String a) (Assignment ->
 
 parseAssignment :: String -> String -> Either String Assignment
 parseAssignment asgn stud = finalize =<< foldM collapse def
-    [ PE "expr" pure (\v x -> v { asgnExpr = Just x })
+    [ PE "expr" pure (\v x -> v { asgnExpr = Just x, asgnType = HaskellExpression })
     , PE "wrapper" pure (\v x -> v { asgnWrapper = Just x })
     , PE "comparer" pure (\v x -> v { asgnComparer = Just x })
     , PE "limit" (errinfo "limit must be a number" . readEither) (\v x -> v { asgnLimit = Just x })
-    , PE "type" pure (\v _ -> v { asgnTypecmp = True })
+    , PE "type" pure (\v _ -> v { asgnType = HaskellType })
     , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { asgnHint = x })
     , PE "import" (pure . words) (\v x -> v { asgnImports = x })
     ]

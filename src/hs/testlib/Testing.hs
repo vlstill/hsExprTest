@@ -45,7 +45,7 @@ import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions
                        , optHint, optIncludeDirs, withIOStreams )
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
-import Testing.Assignment ( Assignment (..), Typecheck (..)
+import Testing.Assignment ( Assignment (..), Typecheck (..), AssignmentType (..)
                           , WithAssignment, readAssignment, asgnSolution
                           , doStudentOut, doStudentOut', HintMode (..) )
 import Text.PrettyPrint ( pp )
@@ -77,8 +77,10 @@ type MStack = WithWorkDir (WithAssignment (WithOptions IO))
 runAssignment :: MStack ()
 runAssignment = do
     doLog "starting assignment"
-    typecmp <- greader asgnTypecmp
-    if typecmp then runHaskellTypesAssignment else runHaskellAssignment
+    atype <- greader asgnType
+    case atype of
+        HaskellType -> runHaskellTypesAssignment
+        HaskellExpression -> runHaskellAssignment
     doLog "assignment ended"
 
 runHaskellTypesAssignment :: MStack ()
