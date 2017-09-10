@@ -116,6 +116,11 @@ std::string replyError( long xid, std::string msg ) {
     return reply.str();
 }
 
+// input: a packet in the form "I<xid>Q<id>S<solution>" or
+// "HI<xid>Q<id>S<solution>" (where 'H' at the beginning stands for hint mode)
+//
+// output: packet of for "I<xid>P<res>C<comment>" (where <res> is either 'ok'
+// or 'nok')
 std::string runExprTest( const std::string &exec, const std::string &qdir, std::string_view packet )
 {
     bool hint = false;
