@@ -90,9 +90,7 @@ runHaskellTypesAssignment' student solution =
         (Left ste, Left soe) -> perr' "student" ste >> perr' "solution" soe >> end
         (Left ste, _) -> perr "student" ste
         (_, Left soe) -> perr "solution" soe
-        (Right stt, Right sot) -> do
-            proceed <- hintProceed TypeMismatchInfo
-            when proceed $ runHaskellTypesAssignmentParsed stt sot
+        (Right stt, Right sot) -> runHaskellTypesAssignmentParsed stt sot
   where
     perr who what = perr' who what >> end
     perr' who what = doStudentOut' ("could not parse " ++ who ++ " type") >>
@@ -115,7 +113,7 @@ runHaskellAssignment :: MStack ()
 runHaskellAssignment = do
     stfile <- createStudentFile =<< greader asgnStudent
     sofile <- createSolutionFile =<< greader asgnSolution
-  
+
     expr' <- greader asgnExpr
     when (isNothing expr') $ fail "Missing 'expr' in assignment"
     let Just expr = expr'
