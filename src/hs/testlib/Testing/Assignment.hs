@@ -59,6 +59,7 @@ instance Default HintMode where
 
 data AssignmentType = HaskellExpression
                     | HaskellType
+                    | HaskellStringEval
                     deriving ( Eq, Read, Show )
 
 -- | Parsed data of the assignment
@@ -149,6 +150,7 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
     , PE "type" pure (\v _ -> v { asgnType = HaskellType })
     , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { asgnHint = x })
     , PE "import" (pure . words) (\v x -> v { asgnImports = x })
+    , PE "hsstring" pure (\v _ -> v { asgnType = HaskellStringEval })
     ]
   where
     optData = getAssignmentConfigData asgn

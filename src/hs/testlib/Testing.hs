@@ -81,6 +81,7 @@ runAssignment = do
     case atype of
         HaskellType -> runHaskellTypesAssignment
         HaskellExpression -> runHaskellAssignment
+        HaskellStringEval -> runHaskellStringEval
     doLog "assignment ended"
 
 runHaskellTypesAssignment :: MStack ()
@@ -155,28 +156,32 @@ runHaskellAssignment = do
         doLog $ "testing expression: " ++ testExpr
         isHint <- greader optHint
         hintLevel <- greader asgnHint
-        when (not isHint || hintLevel >= Test) $ withIOStreams $ \outs _ -> do
-            test <- mkTestFile testExpr
-            includes <- getIncludeOpts
-            wd <- greader getWorkDir
-            let opts = includes ++ [test]
-                runghc = (proc "runghc" (ghcOptions ++ opts))
-                          { cwd = Just wd
-                          , std_in = Inherit
-                          , std_out = UseHandle outs
-                          , std_err = UseHandle outs
-                          }
-            (_, _, _, h) <- liftIO $ createProcess runghc
-            ec <- liftIO $ waitForProcess h
-            case ec of
-                ExitSuccess   -> doStudentOut' "Test passed."
-                ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> testError "timeout"
-                              | otherwise                  -> doOut "Test failed" >> testError "test failed"
+        test <- mkTestFile testExpr
+        when (not isHint || hintLevel >= Test) $ runghc [test]
   where
     emsg :: Show e => String -> Either e a -> MStack a
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
                          fail "terminated by emsg"
     emsg _   (Right x) = pure x
+
+
+runghc :: [String] -> MStack ()
+runghc args = withIOStreams $ \outs _ -> do
+    includes <- getIncludeOpts
+    wd <- greader getWorkDir
+    let opts = includes ++ args
+        runghcproc = (proc "runghc" (ghcOptions ++ opts))
+                      { cwd = Just wd
+                      , std_in = Inherit
+                      , std_out = UseHandle outs
+                      , std_err = UseHandle outs
+                      }
+    (_, _, _, h) <- liftIO $ createProcess runghcproc
+    ec <- liftIO $ waitForProcess h
+    case ec of
+        ExitSuccess   -> doStudentOut' "Test passed."
+        ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> testError "timeout"
+                      | otherwise                  -> doOut "Test failed" >> testError "test failed"
 
 mkTestFile :: String -> MStack FilePath
 mkTestFile expr = do
@@ -271,6 +276,19 @@ withInterpreter modules imports action = do
         loadModules modules
         setImportsQ $ map (, Nothing) loadedModules ++ imports
         action
+
+runHaskellStringEval :: MStack ()
+runHaskellStringEval = do
+    studentdata <- greader asgnStudent
+    let studentf = "input :: String\ninput = " ++ show studentdata
+    _ <- createStudentFile studentf
+    test <- createSolutionFile =<< greader asgnSolution
+
+    hint <- greader optHint
+    hintMode <- greader asgnHint
+    let h = if hint then Just hintMode else Nothing
+
+    runghc [test, show h]
 
 ghcOptions :: [String]
 ghcOptions = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
