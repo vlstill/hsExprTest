@@ -1,1 +1,2 @@
 :set -itestlib
+:set -icomparer
