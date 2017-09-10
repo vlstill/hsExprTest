@@ -12,7 +12,7 @@ module Testing ( runTest ) where
 import Prelude hiding ( fail )
 
 import Control.Arrow ( (>>>) )
-import Control.Exception ( SomeException (..) )
+import Control.Exception ( Exception, SomeException (..), throw, fromException )
 import Control.Monad ( when, unless, forM )
 import Control.Monad.Catch ( MonadMask, try )
 import Control.Monad.Fail as F ( MonadFail, fail )
@@ -52,6 +52,12 @@ import Text.PrettyPrint ( pp )
 import Types ( unifyTypes, getType, (//), compareTypes, TypeExpression, addImpliedOrderings )
 import Types.Parser ( parseType )
 
+data TestError = TestError String deriving ( Show )
+instance Exception TestError
+
+testError :: MonadIO m => String -> m ()
+testError = throw . TestError
+
 instance MonadFail m => MonadFail (InterpreterT m) where
     fail = lift . fail
 
@@ -60,11 +66,10 @@ runTest opts = withOptions opts . (res =<<) . try . readAssignment . withWorkDir
                $ runAssignment
   where
     res :: Either SomeException () -> WithOptions IO Bool
-    res (Left ex) = do
-        let msg = "EXCEPTION: " ++ show ex
-        doLog msg
-        doOut msg
-        pure False
+    res (Left ex) = case fromException ex of
+        Just (TestError err) -> doLog err >> doOut err >>pure False
+        Nothing -> let msg = "EXCEPTION: " ++ show ex
+                   in doLog msg >> doOut msg >> pure False
     res (Right ()) = pure True
 
 type MStack = WithWorkDir (WithAssignment (WithOptions IO))
@@ -107,7 +112,7 @@ runHaskellTypesAssignmentParsed stt sot = do
     unless (typecheckMode == NoTypecheck || result `elem` required) $ do
        doStudentOut TypeMismatchInfo $ "Expected one of " ++ show required ++
                           " but got " ++ show result ++ " (" ++ message ++ ")."
-       fail "runHaskellTypesAssignment: type mismatch"
+       testError "type mismatch"
 
 runHaskellAssignment :: MStack ()
 runHaskellAssignment = do
@@ -163,8 +168,8 @@ runHaskellAssignment = do
             ec <- liftIO $ waitForProcess h
             case ec of
                 ExitSuccess   -> doStudentOut' "Test passed."
-                ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> fail "timeout"
-                              | otherwise                  -> doOut "Test failed" >> fail "test failed"
+                ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> testError "timeout"
+                              | otherwise                  -> doOut "Test failed" >> testError "test failed"
   where
     emsg :: Show e => String -> Either e a -> MStack a
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
@@ -219,7 +224,7 @@ interpreter files modules hintModeCondition hintModeConditionFull act = do
                                   ++ if isJust (find (not . studentfile) msgs)
                                         then "Could find student function or could not call it due to type error"
                                         else ""
-        fail $ "interpreter failed on " ++ moduleName
+        testError $ "interpreter failed on " ++ moduleName
     pure $ fromRight r
   where
     moduleName = case modules of
