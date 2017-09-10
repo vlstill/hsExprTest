@@ -47,7 +47,7 @@ import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
 import Testing.Assignment ( Assignment (..), Typecheck (..)
                           , WithAssignment, readAssignment, asgnSolution
-                          , doStudentOut, doStudentOut', HintMode (..), hintProceed )
+                          , doStudentOut, doStudentOut', HintMode (..) )
 import Text.PrettyPrint ( pp )
 import Types ( unifyTypes, getType, (//), compareTypes, TypeExpression, addImpliedOrderings )
 import Types.Parser ( parseType )
