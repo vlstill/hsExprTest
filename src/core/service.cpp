@@ -111,6 +111,7 @@ int addrsize( const std::string &path ) {
 }
 
 std::string replyError( long xid, std::string msg ) {
+    WARN( msg );
     std::stringstream reply;
     reply << "I" << xid << "PnokC" << msg << std::endl;
     return reply.str();
@@ -180,8 +181,18 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
     }
 }
 
+std::atomic< bool > end;
+std::atomic< bool > hotrestart;
+
 void setupSignals() {
     std::signal( SIGPIPE, SIG_IGN );
+    std::signal( SIGUSR1, []( int ) -> void {
+            end = true;
+            hotrestart = true;
+        } );
+    std::signal( SIGTERM, []( int ) -> void {
+            end = true;
+        } );
 }
 
 struct RQT {
@@ -198,13 +209,7 @@ struct RQT {
     Time start;
 };
 
-int main( int argc, char **argv ) {
-    std::string insock = argc > 1 ? argv[1] : "/var/lib/checker/socket";
-    std::string qdir = argc > 2 ? argv[2] : "/var/lib/checker/qdir";
-    std::string hsExprTest = argc > 3 ? argv[3] : "hsExprTest";
-
-    setupSignals();
-
+int start( const std::string &insock ) {
     INFO( "Creating socket" );
     int input = socket( AF_UNIX, SOCK_STREAM, 0 );
     input >= 0 || SYSDIE( "socket" );
@@ -221,9 +226,50 @@ int main( int argc, char **argv ) {
 
     INFO( "Setting up socket for listening" );
     listen( input, 1 ) == 0 || SYSDIE( "listen" );
+    return input;
+}
+
+int main( int argc, char **argv ) {
+    std::vector< std::string > args{ argv, argv + argc };
+    std::vector< std::string > persistArgs;
+    auto argit = args.begin();
+    std::string insock = "/var/lib/checker/socket";
+    std::string qdir = "/var/lib/checker/qdir";
+    std::string hsExprTest = "hsExprTest";
+    auto hasOpt = [&] { return argit != args.end(); };
+
+    auto self = *argit;
+    ++argit;
+
+    setupSignals();
+    int input = -1;
+
+    if ( hasOpt() && *argit == "--hotstart" ) {
+        ++argit;
+        ASSERT( hasOpt() );
+        input = std::stoi( *argit );
+        INFO( "hot start" );
+        ++argit;
+    }
+
+    for ( auto *opt : { &insock, &qdir, &hsExprTest } ) {
+        if ( hasOpt() ) {
+            persistArgs.push_back( *argit );
+            *opt = *argit;
+            ++argit;
+        }
+    }
+
+    if ( input < 0 ) {
+        input = start( insock );
+    }
+
+    INFO( "Listening on " + std::to_string( input ) + ", insock = " + insock +
+          ", qdir = " + qdir + ", hsExprTest = " + hsExprTest );
 
     std::string buffer;
-    while ( true ) {
+  main_loop:
+    while ( !end ) {
         try {
             buffer.resize( MAX_PKG_LEN );
             INFO( "Accepting socket..." );
@@ -249,4 +295,20 @@ int main( int argc, char **argv ) {
             WARN( "EXCEPTION: "s + ex.what() );
         }
     }
+    if ( hotrestart ) {
+        std::string hotstart = "--hotstart";
+        auto sockstr = std::to_string( input );
+        std::vector< char * > passargs { argv[ 0 ], hotstart.data(), sockstr.data() };
+        for ( auto &s : persistArgs )
+            passargs.push_back( s.data() );
+        passargs.push_back( nullptr );
+        INFO( "hot restart" );
+        execvp( argv[0], passargs.data() );
+
+        WARN( "execvp failed, ignoring hot restart request" );
+        end = false;
+        hotrestart = false;
+        goto main_loop;
+    }
+    INFO( "terminating" );
 }
