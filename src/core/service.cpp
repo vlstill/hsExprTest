@@ -226,6 +226,14 @@ int start( const std::string &insock ) {
 
     INFO( "Setting up socket for listening" );
     listen( input, 1 ) == 0 || SYSDIE( "listen" );
+
+    // set timeout, only so that signals can iterrupt the waiting (for the sake
+    // of termination and hot restart)
+    struct timeval timeo { .tv_sec = 3600 * 24 * 7 * 365, .tv_usec = 0 };
+    int r = setsockopt( input, SOL_SOCKET, SO_RCVTIMEO, &timeo, sizeof( timeo ) );
+    if ( r != 0 )
+        SYSWARN( "setsockopt( SO_RCVTIMEO )" );
+
     return input;
 }
 
@@ -275,7 +283,14 @@ int main( int argc, char **argv ) {
             INFO( "Accepting socket..." );
             FD isSock{ accept( input, nullptr, nullptr ) };
             if ( !isSock ) {
-                SYSWARN( "accept" );
+                if ( errno == EBADF )
+                    DIE( "invalid socket, terminating" );
+                else if ( errno == EINTR )
+                    WARN( "accept interrupted by signal" );
+                else if ( errno == EAGAIN || errno == EWOULDBLOCK )
+                    INFO( "socket timeout" );
+                else
+                    SYSWARN( "accept failed" );
                 continue;
             }
 
