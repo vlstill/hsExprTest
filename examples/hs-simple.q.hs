@@ -1,0 +1,2 @@
+-- @ expr: foo
+foo = id

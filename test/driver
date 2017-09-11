@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-set -e
-
 BUILD=$PWD/_build
 OUTDIR=$BUILD/tests
 mkdir -p $OUTDIR
 EXPR_TEST=$BUILD/hsExprTest
 cd $1
+
+FAILED=""
 
 function check() {
     local GOT=$1
@@ -16,14 +16,14 @@ function check() {
     else
         echo "failed (got $GOT)"
         echo "LOG: "
-        cat $3
-        echo "OUTPUT: "
         cat $4
-        false
+        echo "OUTPUT: "
+        cat $3
+        FAILED="$FAILED $TEST"
     fi
 }
 
-function test() {
+function runtest() {
     local FILE=$1
     local BASE=$(echo $FILE | sed 's/\.q.*$//')
     local INPUTS_=${BASE}*
@@ -41,4 +41,9 @@ function test() {
     done
 }
 
-find -name '*.q*' | while read F; do test $F; done    
+find -name '*.q*' | while read F; do runtest $F; done
+
+if test -n "$FAILED"; then
+    echo "FAILED: $FAILED"
+    exit 1
+fi
