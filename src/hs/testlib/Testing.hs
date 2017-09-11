@@ -29,6 +29,7 @@ import System.Process ( cwd, std_in, std_out, std_err, proc
                       , createProcess, waitForProcess
                       , StdStream ( Inherit, UseHandle ) )
 import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
+import System.IO ( stdout )
 import System.Posix.Signals ( sigALRM )
 
 import Language.Haskell.Interpreter ( InterpreterT
@@ -42,7 +43,7 @@ import Language.Haskell.Interpreter.Unsafe ( unsafeRunInterpreterWithArgs )
 import Files ( WorkDir, WithWorkDir, withWorkDir, createStudentFile
              , createSolutionFile, createTestFile, getWorkDir )
 import Testing.Options ( Options, doLog, doOut, WithOptions, withOptions
-                       , optHint, optIncludeDirs, withIOStreams )
+                       , optHint, optIncludeDirs )
 import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
 import Testing.Assignment ( Assignment (..), Typecheck (..), AssignmentType (..)
@@ -166,15 +167,15 @@ runHaskellAssignment = do
 
 
 runghc :: [String] -> MStack ()
-runghc args = withIOStreams $ \outs _ -> do
+runghc args = do
     includes <- getIncludeOpts
     wd <- greader getWorkDir
     let opts = includes ++ args
         runghcproc = (proc "runghc" (ghcOptions ++ opts))
                       { cwd = Just wd
                       , std_in = Inherit
-                      , std_out = UseHandle outs
-                      , std_err = UseHandle outs
+                      , std_out = UseHandle stdout
+                      , std_err = UseHandle stdout
                       }
     (_, _, _, h) <- liftIO $ createProcess runghcproc
     ec <- liftIO $ waitForProcess h

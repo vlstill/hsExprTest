@@ -19,8 +19,6 @@ getOptions (a:s:options) = validate . snd <=< foldM compose (False, base) $ dup
     dup = zip options (map Just (drop 1 options) ++ [Nothing])
     get ("--hint", _)        = next $ mempty { optHint = True }
     get ("--extra", Just fs) = eat $ mempty { optExtraFiles = splitOn "," fs }
-    get ("--log", Just logf)  = eat $ mempty { optLogFile = Just logf }
-    get ("--out", Just o) = eat $ mempty { optOutFile = Just o }
     get ("-i", Just i) = eat $ mempty { optIncludeDirs = [i] }
     get ("-I", Just i) = eat $ mempty { optIncludeDirs = [i] }
     get ('-':'i':i, _) = next $ mempty { optIncludeDirs = [i] }
