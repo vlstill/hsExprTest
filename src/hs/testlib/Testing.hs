@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, FlexibleContexts #-}
+{-# LANGUAGE TupleSections, FlexibleContexts, LambdaCase #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core module of hsExprTest, most of test processing and running takes
@@ -12,8 +12,9 @@ module Testing ( runTest ) where
 import Prelude hiding ( fail )
 
 import Control.Arrow ( (>>>) )
+import Control.Concurrent ( threadDelay )
 import Control.Exception ( Exception, SomeException (..), throw, fromException )
-import Control.Monad ( when, unless, forM )
+import Control.Monad ( when, unless, forM, void )
 import Control.Monad.Catch ( MonadMask, try )
 import Control.Monad.Fail as F ( MonadFail, fail )
 import Control.Monad.IO.Class ( MonadIO, liftIO )
@@ -26,11 +27,14 @@ import Data.List ( nub, find )
 import Data.Maybe ( fromMaybe, isNothing, isJust )
 
 import System.Process ( cwd, std_in, std_out, std_err, proc
-                      , createProcess, waitForProcess
-                      , StdStream ( Inherit, UseHandle ) )
+                      , createProcess, getProcessExitCode
+                      , StdStream ( Inherit, UseHandle ), waitForProcess )
+import System.Process.Internals ( ProcessHandle__ ( ClosedHandle, OpenHandle )
+                                , withProcessHandle )
+import System.Posix.Signals ( signalProcess, sigKILL )
 import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
 import System.IO ( stdout )
-import System.Posix.Signals ( sigALRM )
+import System.Clock ( Clock ( Monotonic ), sec, getTime )
 
 import Language.Haskell.Interpreter ( InterpreterT
                                     , InterpreterError ( UnknownError, NotAllowed
@@ -178,26 +182,39 @@ runghc args = do
                       , std_err = UseHandle stdout
                       }
     (_, _, _, h) <- liftIO $ createProcess runghcproc
-    ec <- liftIO $ waitForProcess h
+    lim0 <- fromMaybe 10 <$> greader asgnLimit
+    let lim = if lim0 > 10 * 1000 then lim0 `div` (1000 * 1000) else lim0
+    ec <- wait (fromIntegral lim) h
     case ec of
-        ExitSuccess   -> doStudentOut' "Test passed."
-        ExitFailure v | -v == fromIntegral sigALRM -> doOut "Timeout" >> testError "timeout"
-                      | otherwise                  -> doOut "Test failed" >> testError "test failed"
+        Just ExitSuccess     -> doStudentOut' "Test passed."
+        Just (ExitFailure _) -> doOut "Test failed" >> testError "test failed"
+        Nothing              -> doOut "Timeout" >> testError "timeout"
+  where
+    wait limit handle = liftIO $ do
+        start <- getTime Monotonic
+        let end = start { sec = sec start + limit }
+        let go = getTime Monotonic >>= \now -> if now > end
+                  then terminate handle >> pure Nothing
+                  else getProcessExitCode handle >>= \case
+                      Nothing -> threadDelay (100 * 1000) >> go
+                      Just ec -> pure $ Just ec
+        go
+    terminate handle = withProcessHandle handle termHandle >> void (waitForProcess handle)
+    termHandle (ClosedHandle _)   = pure ()
+    termHandle (OpenHandle h)     = signalProcess sigKILL h
+
 
 mkTestFile :: String -> MStack FilePath
 mkTestFile expr = do
-    lim <- fromMaybe 10 <$> greader asgnLimit
     imports <- greader asgnImports
     let contents = unlines $
             [ "import " ++ m | m <- loadedModules ++ imports ] ++
             [ ""
             , "test :: AnyProperty"
             , "test = " ++ expr
-            , "limit :: Int"
-            , "limit = " ++ show lim
             , ""
             , "main :: IO ()"
-            , "main = mainRunProperty limit test"
+            , "main = mainRunProperty test"
             ]
     createTestFile contents
 

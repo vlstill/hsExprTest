@@ -19,13 +19,11 @@ import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Prope
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
-import Control.Monad ( void )
 import Control.Exception ( SomeException ( SomeException ), Exception, catch )
 import Control.DeepSeq ( rnf, ($!!), NFData )
 import System.Exit ( exitSuccess, exitFailure )
 
 import System.IO.Unsafe ( unsafePerformIO )
-import System.Posix.Signals ( scheduleAlarm )
 
 -- | Wrapper for any value of 'Testable' typeclass
 data AnyProperty = forall a. Testable a => AnyProperty a
@@ -42,10 +40,8 @@ runProperty (AnyProperty p) = quickCheckWithResult args p
                    , replay = Just (mkQCGen 0, 0)
                    }
 
-mainRunProperty :: Int -> AnyProperty -> IO ()
-mainRunProperty lim0 prop = do
-    let lim = if lim0 > 1000 then lim0 `div` 1000000 else lim
-    void $ scheduleAlarm lim
+mainRunProperty :: AnyProperty -> IO ()
+mainRunProperty prop = do
     r <- runProperty prop
     case r of
         Success {} -> exitSuccess
