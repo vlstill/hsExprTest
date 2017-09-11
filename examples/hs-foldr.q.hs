@@ -1,5 +1,5 @@
 -- @ expr: myfoldr
--- @ limit: 2
+-- @ limit: 4
 -- @ inject
 
 import qualified Prelude
