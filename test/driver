@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -e
+
+BUILD=$PWD/_build
+OUTDIR=$BUILD/tests
+mkdir -p $OUTDIR
+EXPR_TEST=$BUILD/hsExprTest
+cd $1
+
+function check() {
+    local GOT=$1
+    local TEST=$2
+    if echo $TEST | grep -wqF $GOT; then
+        echo "passed"
+    else
+        echo "failed (got $GOT)"
+        echo "LOG: "
+        cat $3
+        echo "OUTPUT: "
+        cat $4
+        false
+    fi
+}
+
+function test() {
+    local FILE=$1
+    local BASE=$(echo $FILE | sed 's/\.q.*$//')
+    local INPUTS_=${BASE}*
+    local INPUTS=$(echo $INPUTS_ | sed "s|$FILE||")
+
+    for T in $INPUTS; do
+        local OUT=$OUTDIR/$T.out
+        local LOG=$OUTDIR/$T.log
+        echo -n "${T}… "
+        if $EXPR_TEST $FILE $T > $OUT 2> $LOG; then
+            check "ok" $T $OUT $LOG
+        else
+            check "nok" $T $OUT $LOG
+        fi
+    done
+}
+
+find -name '*.q*' | while read F; do test $F; done    

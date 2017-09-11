@@ -30,7 +30,7 @@ ${CONFIG_STAMP} :
 	touch $@
 
 build : ${CONFIG_STAMP} ${BUILD_DIR}/hsExprTest-service ${BUILD_DIR}/hsExprTest
-	cd ${BUILD_DIR} && cabal install ${HS_CABAL} --enable-tests
+	cd ${BUILD_DIR} && cabal install ${HS_CABAL}
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp ${BUILD_DIR}/obj
 	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
@@ -47,7 +47,8 @@ ${BUILD_DIR}/hsExprTest :
 	chmod +x $@
 
 test : build
-	cd ${BUILD_DIR} && cabal install ${HS_CABAL} --run-tests
+	./test/driver examples
+	./test/driver test
 
 clean :
 	rm -rf ${BUILD_DIR}
