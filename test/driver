@@ -52,7 +52,7 @@ function runtest() {
     done
 }
 
-while read F; do test -n "$F" && runtest $F; done <<< $(find -name '*.q*')
+while read F; do test -n "$F" && runtest $F; done <<< $(find -name '*.q*' | sort)
 
 if test -n "$FAILED"; then
     echo "FAILED: $FAILED"
