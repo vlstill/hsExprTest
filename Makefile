@@ -47,8 +47,8 @@ ${BUILD_DIR}/hsExprTest :
 	chmod +x $@
 
 test : build
-	./test/driver examples
-	./test/driver test
+	./test/driver examples $T
+	./test/driver test $T
 
 clean :
 	rm -rf ${BUILD_DIR}

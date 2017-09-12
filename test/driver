@@ -8,6 +8,10 @@ cd $1
 
 FAILED=""
 
+MATCH=$2
+function match() { true; }
+test -n "$MATCH" && function match() { echo $1 | grep -q $MATCH; }
+
 function check() {
     local GOT=$1
     local TEST=$2
@@ -30,6 +34,7 @@ function runtest() {
     local INPUTS=$(echo $INPUTS_ | sed "s|$FILE||")
 
     for T in $INPUTS; do
+        match $T || continue
         local OUT=$OUTDIR/$T.out
         local LOG=$OUTDIR/$T.log
         echo -n "${T}… "
