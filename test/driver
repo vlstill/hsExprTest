@@ -21,6 +21,8 @@ function check() {
         echo "failed (got $GOT)"
         echo "LOG: "
         cat $4
+        echo "TEST:"
+        cat $TEST
         echo "OUTPUT: "
         cat $3
         FAILED="$FAILED $TEST"
