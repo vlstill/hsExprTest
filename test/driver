@@ -33,8 +33,14 @@ function runtest() {
     local INPUTS_=${BASE}*
     local INPUTS=$(echo $INPUTS_ | sed "s|$FILE||")
 
+    if test ! -z $INPUTS 2>/dev/null && test -d $INPUTS; then
+        INPUTS=$(find -L $INPUTS -type f)
+    fi
+
     for T in $INPUTS; do
         match $T || continue
+        D=$(dirname $OUTDIR/$T)
+        mkdir -p $D
         local OUT=$OUTDIR/$T.out
         local LOG=$OUTDIR/$T.log
         echo -n "${T}… "
