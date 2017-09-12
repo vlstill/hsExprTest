@@ -72,6 +72,7 @@ data Assignment = Assignment { asgnExpr      :: Maybe String
                              , asgnHint      :: HintMode
                              , asgnInject    :: String
                              , asgnImports   :: [String]
+                             , asgnTesterOpts :: [String]
                              , asgnSolution  :: String
                              , asgnStudent   :: String
                              }
@@ -87,6 +88,7 @@ instance Default Assignment where
                      , asgnHint = def
                      , asgnInject = ""
                      , asgnImports = []
+                     , asgnTesterOpts = []
                      , asgnSolution = ""
                      , asgnStudent = ""
                      }
@@ -151,6 +153,7 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
     , PE "hint" (errinfo "invalid hint value" . readEither) (\v x -> v { asgnHint = x })
     , PE "import" (pure . words) (\v x -> v { asgnImports = x })
     , PE "hsstring" pure (\v _ -> v { asgnType = HaskellStringEval })
+    , PE "opts" (pure . words) (\v x -> v { asgnTesterOpts = x })
     ]
   where
     optData = getAssignmentConfigData asgn
