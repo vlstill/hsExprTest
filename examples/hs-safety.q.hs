@@ -1,0 +1,4 @@
+-- @ expr: foo
+
+foo :: ()
+foo = ()
