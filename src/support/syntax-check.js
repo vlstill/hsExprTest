@@ -85,7 +85,7 @@ if (typeof syntax_check !== 'function') {
 
 			wrap.appendChild(btn);
 			wrap.appendChild(res);
-			// textarea je zabalena v labelu
+			// insert the button right after the textarea
 			txa.parentNode.insertBefore(wrap, txa.nextSibling);
 		}
 	}
