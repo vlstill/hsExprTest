@@ -235,19 +235,19 @@ interpreter files modules hintModeCondition hintModeConditionFull act = do
             f = takeWhile (/= ':') x
     when (isLeft r) $ do
         case fromLeft r of
-            UnknownError str -> doStudentOut' $ "Error 'UnknownError' while interpreting "
+            UnknownError str -> doStudentOut' $ "error 'UnknownError' while interpreting "
                                                 ++ moduleName ++ " file: " ++ str
-            NotAllowed str -> doStudentOut' $ "'Error NotAllowd' while interpreting "
+            NotAllowed str -> doStudentOut' $ "'error NotAllowd' while interpreting "
                                                 ++ moduleName ++ " file: " ++ str
-            GhcException str -> doStudentOut' $ "Error 'GhcException' while interpreting "
+            GhcException str -> doStudentOut' $ "error 'GhcException' while interpreting "
                                                 ++ moduleName ++ " file: " ++ str
             WontCompile msgs0 -> do
                 let msgs = nub $ map errMsg msgs0
-                doStudentOut hintModeCondition $ "Compilation error in "
+                doStudentOut hintModeCondition $ "compilation error in "
                                   ++ moduleName ++ " file:\n"
                                   ++ unlines (filter studentfile msgs)
                                   ++ if isJust (find (not . studentfile) msgs)
-                                        then "Could find student function or could not call it due to type error"
+                                        then "could not find student function or could not call it due to type error"
                                         else ""
         testError $ "interpreter failed on " ++ moduleName
     pure $ fromRight r
