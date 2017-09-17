@@ -86,7 +86,7 @@ if (typeof syntax_check !== 'function') {
 			wrap.appendChild(btn);
 			wrap.appendChild(res);
 			// textarea je zabalena v labelu
-			txa.parentNode.parentNode.insertBefore(wrap, txa.parentNode.nextSibling);
+			txa.parentNode.insertBefore(wrap, txa.nextSibling);
 		}
 	}
 
