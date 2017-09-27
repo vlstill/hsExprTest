@@ -52,7 +52,7 @@ import Testing.Arguments ( buildTestExpression, buildTestExpressionsWithComparer
                          , getDegeneralizedTypes )
 import Testing.Assignment ( Assignment (..), Typecheck (..), AssignmentType (..)
                           , WithAssignment, readAssignment, asgnSolution
-                          , doStudentOut, doStudentOut', HintMode (..) )
+                          , doStudentOut, doStudentOut', HintMode (..), hintProceed )
 import Text.PrettyPrint ( pp )
 import Types ( unifyTypes, getType, (//), compareTypes, TypeExpression, addImpliedOrderings )
 import Types.Parser ( parseType )
@@ -116,11 +116,12 @@ runHaskellTypesAssignmentParsed stt sot = do
     typecheckMode <- greader asgnTypecheck
     let RequireTypeOrdering required0 = typecheckMode
     let required = addImpliedOrderings required0
+    test <- hintProceed ExpressionCompile
 
     unless (typecheckMode == NoTypecheck || result `elem` required) $ do
        doStudentOut TypeMismatchInfo $ "Expected one of " ++ show required ++
                           " but got " ++ show result ++ " (" ++ message ++ ")."
-       testError "type mismatch"
+       when test $ testError "type mismatch"
 
 runHaskellAssignment :: MStack ()
 runHaskellAssignment = do
