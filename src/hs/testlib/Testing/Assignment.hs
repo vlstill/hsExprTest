@@ -29,7 +29,7 @@ import Text.Read ( readEither )
 
 import qualified Data.Map as M ( lookup )
 
-import Types ( TypeOrdering ( Equal ) )
+import Types ( TypeOrdering (..) )
 import Testing.Options ( Options, optAssignment, optStudent, optHint, doLog, doOut )
 
 -- | Specify how typechecking should be performed
@@ -154,6 +154,7 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
     , PE "import" (pure . words) (\v x -> v { asgnImports = x })
     , PE "hsstring" pure (\v _ -> v { asgnType = HaskellStringEval })
     , PE "opts" (pure . words) (\v x -> v { asgnTesterOpts = x })
+    , PE "typecheck" (mapM parseTypecheck . words) (\v x -> v { asgnTypecheck = RequireTypeOrdering x })
     ]
   where
     optData = getAssignmentConfigData asgn
@@ -164,6 +165,12 @@ parseAssignment asgn stud = finalize =<< foldM collapse def
         Just v  -> parse v >>= pure . set a
     trim = dropWhile isSpace >>> reverse >>> dropWhile isSpace >>> reverse
     inj = getInject asgn
+    parseTypecheck ">" = Right MoreGeneral
+    parseTypecheck "<" = Right LessGeneral
+    parseTypecheck "u" = Right Unifiable
+    parseTypecheck "n" = Right NotUnifiable
+    parseTypecheck "=" = Right Equal
+    parseTypecheck x   = Left $ "Unexpected '" ++ x ++ "' in typecheck"
     finalize v = pure $ v { asgnSolution = asgn
                           , asgnInject = inj
                           , asgnStudent = student
