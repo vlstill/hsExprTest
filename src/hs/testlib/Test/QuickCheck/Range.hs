@@ -13,6 +13,7 @@
 
 module Test.QuickCheck.Range
     ( Range, Ranges ( Range, unRange )
+    , CharRanges ( CharRange ), unCharRange, charRangeToRange, CharRange
     , CRange ( toRanges )
     , inRanges
     ) where
@@ -68,7 +69,7 @@ inRanges val0 = any (\(x, y) -> val >= x && val <= y)
 
 -- | it would seem like the OVERLAPPABLE is redundant here, but GHC 8.2 has
 -- problem with Ranges Char instances otherwise
-instance {-# OVERLAPPABLE #-} forall i ranges.
+instance forall i ranges.
          (Integral i, Arbitrary i, Random i, CRange ranges)
          => Arbitrary (Ranges i ranges)
     where
@@ -80,6 +81,15 @@ instance {-# OVERLAPPABLE #-} forall i ranges.
                  filter (flip inRanges (toRanges (Proxy :: Proxy ranges))) >>>
                  map Range
 
-instance {-# OVERLAPPING #-} forall ranges. CRange ranges => Arbitrary (Ranges Char ranges) where
-    arbitrary = unsafeRMap chr <$> (arbitrary :: Gen (Ranges Int ranges))
-    shrink = unsafeRMap ord >>> shrink >>> map (unsafeRMap chr)
+newtype CharRanges ranges = CharRange { charRangeToRange :: Ranges Char ranges }
+type CharRange (from :: Nat) (to :: Nat) = CharRanges '[ '(from, to) ]
+
+unCharRange :: CharRanges ranges -> Char
+unCharRange (CharRange r) = unRange r
+
+instance Show (CharRanges ranges) where
+    show = unCharRange >>> show
+
+instance forall ranges. CRange ranges => Arbitrary (CharRanges ranges) where
+    arbitrary = fmap (CharRange . unsafeRMap chr) (arbitrary :: Gen (Ranges Int ranges))
+    shrink = charRangeToRange >>> unsafeRMap ord >>> shrink >>> map (CharRange . unsafeRMap chr)
