@@ -66,7 +66,9 @@ inRanges :: Integral i => i -> [(Integer, Integer)] -> Bool
 inRanges val0 = any (\(x, y) -> val >= x && val <= y)
   where val = fromIntegral val0
 
-instance forall i ranges.
+-- | it would seem like the OVERLAPPABLE is redundant here, but GHC 8.2 has
+-- problem with Ranges Char instances otherwise
+instance {-# OVERLAPPABLE #-} forall i ranges.
          (Integral i, Arbitrary i, Random i, CRange ranges)
          => Arbitrary (Ranges i ranges)
     where
@@ -78,6 +80,6 @@ instance forall i ranges.
                  filter (flip inRanges (toRanges (Proxy :: Proxy ranges))) >>>
                  map Range
 
-instance forall ranges. CRange ranges => Arbitrary (Ranges Char ranges) where
+instance {-# OVERLAPPING #-} forall ranges. CRange ranges => Arbitrary (Ranges Char ranges) where
     arbitrary = unsafeRMap chr <$> (arbitrary :: Gen (Ranges Int ranges))
     shrink = unsafeRMap ord >>> shrink >>> map (unsafeRMap chr)
