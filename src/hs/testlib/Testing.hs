@@ -157,8 +157,8 @@ runHaskellAssignment = do
 
     testtypes <- interpreter' $ getDegeneralizedTypes comtype
     fmap mconcat . forM testtypes $ \testtype -> do
-        testExpr <- interpreter' $ fromMaybe (buildTestExpression stexpr soexpr testtype)
-                (pure . buildTestExpressionsWithComparer stexpr soexpr <$> compexpr)
+        testExpr <- interpreter' $ fromMaybe (buildTestExpression stwrap sowrap testtype)
+                (pure . buildTestExpressionsWithComparer stwrap sowrap <$> compexpr)
         doLog $ "testing expression: " ++ testExpr
         isHint <- greader optHint
         hintLevel <- greader asgnHint
