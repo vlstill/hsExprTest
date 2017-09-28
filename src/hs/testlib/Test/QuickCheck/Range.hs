@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, KindSignatures, PolyKinds, TypeOperators, GADTs
-           , ExplicitForAll, ScopedTypeVariables
+           , ExplicitForAll, ScopedTypeVariables, FlexibleInstances
            , Safe #-}
 
 
@@ -19,6 +19,7 @@ module Test.QuickCheck.Range
 
 import GHC.TypeLits
 import Data.Proxy
+import Data.Char ( chr, ord )
 import Control.Arrow
 import System.Random
 
@@ -36,7 +37,7 @@ type Range (i :: *) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
 -- For example, @Ranges Int [(0,0), (10, 19)]@ will with probability @1/2@
 -- generate @0@, and with probability @1/20@ one of (10, 19) inclusive.
 data Ranges :: * -> [ (Nat, Nat) ] -> * where
-    Range :: (Integral i, Arbitrary i) => { unRange :: i } -> Ranges i ranges
+    Range :: { unRange :: i } -> Ranges i ranges
 
 -- | Show instance is transparent.
 instance Show i => Show (Ranges i ranges) where
@@ -56,6 +57,10 @@ instance forall head tail. (CRange head, CRange tail) => CRange (head ': tail) w
 instance CRange '[] where
     toRanges _ = []
 
+-- must not cause value to go out of range
+unsafeRMap :: (a -> b) -> Ranges a ranges -> Ranges b ranges
+unsafeRMap f (Range x) = Range (f x)
+
 -- | is given value in range?
 inRanges :: Integral i => i -> [(Integer, Integer)] -> Bool
 inRanges val0 = any (\(x, y) -> val >= x && val <= y)
@@ -72,3 +77,7 @@ instance forall i ranges.
                  shrinkIntegral >>>
                  filter (flip inRanges (toRanges (Proxy :: Proxy ranges))) >>>
                  map Range
+
+instance forall ranges. CRange ranges => Arbitrary (Ranges Char ranges) where
+    arbitrary = unsafeRMap chr <$> (arbitrary :: Gen (Ranges Int ranges))
+    shrink = unsafeRMap ord >>> shrink >>> map (unsafeRMap chr)
