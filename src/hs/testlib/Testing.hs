@@ -87,6 +87,7 @@ runAssignment = do
         HaskellType -> runHaskellTypesAssignment
         HaskellExpression -> runHaskellAssignment
         HaskellStringEval -> runHaskellStringEval
+        HaskellScript -> runHaskellScript
     doLog "assignment ended"
 
 runHaskellTypesAssignment :: MStack ()
@@ -303,11 +304,22 @@ runHaskellStringEval = do
     _ <- createStudentFile studentf
     test <- createSolutionFile =<< greader asgnSolution
 
+    runWithHint test
+
+runWithHint :: FilePath -> MStack ()
+runWithHint test = do
     hint <- greader optHint
     hintMode <- greader asgnHint
     let h = if hint then Just hintMode else Nothing
 
     runghc [test, show h]
+
+runHaskellScript :: MStack ()
+runHaskellScript = do
+    _ <- createStudentFile =<< greader asgnStudent
+    test <- createSolutionFile =<< greader asgnSolution
+
+    runWithHint test
 
 ghcOptions :: [String]
 ghcOptions = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
