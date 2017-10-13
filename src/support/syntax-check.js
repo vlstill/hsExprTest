@@ -30,10 +30,12 @@ if (typeof syntax_check !== 'function') {
 			var txa = pole[n],
 				wrap = document.createElement('p'),
 				btn = document.createElement('input'),
+                up = document.createElement('input'),
 				res = document.createElement('span');
 			btn.type = 'button';
 			btn.value = 'Zkontrolovat syntax';
-			(function(n, txa, btn, res) {
+            up.type = 'file';
+			(function(n, txa, btn, res, up) {
 				btn.onclick = function() {
 					var xhr = new XMLHttpRequest(),
 						data = 'id=' + otazky[n] + '&odp=' + encodeURIComponent(txa.value);
@@ -80,10 +82,22 @@ if (typeof syntax_check !== 'function') {
 						this.value = 'Kontrola syntaxe není v tomto prohlížeči dostupná.';
 					}
 				};
-			})(n, txa, btn, res);
+                up.addEventListener('change', function(evt) {
+                        var file = evt.target.files[0];
+                        if ( file ) {
+                            var reader = new FileReader();
+                            reader.onloadend = function ( ev ) {
+                                txa.value = this.result;
+                            };
+                            reader.readAsText( file );
+                        }
+                    }, false );
+			})(n, txa, btn, res, up);
 			res.style.paddingLeft = '1em';
 
 			wrap.appendChild(btn);
+            wrap.appendChild(up);
+            wrap.appendChild( document.createElement('br') );
 			wrap.appendChild(res);
 			// insert the button right after the textarea
 			txa.parentNode.insertBefore(wrap, txa.nextSibling);
