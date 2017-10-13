@@ -15,7 +15,7 @@ module Testing.Test (
     ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
-                       , quickCheckWithResult, counterexample, Testable )
+                       , quickCheckWithResult, counterexample, Testable, Args )
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
@@ -30,9 +30,10 @@ data AnyProperty = forall a. Testable a => AnyProperty a
 
 -- | Run property, possibly with limit.
 runProperty :: AnyProperty -> IO Result
-runProperty (AnyProperty p) = quickCheckWithResult args p
-  where
-    args = stdArgs { chatty = False
+runProperty (AnyProperty p) = quickCheckWithResult testArgs p
+
+testArgs :: Args
+testArgs = stdArgs { chatty = False
                    , maxSuccess = 1000
                    -- QC has no direct support for seeding, however,
                    -- replay also modifies size but it should only
