@@ -16,7 +16,7 @@ var syntax_check;
 
 if (typeof syntax_check !== 'function') {
 	var skripty = {
-		ib015: 'https://www.fi.muni.cz/~xstill/hs/proxy.cgi',
+        ib015: 'https://hesperia.fi.muni.cz/is',
 		test: 'https://www.fi.muni.cz/~xmajor/cgi-bin/cors.pl'
 	}, otazky = {};
 
