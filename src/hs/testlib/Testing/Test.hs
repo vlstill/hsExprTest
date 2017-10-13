@@ -12,6 +12,7 @@ module Testing.Test (
     -- * Utility
     , AnyProperty ( AnyProperty )
     , withTypeOf
+    , testArgs
     ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
