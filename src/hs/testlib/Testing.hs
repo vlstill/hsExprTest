@@ -188,7 +188,7 @@ runghc args = do
     let lim = if lim0 > 10 * 1000 then lim0 `div` (1000 * 1000) else lim0
     ec <- wait (fromIntegral lim) h
     case ec of
-        Just ExitSuccess     -> doStudentOut' "Test passed."
+        Just ExitSuccess     -> doStudentOut Test "Test passed."
         Just (ExitFailure _) -> doOut "Test failed" >> testError "test failed"
         Nothing              -> doOut "Timeout" >> testError "timeout"
   where
