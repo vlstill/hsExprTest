@@ -317,8 +317,10 @@ runWithHint test = do
 
 runHaskellScript :: MStack ()
 runHaskellScript = do
-    _ <- createStudentFile =<< greader asgnStudent
+    st <- createStudentFile =<< greader asgnStudent
     test <- createSolutionFile =<< greader asgnSolution
+
+    interpreter [ st ] [ importQ "Student" ] StudentCompileOut TypeMismatchInfo $ pure ()
 
     runWithHint test
 
