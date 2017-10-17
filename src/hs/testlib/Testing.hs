@@ -33,7 +33,7 @@ import System.Process.Internals ( ProcessHandle__ ( ClosedHandle, OpenHandle )
                                 , withProcessHandle )
 import System.Posix.Signals ( signalProcess, sigKILL )
 import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
-import System.IO ( stdout )
+import System.IO ( stdout, stderr )
 import System.Clock ( Clock ( Monotonic ), sec, getTime )
 
 import Language.Haskell.Interpreter ( InterpreterT
@@ -176,12 +176,13 @@ runghc :: [String] -> MStack ()
 runghc args = do
     includes <- getIncludeOpts
     wd <- greader getWorkDir
+    showStderr <- hintProceed TypeMismatchInfo
     let opts = includes ++ args
         runghcproc = (proc "runghc" (ghcOptions ++ opts))
                       { cwd = Just wd
                       , std_in = Inherit
                       , std_out = UseHandle stdout
-                      , std_err = UseHandle stdout
+                      , std_err = if showStderr then UseHandle stdout else UseHandle stderr
                       }
     (_, _, _, h) <- liftIO $ createProcess runghcproc
     lim0 <- fromMaybe 10 <$> greader asgnLimit
