@@ -16,6 +16,7 @@ module Test.QuickCheck.Range
     , CharRanges ( CharRange ), unCharRange, charRangeToRange, CharRange
     , CRange ( toRanges )
     , inRanges
+    , BoundedList ( BoundedList ), unBoundedList
     ) where
 
 import GHC.TypeLits
@@ -93,3 +94,19 @@ instance Show (CharRanges ranges) where
 instance forall ranges. CRange ranges => Arbitrary (CharRanges ranges) where
     arbitrary = fmap (CharRange . unsafeRMap chr) (arbitrary :: Gen (Ranges Int ranges))
     shrink = charRangeToRange >>> unsafeRMap ord >>> shrink >>> map (CharRange . unsafeRMap chr)
+
+
+newtype BoundedList (a :: *) (from :: Nat) (to :: Nat) = BoundedList { unBoundedList :: [a] }
+        deriving ( Eq, Ord )
+
+instance Show a => Show (BoundedList a from to) where
+    show = show . unBoundedList
+
+intNatVal :: KnownNat x => Proxy x -> Int
+intNatVal p = fromIntegral $ natVal p
+
+instance forall a from to. (Arbitrary a, KnownNat from, KnownNat to) => Arbitrary (BoundedList a from to) where
+    arbitrary = choose (intNatVal (Proxy :: Proxy from), intNatVal (Proxy :: Proxy to)) >>= \l ->
+                BoundedList <$> vectorOf l arbitrary
+
+    shrink (BoundedList xs) = map BoundedList . filter ((>= intNatVal (Proxy :: Proxy from)) . length) $ shrink xs
