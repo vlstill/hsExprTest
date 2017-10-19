@@ -35,6 +35,7 @@ import System.Posix.Signals ( signalProcess, sigKILL )
 import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
 import System.IO ( stdout, stderr )
 import System.Clock ( Clock ( Monotonic ), sec, getTime )
+import System.FilePath ( (</>) )
 
 import Language.Haskell.Interpreter ( InterpreterT
                                     , InterpreterError ( UnknownError, NotAllowed
@@ -164,7 +165,7 @@ runHaskellAssignment = do
         isHint <- greader optHint
         hintLevel <- greader asgnHint
         test <- mkTestFile testExpr
-        when (not isHint || hintLevel >= Test) $ runghc [test]
+        when (not isHint || hintLevel >= Test) $ runghc [test] []
   where
     emsg :: Show e => String -> Either e a -> MStack a
     emsg msg (Left x)  = doStudentOut' ("Error " ++ msg ++ ": " ++ show x) >>
@@ -172,19 +173,32 @@ runHaskellAssignment = do
     emsg _   (Right x) = pure x
 
 
-runghc :: [String] -> MStack ()
-runghc args = do
+runghc :: [String] -> [String] -> MStack ()
+runghc ghcArgs args = do
     includes <- getIncludeOpts
     wd <- greader getWorkDir
     showStderr <- hintProceed TypeMismatchInfo
-    let opts = includes ++ args
-        runghcproc = (proc "runghc" (ghcOptions ++ opts))
-                      { cwd = Just wd
-                      , std_in = Inherit
-                      , std_out = UseHandle stdout
-                      , std_err = if showStderr then UseHandle stdout else UseHandle stderr
-                      }
-    (_, _, _, h) <- liftIO $ createProcess runghcproc
+    let test = wd </> "test"
+        opts = ghcOptions ++ includes ++ ghcArgs ++ [ "-o", test ] ++ [ "-dynamic", "-O2" ]
+        err = if showStderr then UseHandle stdout else UseHandle stderr
+        ghcproc = (proc "ghc" opts)
+                  { cwd = Just wd
+                  , std_in = Inherit
+                  , std_out = UseHandle stdout
+                  , std_err = err
+                  }
+        testproc = (proc test args)
+                   { cwd = Just wd
+                   , std_in = Inherit
+                   , std_out = UseHandle stdout
+                   , std_err = err
+                   }
+    (_, _, _, ghch) <- liftIO $ createProcess ghcproc
+    ghcEC <- liftIO $ waitForProcess ghch
+    case ghcEC of
+        ExitSuccess -> pure ()
+        ExitFailure _ -> testError "test compilation failed"
+    (_, _, _, h) <- liftIO $ createProcess testproc
     lim0 <- fromMaybe 10 <$> greader asgnLimit
     let lim = if lim0 > 10 * 1000 then lim0 `div` (1000 * 1000) else lim0
     ec <- wait (fromIntegral lim) h
@@ -303,7 +317,8 @@ runHaskellStringEval = do
     studentdata <- greader asgnStudent
     let studentf = "input :: String\ninput = " ++ show studentdata
     _ <- createStudentFile studentf
-    test <- createSolutionFile =<< greader asgnSolution
+    _ <- createSolutionFile "" -- expected by test file
+    test <- createTestFile =<< greader asgnSolution
 
     runWithHint test
 
@@ -313,12 +328,13 @@ runWithHint test = do
     hintMode <- greader asgnHint
     let h = if hint then Just hintMode else Nothing
 
-    runghc [test, show h]
+    runghc [test] [show h]
 
 runHaskellScript :: MStack ()
 runHaskellScript = do
     st <- createStudentFile =<< greader asgnStudent
-    test <- createSolutionFile =<< greader asgnSolution
+    _ <- createSolutionFile "" -- file is expected by main
+    test <- createTestFile =<< greader asgnSolution
 
     interpreter [ st ] [ importQ "Student" ] StudentCompileOut TypeMismatchInfo $ pure ()
 

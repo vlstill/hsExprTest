@@ -74,7 +74,7 @@ createSolutionFile content = createCodeFile "Solution" content False
 -- | Create test file "Test.hs" which imports student and solution
 createTestFile :: (MonadIO m, GMonadReader WorkDir m, GMonadReader Assignment m)
                => String -> m FilePath
-createTestFile content0 = createCodeFile "Test" content False
+createTestFile content0 = createCodeFile "Main" content False
   where
     content = unlines [ "import qualified Student"
                       , "import qualified Solution"
