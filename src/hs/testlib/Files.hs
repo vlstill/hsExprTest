@@ -55,7 +55,6 @@ createCodeFile moduleName content student = do
             , extra
             , "module " ++ moduleName ++ " where"
             , ""
-            , "{-# LINE 1 \"" ++ moduleName ++ ".hs\" #-}"
             ]
         hPutStr h content
     return name
