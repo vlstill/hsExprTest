@@ -282,6 +282,8 @@ int main( int argc, char **argv ) {
     INFO( "Listening on " + std::to_string( input ) + ", insock = " + insock +
           ", qdir = " + qdir + ", hsExprTest = " + hsExprTest );
 
+    setenv( "LANG", "en_US.UTF-8", 1 );
+
     std::string buffer;
   main_loop:
     while ( !end ) {
