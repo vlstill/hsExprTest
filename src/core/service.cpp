@@ -154,7 +154,7 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
 
         brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
                                brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
-        std::string studentfile = std::string( wd ) + "/StudentRaw.hs"s; // TODO: wd.str()
+        std::string studentfile = wd.path + "/StudentRaw.hs"s;
         std::string qfile;
 
         {
