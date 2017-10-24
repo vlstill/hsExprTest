@@ -21,8 +21,7 @@ import System.IO
 import System.IO.Temp
 import System.FilePath
 import Testing.Assignment ( asgnTesterOpts, Assignment )
-import Data.List ( find )
-import Data.Maybe ( isJust )
+import Data.List ( intersect )
 
 -- | 'WorkDir' is a directory in which checker stores all necessary files.
 newtype WorkDir = WorkDir { getWorkDir :: FilePath }
@@ -46,9 +45,8 @@ createCodeFile moduleName content student = do
     fc <- greader getWorkDir
     let name = fc </> moduleName <.> "hs"
     tos <- greader asgnTesterOpts
-    let extra = if student && isJust (find (== "RebindableSyntax") tos)
-                  then "{-# LANGUAGE RebindableSyntax #-}"
-                  else ""
+    let exts = tos `intersect` if student then allowedExtsStudent else allowedExtsSolution
+    let extra = unlines $ map (\x -> "{-# LANGUAGE " ++ x ++ " #-}") exts
     liftIO . withFile name WriteMode $ \h -> do
         hPutStr h $ unlines
             [ if student then "{-# LANGUAGE Safe, NoTemplateHaskell #-}" else "{-# LANGUAGE Unsafe #-}"
@@ -58,6 +56,12 @@ createCodeFile moduleName content student = do
             ]
         hPutStr h content
     return name
+
+allowedExtsStudent :: [String]
+allowedExtsStudent = [ "RebindableSyntax" ]
+
+allowedExtsSolution :: [String]
+allowedExtsSolution = [ "TemplateHaskell" ]
 
 -- | create file "Student.hs" containing module @Student@ in given context.
 -- Module will be marked as safe.
