@@ -179,7 +179,7 @@ runghc ghcArgs args = do
     wd <- greader getWorkDir
     showStderr <- hintProceed TypeMismatchInfo
     let test = wd </> "test"
-        opts = ghcOptions ++ includes ++ ghcArgs ++ [ "-o", test ] ++ [ "-dynamic", "-O2" ]
+        opts = ghcOptions ++ includes ++ ghcArgs ++ [ "-o", test ] ++ [ "-dynamic", "-O2", "-odir", wd, "-hidir", wd ]
         err = if showStderr then UseHandle stdout else UseHandle stderr
         ghcproc = (proc "ghc" opts)
                   { cwd = Just wd
