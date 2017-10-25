@@ -11,6 +11,9 @@
 #include <string_view>
 #include <chrono>
 #include <iomanip>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 #include <brick-assert>
 #include <brick-fs>
@@ -32,6 +35,14 @@ using Duration = Timer::duration;
 using Seconds = std::chrono::seconds;
 using Milliseconds = std::chrono::milliseconds;
 
+const int MAX_WORKERS = 4;
+
+std::mutex core_mtx, out_mtx;
+std::condition_variable worker_cond;
+std::atomic< int > workers_running;
+std::array< std::pair< std::thread, std::atomic< bool > >, MAX_WORKERS > workers;
+
+
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
 
 enum class Level { Info, Warning, Error };
@@ -46,6 +57,8 @@ struct Msg {
 
     ~Msg() {
         if ( !inhibit ) {
+            std::lock_guard< std::mutex > _( out_mtx );
+
             time_t now = std::chrono::system_clock::to_time_t( std::chrono::system_clock::now() );
             std::cerr << std::put_time( std::localtime( &now ), "[%d-%m-%Y %T] " );
 
@@ -88,6 +101,9 @@ constexpr int MAX_PKG_LEN = 65536;
 struct FD {
     FD() : fd( -1 ) { }
     explicit FD( int fd ) : fd( fd ) { }
+    FD( const FD & ) = delete;
+    FD( FD &&o ) : fd( o.fd ) { o.fd = -1; }
+
     explicit operator bool() { return fd >= 0; }
     explicit operator int() { ASSERT_LEQ( 0, fd ); return fd; }
     FD &operator=( int fd ) { this->fd = fd; return *this; }
@@ -232,7 +248,7 @@ int start( const std::string &insock ) {
     chmod( insock.c_str(), 0666 ) == 0 || SYSDIE( "chmod" );
 
     INFO( "Setting up socket for listening" );
-    listen( input, 1 ) == 0 || SYSDIE( "listen" );
+    listen( input, MAX_WORKERS ) == 0 || SYSDIE( "listen" );
 
     // set timeout, only so that signals can iterrupt the waiting (for the sake
     // of termination and hot restart)
@@ -284,11 +300,9 @@ int main( int argc, char **argv ) {
 
     setenv( "LANG", "en_US.UTF-8", 1 );
 
-    std::string buffer;
   main_loop:
     while ( !end ) {
         try {
-            buffer.resize( MAX_PKG_LEN );
             INFO( "Accepting socket..." );
             FD isSock{ accept( input, nullptr, nullptr ) };
             if ( !isSock ) {
@@ -303,18 +317,47 @@ int main( int argc, char **argv ) {
                 continue;
             }
 
-            RQT _;
-            INFO( "connection established" );
-            int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
-            if ( rsize < 0 ) {
-                SYSWARN( "recv" );
-                continue;
+            if ( workers_running == MAX_WORKERS ) {
+                std::unique_lock< std::mutex > g( core_mtx );
+                worker_cond.wait( g, [] { return workers_running < MAX_WORKERS; } );
             }
-            INFO( "packet received" );
-            buffer.resize( rsize );
-            auto reply = runExprTest( hsExprTest, qdir, buffer );
-            send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
-            INFO( "Request handled" );
+            for ( auto &p : workers ) {
+                if ( !p.second ) {
+                    if ( p.first.joinable() )
+                        p.first.join();
+
+                    p.second = true;
+                    ++workers_running;
+                    p.first = std::thread( [&flag = p.second, isSock = std::move( isSock ), &hsExprTest, &qdir]() mutable
+                        {
+                            RQT _;
+                            std::string buffer;
+                            buffer.resize( MAX_PKG_LEN );
+
+                            INFO( "connection established" );
+                            int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
+                            if ( rsize < 0 )
+                            {
+                                SYSWARN( "recv" );
+                            }
+                            else
+                            {
+                                INFO( "packet received" );
+                                buffer.resize( rsize );
+                                auto reply = runExprTest( hsExprTest, qdir, buffer );
+                                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
+                                INFO( "Request handled" );
+                            }
+
+                            std::unique_lock< std::mutex > g( core_mtx );
+                            --workers_running;
+                            flag = false;
+                            worker_cond.notify_all();
+                        } );
+                    continue; // request handled
+                }
+            }
+
         } catch ( std::exception &ex ) {
             WARN( "EXCEPTION: "s + ex.what() );
         }
