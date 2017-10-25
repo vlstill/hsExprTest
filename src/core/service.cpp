@@ -330,31 +330,41 @@ int main( int argc, char **argv ) {
                     ++workers_running;
                     p.first = std::thread( [&flag = p.second, isSock = std::move( isSock ), &hsExprTest, &qdir]() mutable
                         {
-                            RQT _;
-                            std::string buffer;
-                            buffer.resize( MAX_PKG_LEN );
+                            try {
 
-                            INFO( "connection established" );
-                            int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
-                            if ( rsize < 0 )
-                            {
-                                SYSWARN( "recv" );
-                            }
-                            else
-                            {
-                                INFO( "packet received" );
-                                buffer.resize( rsize );
-                                auto reply = runExprTest( hsExprTest, qdir, buffer );
-                                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
-                                INFO( "Request handled" );
-                            }
+                                RQT _;
+                                std::string buffer;
+                                buffer.resize( MAX_PKG_LEN );
 
-                            std::unique_lock< std::mutex > g( core_mtx );
-                            --workers_running;
-                            flag = false;
-                            worker_cond.notify_all();
+                                INFO( "connection established" );
+                                int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
+                                if ( rsize < 0 )
+                                {
+                                    SYSWARN( "recv" );
+                                }
+                                else
+                                {
+                                    INFO( "packet received" );
+                                    buffer.resize( rsize );
+                                    auto reply = runExprTest( hsExprTest, qdir, buffer );
+                                    send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
+                                    INFO( "Request handled" );
+                                }
+
+                                std::unique_lock< std::mutex > g( core_mtx );
+                                --workers_running;
+                                flag = false;
+                                worker_cond.notify_all();
+
+                            } catch ( std::exception &ex ) {
+                                WARN( "EXCEPTION: "s + ex.what() );
+                                std::unique_lock< std::mutex > g( core_mtx );
+                                --workers_running;
+                                flag = false;
+                                worker_cond.notify_all();
+                            }
                         } );
-                    continue; // request handled
+                    break; // request handled
                 }
             }
 
