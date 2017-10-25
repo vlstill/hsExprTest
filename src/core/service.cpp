@@ -372,6 +372,10 @@ int main( int argc, char **argv ) {
             WARN( "EXCEPTION: "s + ex.what() );
         }
     }
+    for ( auto &p : workers ) {
+        if ( p.first.joinable() )
+            p.first.join();
+    }
     if ( hotrestart ) {
         std::string hotstart = "--hotstart";
         auto sockstr = std::to_string( input );
