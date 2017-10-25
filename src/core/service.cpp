@@ -40,7 +40,7 @@ const int MAX_WORKERS = 4;
 std::mutex core_mtx, out_mtx;
 std::condition_variable worker_cond;
 std::atomic< int > workers_running;
-std::array< std::pair< std::thread, std::atomic< bool > >, MAX_WORKERS > workers;
+std::array< std::pair< std::thread, std::atomic< bool > >, MAX_WORKERS > workers{};
 
 
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
