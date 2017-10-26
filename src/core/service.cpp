@@ -37,10 +37,17 @@ using Milliseconds = std::chrono::milliseconds;
 
 const int MAX_WORKERS = 4;
 
+struct Worker {
+    Worker() : running( false ) { }
+
+    std::thread thr;
+    std::atomic< bool > running;
+};
+
 std::mutex core_mtx, out_mtx;
 std::condition_variable worker_cond;
 std::atomic< int > workers_running;
-std::array< std::pair< std::thread, std::atomic< bool > >, MAX_WORKERS > workers{};
+std::array< Worker, MAX_WORKERS > workers;
 
 
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
@@ -321,60 +328,54 @@ int main( int argc, char **argv ) {
                 std::unique_lock< std::mutex > g( core_mtx );
                 worker_cond.wait( g, [] { return workers_running < MAX_WORKERS; } );
             }
-            for ( auto &p : workers ) {
-                if ( !p.second ) {
-                    if ( p.first.joinable() )
-                        p.first.join();
+            for ( auto &w : workers ) {
+                if ( w.running )
+                    continue;
 
-                    p.second = true;
-                    ++workers_running;
-                    p.first = std::thread( [&flag = p.second, isSock = std::move( isSock ), &hsExprTest, &qdir]() mutable
-                        {
-                            try {
+                if ( w.thr.joinable() )
+                    w.thr.join();
 
-                                RQT _;
-                                std::string buffer;
-                                buffer.resize( MAX_PKG_LEN );
+                w.running = true;
+                ++workers_running;
+                w.thr = std::thread( [&flag = w.running, isSock = std::move( isSock ), &hsExprTest, &qdir]() mutable
+                    {
+                        try {
+                            RQT _;
+                            std::string buffer;
+                            buffer.resize( MAX_PKG_LEN );
 
-                                INFO( "connection established" );
-                                int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
-                                if ( rsize < 0 )
-                                {
-                                    SYSWARN( "recv" );
-                                }
-                                else
-                                {
-                                    INFO( "packet received" );
-                                    buffer.resize( rsize );
-                                    auto reply = runExprTest( hsExprTest, qdir, buffer );
-                                    send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
-                                    INFO( "Request handled" );
-                                }
+                            INFO( "connection established" );
+                            int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
 
-                                std::unique_lock< std::mutex > g( core_mtx );
-                                --workers_running;
-                                flag = false;
-                                worker_cond.notify_all();
-
-                            } catch ( std::exception &ex ) {
-                                WARN( "EXCEPTION: "s + ex.what() );
-                                std::unique_lock< std::mutex > g( core_mtx );
-                                --workers_running;
-                                flag = false;
-                                worker_cond.notify_all();
+                            if ( rsize < 0 ) {
+                                SYSWARN( "recv" );
                             }
-                        } );
-                    break; // request handled
-                }
+                            else {
+                                INFO( "packet received" );
+                                buffer.resize( rsize );
+                                auto reply = runExprTest( hsExprTest, qdir, buffer );
+                                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
+                                INFO( "Request handled" );
+                            }
+
+                        } catch ( std::exception &ex ) {
+                            WARN( "EXCEPTION: "s + ex.what() );
+                        }
+                        std::unique_lock< std::mutex > g( core_mtx );
+                        flag = false;
+                        --workers_running;
+                        worker_cond.notify_all();
+                    } );
+                break; // request handled
             }
 
         } catch ( std::exception &ex ) {
             WARN( "EXCEPTION: "s + ex.what() );
         }
     }
-    for ( auto &p : workers ) {
-        if ( p.first.joinable() )
-            p.first.join();
+    for ( auto &w : workers ) {
+        if ( w.thr.joinable() )
+            w.thr.join();
     }
     if ( hotrestart ) {
         std::string hotstart = "--hotstart";
