@@ -345,7 +345,6 @@ ghcOptions = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code whi
              , "-XDeriveDataTypeable"
              , "-XStandaloneDeriving"
              , "-XDataKinds"
-             , "-XTemplateHaskell"
              , "-Werror"
              ]
 loadedModules :: [String]
