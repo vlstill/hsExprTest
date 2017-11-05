@@ -113,7 +113,17 @@ struct FD {
 
     explicit operator bool() { return fd >= 0; }
     explicit operator int() { ASSERT_LEQ( 0, fd ); return fd; }
+
     FD &operator=( int fd ) { this->fd = fd; return *this; }
+    FD &operator=( const FD & ) = delete;
+    FD &operator=( FD &&o ) {
+        if ( fd >= 0 )
+            close( fd );
+        fd = o.fd;
+        o.fd = -1;
+        return *this;
+    }
+
     ~FD() { if ( fd >= 0 ) close( fd ); }
     int fd;
 };
