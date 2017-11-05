@@ -309,6 +309,14 @@ int main( int argc, char **argv ) {
   main_loop:
     while ( !end ) {
         try {
+            INFO( "Looking for worker..." );
+            if ( workers_running == MAX_WORKERS ) {
+                INFO( "waiting..." );
+                std::unique_lock< std::mutex > g( core_mtx );
+                worker_cond.wait( g, [] { return workers_running < MAX_WORKERS; } );
+            }
+            INFO( "worker found" );
+
             INFO( "Accepting socket..." );
             FD isSock{ accept( input, nullptr, nullptr ) };
             if ( !isSock ) {
@@ -323,10 +331,6 @@ int main( int argc, char **argv ) {
                 continue;
             }
 
-            if ( workers_running == MAX_WORKERS ) {
-                std::unique_lock< std::mutex > g( core_mtx );
-                worker_cond.wait( g, [] { return workers_running < MAX_WORKERS; } );
-            }
             for ( auto &w : workers ) {
                 if ( w.running )
                     continue;
