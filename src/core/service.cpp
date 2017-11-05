@@ -118,17 +118,6 @@ struct FD {
     int fd;
 };
 
-struct Service {
-    Service() {
-        pid = -1;
-        ttl = 0;
-    }
-
-    std::atomic< long > pid;
-    std::string addr;
-    std::atomic< long > ttl;
-};
-
 int addrsize( const std::string &path ) {
     return offsetof( sockaddr_un, sun_path ) + path.size() + 1;
 }
