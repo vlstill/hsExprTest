@@ -49,7 +49,8 @@ createCodeFile moduleName content student = do
     let extra = unlines $ map (\x -> "{-# LANGUAGE " ++ x ++ " #-}") exts
     liftIO . withFile name WriteMode $ \h -> do
         hPutStr h $ unlines
-            [ if student then "{-# LANGUAGE Safe, NoTemplateHaskell #-}" else "{-# LANGUAGE Unsafe #-}"
+            [ if student then "{-# LANGUAGE Safe, NoTemplateHaskell #-}"
+                         else "{-# LANGUAGE Unsafe, StandaloneDeriving #-}"
             , extra
             , "module " ++ moduleName ++ " where"
             , ""
@@ -57,11 +58,14 @@ createCodeFile moduleName content student = do
         hPutStr h content
     return name
 
+allowedExtsAll :: [String]
+allowedExtsAll = []
+
 allowedExtsStudent :: [String]
-allowedExtsStudent = [ "RebindableSyntax" ]
+allowedExtsStudent = [ "RebindableSyntax", "StandaloneDeriving" ] ++ allowedExtsAll
 
 allowedExtsSolution :: [String]
-allowedExtsSolution = [ "TemplateHaskell" ]
+allowedExtsSolution = [ "TemplateHaskell" ] ++ allowedExtsAll
 
 -- | create file "Student.hs" containing module @Student@ in given context.
 -- Module will be marked as safe.

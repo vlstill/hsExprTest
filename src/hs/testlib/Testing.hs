@@ -343,7 +343,6 @@ runHaskellScript = do
 ghcOptions :: [String]
 ghcOptions = [ "-XNoMonomorphismRestriction" -- needed to avoid certain code which runs in ghci but fails in ghc
              , "-XDeriveDataTypeable"
-             , "-XStandaloneDeriving"
              , "-XDataKinds"
              , "-Werror"
              ]
