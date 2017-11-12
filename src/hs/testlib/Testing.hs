@@ -157,7 +157,7 @@ runHaskellAssignment = do
     mgu <- emsg "unifying types" $ unifyTypes (getType sttype) (getType sotype)
     let comtype = sttype // fst mgu
 
-    testtypes <- interpreter' $ getDegeneralizedTypes comtype
+    testtypes <- interpreter' $ getDegeneralizedTypes (isJust compexpr) comtype
     fmap mconcat . forM testtypes $ \testtype -> do
         testExpr <- interpreter' $ fromMaybe (buildTestExpression stwrap sowrap testtype)
                 (pure . buildTestExpressionsWithComparer stwrap sowrap <$> compexpr)

@@ -44,15 +44,15 @@ isTypeclasses ty = fmap finalize . filterM (fmap not . (ty `isTypeclass`))
 
 -- | Get degeneralized (monomorphised) types form type expression (which can
 -- be polymoprhic). Uses 'getTestableType' and 'degeneralize'.
-getDegeneralizedTypes :: (MonadFail m, MonadInterpreter m) => TypeExpression -> m [Type]
-getDegeneralizedTypes = fmap degeneralize . getTestableType
+getDegeneralizedTypes :: (MonadFail m, MonadInterpreter m) => Bool -> TypeExpression -> m [Type]
+getDegeneralizedTypes ignoreRet = fmap degeneralize . getTestableType ignoreRet
 
 -- | Get type expression of testable polymorphic type, or error message if
 -- type is not testable. Typeclasses are added to type context to facilitate
 -- testability if necessary.
 getTestableType :: forall m. (MonadFail m, MonadInterpreter m)
-                => TypeExpression -> m TypeExpression
-getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
+                => Bool -> TypeExpression -> m TypeExpression
+getTestableType ignoreRet (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False ty
   where
     finalize :: Set (TypeClass, [Type]) -> TypeExpression
     finalize ctxnew = TypeExpression (TypeContext . toList $ ctxnew `mappend` fromList ctx) ty
@@ -76,7 +76,7 @@ getTestableType (TypeExpression (TypeContext ctx) ty) = finalize <$> gtt False t
                             Right _ -> pure mempty
                             Left es -> fail $ "Not testable: `" ++ formatType typ ++ " missing: " ++ show es ++ "'."
         classes
-            | not nested && isret = [ "Eq", "Show", "NFData" ]
+            | not nested && isret = if ignoreRet then [] else [ "Eq", "Show", "NFData" ]
             | nested && not isret = [ "CoArbitrary", "Function" ]
             | otherwise           = ["Arbitrary"]
         mkTestable var = fromList . map (, [TypeVariable var]) $
