@@ -1,7 +1,9 @@
-{-# LANGUAGE Safe, NoImplicitPrelude #-}
+{-# LANGUAGE Safe, NoImplicitPrelude, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+#ifndef NO_SEMIGROUP_WARNING
 -- it is equeivalent, but we want to avoid semigroup requirement on mappend
 {-# OPTIONS_GHC -Wno-noncanonical-monoid-instances #-}
+#endif
 
 module Testable.IO (
     -- * IO replacements

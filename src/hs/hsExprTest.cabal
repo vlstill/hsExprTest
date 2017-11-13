@@ -44,7 +44,7 @@ Library
   if impl( ghc < 8.0 )
     build-depends:  fail,
                     semigroups >= 0.18
-    cpp-options: -DNO_BASE_FAIL
+    cpp-options: -DNO_BASE_FAIL -DNO_SEMIGROUP_WARNING
 
   exposed-modules:    Types
                       Types.Parser
