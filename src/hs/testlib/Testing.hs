@@ -29,7 +29,7 @@ import Data.Maybe ( fromMaybe, isNothing, isJust )
 import System.Process ( cwd, std_in, std_out, std_err, proc
                       , createProcess, getProcessExitCode
                       , StdStream ( Inherit, UseHandle ), waitForProcess )
-import System.Process.Internals ( ProcessHandle__ ( ClosedHandle, OpenHandle )
+import System.Process.Internals ( ProcessHandle__ ( OpenHandle )
                                 , withProcessHandle )
 import System.Posix.Signals ( signalProcess, sigKILL )
 import System.Exit ( ExitCode ( ExitSuccess, ExitFailure ) )
@@ -217,8 +217,8 @@ runghc ghcArgs args = do
                       Just ec -> pure $ Just ec
         go
     terminate handle = withProcessHandle handle termHandle >> void (waitForProcess handle)
-    termHandle (ClosedHandle _)   = pure ()
     termHandle (OpenHandle h)     = signalProcess sigKILL h
+    termHandle _                  = pure ()
 
 
 mkTestFile :: String -> MStack FilePath
