@@ -1,5 +1,8 @@
 {-# LANGUAGE Safe, NoImplicitPrelude #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+-- Prelude.IO is not semigroup either
+{-# OPTIONS_GHC -Wno-semigroup #-}
+{-# OPTIONS_GHC -Wno-noncanonical-monoid-instances #-}
 
 module Testable.IO (
     -- * IO replacements
