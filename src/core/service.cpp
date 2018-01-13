@@ -1,4 +1,4 @@
-// (c) 2015-2017 Vladimír Štill
+// (c) 2015-2018 Vladimír Štill
 
 #include <string>
 #include <iostream>
@@ -35,6 +35,11 @@ using Duration = Timer::duration;
 using Seconds = std::chrono::seconds;
 using Milliseconds = std::chrono::milliseconds;
 
+struct Config {
+    int max_workers = 4;
+    bool isolation = false;
+};
+
 const int MAX_WORKERS = 4;
 
 struct Worker {
@@ -44,11 +49,17 @@ struct Worker {
     std::atomic< bool > running;
 };
 
-std::mutex core_mtx, out_mtx;
-std::condition_variable worker_cond;
-std::atomic< int > workers_running;
-std::array< Worker, MAX_WORKERS > workers;
+std::mutex out_mtx;
 
+struct WorkPool
+{
+    WorkPool( const Config &cfg ) : workers( cfg.max_workers ) { }
+
+    std::mutex core_mtx;
+    std::condition_variable worker_cond;
+    std::atomic< int > workers_running;
+    std::vector< Worker > workers;
+};
 
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
 
@@ -144,12 +155,18 @@ std::string replyError( long xid, std::string msg ) {
     return reply.str();
 }
 
+auto spawnAndWait( bool sudo, std::string usr, std::vector< std::string > args ) {
+    if ( sudo )
+        args.insert( args.begin(), { "sudo",  "-n", "-u", "rc-"  + usr } );
+    return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
+}
+
 // input: a packet in the form "I<xid>Q<id>S<solution>" or
 // "HI<xid>Q<id>S<solution>" (where 'H' at the beginning stands for hint mode)
 //
 // output: packet of for "I<xid>P<res>C<comment>" (where <res> is either 'ok'
 // or 'nok')
-std::string runExprTest( const std::string &exec, const std::string &qdir, std::string_view packet )
+std::string runExprTest( const Config &config, const std::string &exec, const std::string &qdir, std::string_view packet )
 {
     bool hint = false;
     if ( packet.at( 0 ) == 'H' ) {
@@ -176,6 +193,8 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
             WARN( "Possible attempt to get out of qdir" );
             return replyUnknown();
         }
+
+        std::string course = "ib015";
 
         auto solution = packet.substr( spos + 1 );
 
@@ -205,7 +224,7 @@ std::string runExprTest( const std::string &exec, const std::string &qdir, std::
         std::vector< std::string > args = { exec, qfile, studentfile, "-I" + qdir };
         if ( hint )
             args.push_back( "--hint" );
-        auto r = brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
+        auto r = spawnAndWait( config.isolation, course, args );
 
         std::stringstream reply;
         reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
@@ -311,14 +330,17 @@ int main( int argc, char **argv ) {
 
     setenv( "LANG", "en_US.UTF-8", 1 );
 
+    Config config;
+    WorkPool wp( config );
+
   main_loop:
     while ( !end ) {
         try {
             INFO( "Looking for worker..." );
-            if ( workers_running == MAX_WORKERS ) {
+            if ( wp.workers_running == config.max_workers ) {
                 INFO( "waiting..." );
-                std::unique_lock< std::mutex > g( core_mtx );
-                worker_cond.wait( g, [] { return workers_running < MAX_WORKERS; } );
+                std::unique_lock< std::mutex > g( wp.core_mtx );
+                wp.worker_cond.wait( g, [&] { return wp.workers_running < config.max_workers; } );
             }
             INFO( "worker found" );
 
@@ -336,7 +358,7 @@ int main( int argc, char **argv ) {
                 continue;
             }
 
-            for ( auto &w : workers ) {
+            for ( auto &w : wp.workers ) {
                 if ( w.running )
                     continue;
 
@@ -344,8 +366,8 @@ int main( int argc, char **argv ) {
                     w.thr.join();
 
                 w.running = true;
-                ++workers_running;
-                w.thr = std::thread( [&flag = w.running, isSock = std::move( isSock ), &hsExprTest, &qdir]() mutable
+                ++wp.workers_running;
+                w.thr = std::thread( [&flag = w.running, isSock = std::move( isSock ), &hsExprTest, &qdir, &wp, &config]() mutable
                     {
                         try {
                             RQT _;
@@ -361,7 +383,7 @@ int main( int argc, char **argv ) {
                             else {
                                 INFO( "packet received" );
                                 buffer.resize( rsize );
-                                auto reply = runExprTest( hsExprTest, qdir, buffer );
+                                auto reply = runExprTest( config, hsExprTest, qdir, buffer );
                                 send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
                                 INFO( "Request handled" );
                             }
@@ -369,10 +391,10 @@ int main( int argc, char **argv ) {
                         } catch ( std::exception &ex ) {
                             WARN( "EXCEPTION: "s + ex.what() );
                         }
-                        std::unique_lock< std::mutex > g( core_mtx );
+                        std::unique_lock< std::mutex > g( wp.core_mtx );
                         flag = false;
-                        --workers_running;
-                        worker_cond.notify_all();
+                        --wp.workers_running;
+                        wp.worker_cond.notify_all();
                     } );
                 break; // request handled
             }
@@ -381,7 +403,7 @@ int main( int argc, char **argv ) {
             WARN( "EXCEPTION: "s + ex.what() );
         }
     }
-    for ( auto &w : workers ) {
+    for ( auto &w : wp.workers ) {
         if ( w.thr.joinable() )
             w.thr.join();
     }
