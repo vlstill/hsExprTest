@@ -66,8 +66,10 @@ struct Msg {
         if ( !inhibit ) {
             std::lock_guard< std::mutex > _( out_mtx );
 
-            time_t now = std::chrono::system_clock::to_time_t( std::chrono::system_clock::now() );
-            std::cerr << std::put_time( std::localtime( &now ), "[%d-%m-%Y %T] " );
+            if ( log_time ) {
+                time_t now = std::chrono::system_clock::to_time_t( std::chrono::system_clock::now() );
+                std::cerr << std::put_time( std::localtime( &now ), "[%d-%m-%Y %T] " );
+            }
 
             if ( level == Level::Error )
                 std::cerr << "FATAL: ";
@@ -90,7 +92,10 @@ struct Msg {
     const char *file = nullptr;
     const int line = 0;
     const char *func = nullptr;
+    static bool log_time;
 };
+
+bool Msg::log_time = false;
 
 #define DIE( msg ) Msg( Level::Error, msg, __FILE__, __LINE__, __func__ )
 #define WARN( msg ) Msg( Level::Warning, msg, __FILE__, __LINE__, __func__ )
