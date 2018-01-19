@@ -37,27 +37,64 @@ using Milliseconds = std::chrono::milliseconds;
 
 struct Config {
     int max_workers = 4;
-    bool isolation = false;
+    bool allow_isolation = false;
+    std::string qdir;
+    std::map< std::string, std::string > checker;
 };
 
 const int MAX_WORKERS = 4;
 
-struct Worker {
-    Worker() : running( false ) { }
+struct Worker
+{
+    ~Worker() { stop(); }
 
-    std::thread thr;
-    std::atomic< bool > running;
+    template< typename Func >
+    void start( Func f, std::atomic< bool > &stop ) {
+        ASSERT( !_thr.joinable() );
+        _stop = &stop;
+        _thr = std::thread( [&stop, f]() mutable {
+                while ( !stop.load( std::memory_order_relaxed ) )
+                    f( stop );
+            } );
+    }
+
+    void stop() {
+        if ( _thr.joinable() ) {
+            _stop->store( true, std::memory_order_relaxed );
+            _thr.join();
+        }
+    }
+
+    void wait() {
+        if ( _thr.joinable() )
+            _thr.join();
+    }
+
+    std::thread _thr;
+    std::atomic< bool > *_stop;
 };
-
-std::mutex out_mtx;
 
 struct WorkPool
 {
     WorkPool( const Config &cfg ) : workers( cfg.max_workers ) { }
+    ~WorkPool() { }
 
-    std::mutex core_mtx;
-    std::condition_variable worker_cond;
-    std::atomic< int > workers_running;
+    template< typename Func >
+    void start( Func f, std::atomic< bool > &stop ) {
+        for ( auto &w : workers )
+            w.start( f, stop );
+    }
+
+    void stop() {
+        for ( auto &w : workers )
+            w.stop();
+    }
+
+    void wait() {
+        for ( auto &w : workers )
+            w.wait();
+    }
+
     std::vector< Worker > workers;
 };
 
@@ -65,6 +102,7 @@ Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( 
 
 enum class Level { Info, Warning, Error };
 
+std::mutex out_mtx;
 struct Msg {
     Msg( Level level, std::string msg ) :
         level( level ), msg( msg )
@@ -148,91 +186,157 @@ int addrsize( const std::string &path ) {
     return offsetof( sockaddr_un, sun_path ) + path.size() + 1;
 }
 
-std::string replyError( long xid, std::string msg ) {
-    WARN( msg );
-    std::stringstream reply;
-    reply << "I" << xid << "PnokC" << msg << std::endl;
-    return reply.str();
-}
-
-auto spawnAndWait( bool sudo, std::string usr, std::vector< std::string > args ) {
-    if ( sudo )
-        args.insert( args.begin(), { "sudo",  "-n", "-u", "rc-"  + usr } );
-    return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
-}
-
-// input: a packet in the form "I<xid>Q<id>S<solution>" or
-// "HI<xid>Q<id>S<solution>" (where 'H' at the beginning stands for hint mode)
-//
-// output: packet of for "I<xid>P<res>C<comment>" (where <res> is either 'ok'
-// or 'nok')
-std::string runExprTest( const Config &config, const std::string &exec, const std::string &qdir, std::string_view packet )
-{
-    bool hint = false;
-    if ( packet.at( 0 ) == 'H' ) {
-        hint = true;
-        packet.remove_prefix( 1 );
+struct RQT {
+    RQT() : start( Timer::now() ) { }
+    ~RQT() {
+        long ms = elapsed();
+        INFO( "Request handled in " + std::to_string( ms ) + "ms" );
     }
 
-    ASSERT_EQ( packet.at( 0 ), 'I' );
-    packet.remove_prefix( 1 );
+    long elapsed() {
+        return std::chrono::duration_cast< Milliseconds >( Timer::now() - start ).count();
+    }
 
-    auto qpos = packet.find( 'Q' );
-    ASSERT_NEQ( qpos, std::string_view::npos );
-    long xid = std::stol( std::string( packet.substr( 0, qpos ) ) );
-    try {
-        packet.remove_prefix( qpos + 1 );
+    Time start;
+};
 
-        auto spos = packet.find( 'S' );
-        ASSERT_NEQ( spos, std::string_view::npos );
-        auto id = packet.substr( 0, spos );
-        INFO( "received solution with ID "s.append( id ) );
+struct Eval
+{
+    Eval( const Config &c ) : _config( c ) { }
 
-        auto replyUnknown = [&]{ return replyError( xid, "unknown ID: "s.append( id ) ); };
-        if ( id.find( ".." ) != std::string_view::npos ) {
-            WARN( "Possible attempt to get out of qdir" );
-            return replyUnknown();
+    static std::string replyError( long xid, std::string msg ) {
+        WARN( msg );
+        std::stringstream reply;
+        reply << "I" << xid << "PnokC" << msg << std::endl;
+        return reply.str();
+    }
+
+    static auto spawnAndWait( bool sudo, std::string usr, std::vector< std::string > args )
+    {
+        if ( sudo )
+            args.insert( args.begin(), { "sudo",  "-n", "-u", "rc-"  + usr } );
+        return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
+    }
+
+    std::string qdir( std::string course ) const {
+        return _config.qdir; //  + "/"s + course;
+    }
+
+    // input: a packet in the form "I<xid>Q<id>S<solution>" or
+    // "HI<xid>Q<id>S<solution>" (where 'H' at the beginning stands for hint mode)
+    //
+    // output: packet of for "I<xid>P<res>C<comment>" (where <res> is either 'ok'
+    // or 'nok')
+    std::string runChecker( std::string_view packet ) const
+    {
+        bool hint = false;
+        if ( packet.at( 0 ) == 'H' ) {
+            hint = true;
+            packet.remove_prefix( 1 );
         }
 
-        std::string course = "ib015";
+        ASSERT_EQ( packet.at( 0 ), 'I' );
+        packet.remove_prefix( 1 );
 
-        auto solution = packet.substr( spos + 1 );
+        auto qpos = packet.find( 'Q' );
+        ASSERT_NEQ( qpos, std::string_view::npos );
+        long xid = std::stol( std::string( packet.substr( 0, qpos ) ) );
+        try {
+            packet.remove_prefix( qpos + 1 );
 
-        brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
-                               brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
-        std::string studentfile = wd.path + "/StudentRaw.hs"s;
-        std::string qfile;
+            auto spos = packet.find( 'S' );
+            ASSERT_NEQ( spos, std::string_view::npos );
+            auto id = packet.substr( 0, spos );
+            INFO( "received solution with ID "s.append( id ) );
 
-        {
-            std::ofstream student( studentfile );
-            student << solution;
-        }
-        {
-            auto q = qdir + "/"s + std::string( id ) + ".q"s;
-            auto qs = { q + ".hs", q + ".cpp", q + ".c", q + ".prolog", q + ".py", q };
-
-            for ( auto qf : qs ) {
-                if ( brick::fs::access( qf, R_OK ) )
-                    qfile = qf;
-            }
-            if ( qfile.empty() ) {
-                INFO( "Unknown ID" );
+            auto replyUnknown = [&]{ return replyError( xid, "unknown ID: "s.append( id ) ); };
+            if ( id.find( ".." ) != std::string_view::npos ) {
+                WARN( "Possible attempt to get out of qdir" );
                 return replyUnknown();
             }
+
+            std::string course = "ib015";
+
+            auto solution = packet.substr( spos + 1 );
+
+            brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
+                                   brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
+            std::string studentfile = wd.path + "/StudentRaw.hs"s;
+            std::string qfile;
+
+            {
+                std::ofstream student( studentfile );
+                student << solution;
+            }
+            {
+                auto q = qdir( course ) + "/"s + std::string( id ) + ".q"s;
+                auto qs = { q + ".hs", q + ".cpp", q + ".c", q + ".prolog", q + ".py", q };
+
+                for ( auto qf : qs ) {
+                    std::cout << qf << "\n";
+                    if ( brick::fs::access( qf, R_OK ) )
+                        qfile = qf;
+                }
+                if ( qfile.empty() ) {
+                    INFO( "Unknown ID" );
+                    return replyUnknown();
+                }
+            }
+
+            std::vector< std::string > args = { _config.checker.at( course ), qfile, studentfile, "-I" + qdir( course ) };
+            if ( hint )
+                args.push_back( "--hint" );
+            auto r = spawnAndWait( _config.allow_isolation, course, args );
+
+            std::stringstream reply;
+            reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
+            return reply.str();
+        } catch ( std::exception &ex ) {
+            return replyError( xid, "EXCEPTION: "s + ex.what() );
         }
-
-        std::vector< std::string > args = { exec, qfile, studentfile, "-I" + qdir };
-        if ( hint )
-            args.push_back( "--hint" );
-        auto r = spawnAndWait( config.isolation, course, args );
-
-        std::stringstream reply;
-        reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
-        return reply.str();
-    } catch ( std::exception &ex ) {
-        return replyError( xid, "EXCEPTION: "s + ex.what() );
     }
-}
+
+    void loop( int input )
+    {
+        _buffer.resize( MAX_PKG_LEN );
+        try {
+            INFO( "Accepting socket..." );
+            FD isSock{ accept( input, nullptr, nullptr ) };
+            if ( !isSock ) {
+                if ( errno == EBADF )
+                    DIE( "invalid socket, terminating" );
+                else if ( errno == EINTR )
+                    WARN( "accept interrupted by signal" );
+                else if ( errno == EAGAIN || errno == EWOULDBLOCK )
+                    INFO( "socket timeout" );
+                else
+                    SYSWARN( "accept failed" );
+                return;
+            }
+
+            RQT _;
+
+            INFO( "connection established" );
+            int rsize = recv( int( isSock ), &_buffer[0], MAX_PKG_LEN, 0 );
+
+            if ( rsize < 0 ) {
+                SYSWARN( "recv" );
+            }
+            else {
+                INFO( "packet received" );
+                _buffer.resize( rsize );
+                auto reply = runChecker( _buffer );
+                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
+                INFO( "Request handled" );
+            }
+        } catch ( std::exception &ex ) {
+            WARN( "EXCEPTION: "s + ex.what() );
+        }
+    }
+
+    std::string _buffer;
+    const Config &_config;
+};
 
 std::atomic< bool > end;
 std::atomic< bool > hotrestart;
@@ -247,20 +351,6 @@ void setupSignals() {
             end = true;
         } );
 }
-
-struct RQT {
-    RQT() : start( Timer::now() ) { }
-    ~RQT() {
-        long ms = elapsed();
-        INFO( "Request handled in " + std::to_string( ms ) + "ms" );
-    }
-
-    long elapsed() {
-        return std::chrono::duration_cast< Milliseconds >( Timer::now() - start ).count();
-    }
-
-    Time start;
-};
 
 int start( const std::string &insock ) {
     INFO( "Creating socket" );
@@ -290,13 +380,16 @@ int start( const std::string &insock ) {
     return input;
 }
 
-int main( int argc, char **argv ) {
+int main( int argc, char **argv )
+{
+    Config config;
+
     std::vector< std::string > args{ argv, argv + argc };
     std::vector< std::string > persistArgs;
     auto argit = args.begin();
     std::string insock = "/var/lib/checker/socket";
-    std::string qdir = "/var/lib/checker/qdir";
-    std::string hsExprTest = "hsExprTest";
+    config.qdir= "/var/lib/checker/qdir";
+    config.checker[ "ib015" ] = "hsExprTest";
     auto hasOpt = [&] { return argit != args.end(); };
 
     auto self = *argit;
@@ -313,7 +406,7 @@ int main( int argc, char **argv ) {
         ++argit;
     }
 
-    for ( auto *opt : { &insock, &qdir, &hsExprTest } ) {
+    for ( auto *opt : { &insock, &config.qdir, &config.checker[ "ib015" ] } ) {
         if ( hasOpt() ) {
             persistArgs.push_back( *argit );
             *opt = *argit;
@@ -321,92 +414,23 @@ int main( int argc, char **argv ) {
         }
     }
 
-    if ( input < 0 ) {
+    if ( input < 0 )
         input = start( insock );
-    }
 
     INFO( "Listening on " + std::to_string( input ) + ", insock = " + insock +
-          ", qdir = " + qdir + ", hsExprTest = " + hsExprTest );
+          ", qdir = " + config.qdir + ", hsExprTest = " + config.checker[ "ib015" ] );
 
     setenv( "LANG", "en_US.UTF-8", 1 );
 
-    Config config;
-    WorkPool wp( config );
-
   main_loop:
-    while ( !end ) {
-        try {
-            INFO( "Looking for worker..." );
-            if ( wp.workers_running == config.max_workers ) {
-                INFO( "waiting..." );
-                std::unique_lock< std::mutex > g( wp.core_mtx );
-                wp.worker_cond.wait( g, [&] { return wp.workers_running < config.max_workers; } );
-            }
-            INFO( "worker found" );
+    {
+        WorkPool wp( config );
+        Eval ev( config );
 
-            INFO( "Accepting socket..." );
-            FD isSock{ accept( input, nullptr, nullptr ) };
-            if ( !isSock ) {
-                if ( errno == EBADF )
-                    DIE( "invalid socket, terminating" );
-                else if ( errno == EINTR )
-                    WARN( "accept interrupted by signal" );
-                else if ( errno == EAGAIN || errno == EWOULDBLOCK )
-                    INFO( "socket timeout" );
-                else
-                    SYSWARN( "accept failed" );
-                continue;
-            }
-
-            for ( auto &w : wp.workers ) {
-                if ( w.running )
-                    continue;
-
-                if ( w.thr.joinable() )
-                    w.thr.join();
-
-                w.running = true;
-                ++wp.workers_running;
-                w.thr = std::thread( [&flag = w.running, isSock = std::move( isSock ), &hsExprTest, &qdir, &wp, &config]() mutable
-                    {
-                        try {
-                            RQT _;
-                            std::string buffer;
-                            buffer.resize( MAX_PKG_LEN );
-
-                            INFO( "connection established" );
-                            int rsize = recv( int( isSock ), &buffer[0], MAX_PKG_LEN, 0 );
-
-                            if ( rsize < 0 ) {
-                                SYSWARN( "recv" );
-                            }
-                            else {
-                                INFO( "packet received" );
-                                buffer.resize( rsize );
-                                auto reply = runExprTest( config, hsExprTest, qdir, buffer );
-                                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
-                                INFO( "Request handled" );
-                            }
-
-                        } catch ( std::exception &ex ) {
-                            WARN( "EXCEPTION: "s + ex.what() );
-                        }
-                        std::unique_lock< std::mutex > g( wp.core_mtx );
-                        flag = false;
-                        --wp.workers_running;
-                        wp.worker_cond.notify_all();
-                    } );
-                break; // request handled
-            }
-
-        } catch ( std::exception &ex ) {
-            WARN( "EXCEPTION: "s + ex.what() );
-        }
+        wp.start( [ev, input]( auto & ) mutable { ev.loop( input ); }, end );
+        wp.wait();
     }
-    for ( auto &w : wp.workers ) {
-        if ( w.thr.joinable() )
-            w.thr.join();
-    }
+
     if ( hotrestart ) {
         std::string hotstart = "--hotstart";
         auto sockstr = std::to_string( input );
