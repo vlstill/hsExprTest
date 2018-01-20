@@ -15,9 +15,12 @@
 #include <condition_variable>
 #include <atomic>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused"
 #include <brick-assert>
 #include <brick-fs>
 #include <brick-proc>
+#pragma GCC diagnostic pop
 
 #include <unistd.h>
 #include <sys/types.h>
