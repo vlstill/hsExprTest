@@ -98,6 +98,102 @@ struct WorkPool
     std::vector< Worker > workers;
 };
 
+template< typename T >
+class WorkSet
+{
+    using Guard = std::unique_lock< std::mutex >;
+    struct Entry {
+        T val;
+        bool valid = false;
+        bool taken = false;
+    };
+
+  public:
+    explicit WorkSet( int size ) : _storage( new Entry[ size ]() ), _size( size ) { }
+
+    template< typename Lazy >
+    bool push( Lazy l )
+    {
+        {
+            Guard g( _mtx );
+            _sigwrite.wait( g, [this] { return _set < _size; } );
+        }
+        // there is only one writer, so it is OK to break mutex here
+        std::optional< T > val = l();
+        {
+            Guard g( _mtx );
+            if ( !val ) {
+                _terminate = true;
+                _sigread.notify_all();
+                return false;
+            }
+
+            ASSERT_LT( _set, _size );
+            for ( auto &e : *this ) {
+                if ( !e.valid ) {
+                    e.val = std::move( *val );
+                    e.valid = true;
+                    e.taken = false;
+                    ++_set;
+                    _sigread.notify_all();
+                    return true;
+                }
+            }
+            UNREACHABLE( "no empty slot found while count indicates there should be at least one" );
+        }
+    }
+
+    struct Job {
+        using opt = std::optional< T >;
+
+        Job() = default;
+        Job( WorkSet &ws, Entry &e ) : _ws( &ws ), _e( &e ) { }
+        ~Job() {
+            Guard g( _ws->_mtx );
+            _e->valid = false;
+            --_ws->_set;
+            --_ws->_taken;
+            _ws->_sigwrite.notify_all();
+        }
+
+        T &value() { ASSERT( _e ); return _e->val; }
+        operator bool() const { return _e; }
+
+        T &operator*() { return value(); }
+        T *operator->() { return &value(); }
+
+      private:
+        WorkSet *_ws = nullptr;
+        Entry *_e = nullptr;
+    };
+
+    Job pop() {
+        Guard g( _mtx );
+        _sigread.wait( g, [this] { return _set - _taken > 0 || _terminate; } );
+        if ( _terminate )
+            return Job();
+        for ( auto &e : *this ) {
+            if ( e.valid && !e.taken ) {
+                e.taken = true;
+                ++_taken;
+                return Job( *this, e );
+            }
+        }
+        UNREACHABLE( "no job found while count inticates there should be at least one" );
+    }
+
+  private:
+    Entry *begin() { return _storage.get(); }
+    Entry *end() { return _storage.get() + _size; }
+
+    std::mutex _mtx;
+    std::condition_variable _sigread, _sigwrite;
+    std::unique_ptr< Entry[] > _storage;
+    const int _size;
+    int _set = 0, _taken = 0;
+    bool _terminate = false;
+};
+
 Seconds toSeconds( Duration d ) { return std::chrono::duration_cast< Seconds >( d ); }
 
 enum class Level { Info, Warning, Error };
@@ -273,7 +369,6 @@ struct Eval
                 auto qs = { q + ".hs", q + ".cpp", q + ".c", q + ".prolog", q + ".py", q };
 
                 for ( auto qf : qs ) {
-                    std::cout << qf << "\n";
                     if ( brick::fs::access( qf, R_OK ) )
                         qfile = qf;
                 }
@@ -296,28 +391,21 @@ struct Eval
         }
     }
 
-    void loop( int input )
+    void loop( WorkSet< FD > &work )
     {
         _buffer.resize( MAX_PKG_LEN );
         try {
-            INFO( "Accepting socket..." );
-            FD isSock{ accept( input, nullptr, nullptr ) };
+            INFO( "work pop" );
+            auto isSock = work.pop();
             if ( !isSock ) {
-                if ( errno == EBADF )
-                    DIE( "invalid socket, terminating" );
-                else if ( errno == EINTR )
-                    WARN( "accept interrupted by signal" );
-                else if ( errno == EAGAIN || errno == EWOULDBLOCK )
-                    INFO( "socket timeout" );
-                else
-                    SYSWARN( "accept failed" );
+                INFO( "no work here" );
                 return;
             }
 
             RQT _;
 
             INFO( "connection established" );
-            int rsize = recv( int( isSock ), &_buffer[0], MAX_PKG_LEN, 0 );
+            int rsize = recv( isSock->fd, &_buffer[0], MAX_PKG_LEN, 0 );
 
             if ( rsize < 0 ) {
                 SYSWARN( "recv" );
@@ -326,7 +414,7 @@ struct Eval
                 INFO( "packet received" );
                 _buffer.resize( rsize );
                 auto reply = runChecker( _buffer );
-                send( int( isSock ), reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
+                send( isSock->fd, reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
                 INFO( "Request handled" );
             }
         } catch ( std::exception &ex ) {
@@ -424,10 +512,29 @@ int main( int argc, char **argv )
 
   main_loop:
     {
+        WorkSet< FD > work( config.max_workers );
         WorkPool wp( config );
         Eval ev( config );
 
-        wp.start( [ev, input]( auto & ) mutable { ev.loop( input ); }, end );
+        wp.start( [ev, &work]( auto & ) mutable { ev.loop( work ); }, end );
+        while ( !end ) {
+            work.push( [input]() -> std::optional< FD > {
+                    INFO( "Accepting socket..." );
+                    FD isSock{ accept( input, nullptr, nullptr ) };
+                    if ( !isSock ) {
+                        if ( errno == EBADF )
+                            DIE( "invalid socket, terminating" );
+                        else if ( errno == EINTR )
+                            WARN( "accept interrupted by signal" );
+                        else if ( errno == EAGAIN || errno == EWOULDBLOCK )
+                            INFO( "socket timeout" );
+                        else
+                            SYSWARN( "accept failed" );
+                        return { };
+                    }
+                    return std::optional< FD >( std::move( isSock ) );
+                } );
+        }
         wp.wait();
     }
 
