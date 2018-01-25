@@ -12,6 +12,8 @@ GHC_PACKAGE_PATH_VAR=GHC_PACKAGE_PATH="$(shell cd ${BUILD_DIR} && cabal sandbox 
 
 all : submodules build
 
+CXXFLAGS += -D_POSIX_C_SOURCE
+
 ${BUILD_DIR} :
 	mkdir -p $@
 	touch $@

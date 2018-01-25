@@ -14,6 +14,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <array>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused"
@@ -29,6 +30,9 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <alloca.h>
+#include <poll.h>
+
+#include "signalfd.hpp"
 
 using namespace std::literals;
 
@@ -44,8 +48,6 @@ struct Config {
     std::string qdir;
     std::map< std::string, std::string > checker;
 };
-
-const int MAX_WORKERS = 4;
 
 struct Worker
 {
@@ -106,8 +108,7 @@ class WorkSet
 {
     using Guard = std::unique_lock< std::mutex >;
     struct Entry {
-        T val;
-        bool valid = false;
+        std::optional< T > val;
         bool taken = false;
     };
 
@@ -133,9 +134,8 @@ class WorkSet
 
             ASSERT_LT( _set, _size );
             for ( auto &e : *this ) {
-                if ( !e.valid ) {
+                if ( !e.val ) {
                     e.val = std::move( *val );
-                    e.valid = true;
                     e.taken = false;
                     ++_set;
                     _sigread.notify_all();
@@ -152,14 +152,16 @@ class WorkSet
         Job() = default;
         Job( WorkSet &ws, Entry &e ) : _ws( &ws ), _e( &e ) { }
         ~Job() {
-            Guard g( _ws->_mtx );
-            _e->valid = false;
-            --_ws->_set;
-            --_ws->_taken;
-            _ws->_sigwrite.notify_all();
+            if ( _ws ) {
+                Guard g( _ws->_mtx );
+                _e->val = std::nullopt;
+                --_ws->_set;
+                --_ws->_taken;
+                _ws->_sigwrite.notify_all();
+            }
         }
 
-        T &value() { ASSERT( _e ); return _e->val; }
+        T &value() { ASSERT( _e ); return _e->val.value(); }
         operator bool() const { return _e; }
 
         T &operator*() { return value(); }
@@ -176,7 +178,7 @@ class WorkSet
         if ( _terminate )
             return Job();
         for ( auto &e : *this ) {
-            if ( e.valid && !e.taken ) {
+            if ( e.val && !e.taken ) {
                 e.taken = true;
                 ++_taken;
                 return Job( *this, e );
@@ -256,30 +258,6 @@ void operator||( bool v, Msg &&f ) { f.inhibit = v; }
 void operator&&( bool v, Msg f ) { f.inhibit = !v; }
 
 constexpr int MAX_PKG_LEN = 65536;
-
-// unique_ptr-like holder for file descriptors
-struct FD {
-    FD() : fd( -1 ) { }
-    explicit FD( int fd ) : fd( fd ) { }
-    FD( const FD & ) = delete;
-    FD( FD &&o ) : fd( o.fd ) { o.fd = -1; }
-
-    explicit operator bool() { return fd >= 0; }
-    explicit operator int() { ASSERT_LEQ( 0, fd ); return fd; }
-
-    FD &operator=( int fd ) { this->fd = fd; return *this; }
-    FD &operator=( const FD & ) = delete;
-    FD &operator=( FD &&o ) {
-        if ( fd >= 0 )
-            close( fd );
-        fd = o.fd;
-        o.fd = -1;
-        return *this;
-    }
-
-    ~FD() { if ( fd >= 0 ) close( fd ); }
-    int fd;
-};
 
 int addrsize( const std::string &path ) {
     return offsetof( sockaddr_un, sun_path ) + path.size() + 1;
@@ -429,21 +407,7 @@ struct Eval
     const Config &_config;
 };
 
-std::atomic< bool > end;
-std::atomic< bool > hotrestart;
-
-void setupSignals() {
-    std::signal( SIGPIPE, SIG_IGN );
-    std::signal( SIGUSR1, []( int ) -> void {
-            end = true;
-            hotrestart = true;
-        } );
-    std::signal( SIGTERM, []( int ) -> void {
-            end = true;
-        } );
-}
-
-int start( const std::string &insock ) {
+int start( const std::string &insock, const Config &config ) {
     INFO( "Creating socket" );
     int input = socket( AF_UNIX, SOCK_STREAM, 0 );
     input >= 0 || SYSDIE( "socket" );
@@ -459,20 +423,21 @@ int start( const std::string &insock ) {
     chmod( insock.c_str(), 0666 ) == 0 || SYSDIE( "chmod" );
 
     INFO( "Setting up socket for listening" );
-    listen( input, MAX_WORKERS ) == 0 || SYSDIE( "listen" );
-
-    // set timeout, only so that signals can iterrupt the waiting (for the sake
-    // of termination and hot restart)
-    struct timeval timeo { .tv_sec = 3600 * 24 * 7 * 365, .tv_usec = 0 };
-    int r = setsockopt( input, SOL_SOCKET, SO_RCVTIMEO, &timeo, sizeof( timeo ) );
-    if ( r != 0 )
-        SYSWARN( "setsockopt( SO_RCVTIMEO )" );
+    listen( input, config.max_workers ) == 0 || SYSDIE( "listen" );
 
     return input;
 }
 
 int main( int argc, char **argv )
 {
+    // setup signals
+    SignalFD sfd;
+    sfd.add( { SIGUSR1, SIGTERM } );
+    std::signal( SIGPIPE, SIG_IGN );
+
+    std::atomic< bool > end = false;
+    std::atomic< bool > hotrestart = false;
+
     Config config;
 
     std::vector< std::string > args{ argv, argv + argc };
@@ -486,7 +451,6 @@ int main( int argc, char **argv )
     auto self = *argit;
     ++argit;
 
-    setupSignals();
     int input = -1;
 
     if ( hasOpt() && *argit == "--hotstart" ) {
@@ -506,12 +470,19 @@ int main( int argc, char **argv )
     }
 
     if ( input < 0 )
-        input = start( insock );
+        input = start( insock, config );
+
 
     INFO( "Listening on " + std::to_string( input ) + ", insock = " + insock +
           ", qdir = " + config.qdir + ", hsExprTest = " + config.checker[ "ib015" ] );
 
     setenv( "LANG", "en_US.UTF-8", 1 );
+
+    std::array< struct pollfd, 2 > pollfds;
+    std::memset( pollfds.begin(), 0, pollfds.size() );
+    pollfds[0].fd = sfd.fd();
+    pollfds[1].fd = input;
+    pollfds[0].events = pollfds[1].events = POLLIN;
 
   main_loop:
     {
@@ -521,8 +492,29 @@ int main( int argc, char **argv )
 
         wp.start( [ev, &work]( auto & ) mutable { ev.loop( work ); }, end );
         while ( !end ) {
-            work.push( [input]() -> std::optional< FD > {
+            work.push( [input, &sfd, &pollfds, &hotrestart, &end]() -> std::optional< FD > {
                     INFO( "Accepting socket..." );
+                    int p = poll( pollfds.data(), pollfds.size(), -1 );
+
+                    if ( p < 0 ) { // error
+                        SYSWARN( "poll failed" );
+                        return { };
+                    }
+                    ASSERT_NEQ( p, 0 ); // timeout
+
+                    if ( pollfds[0].revents & POLLIN ) {
+                        switch ( int sig = sfd.readsig().signum() ) {
+                            case SIGUSR1:
+                                hotrestart = true;
+                                [[fallthrough]];
+                            case SIGTERM:
+                                end = true;
+                                return { };
+                            default:
+                                UNREACHABLE_F( "unexpected signal %d", sig );
+                        }
+                    }
+
                     FD isSock{ accept( input, nullptr, nullptr ) };
                     if ( !isSock ) {
                         if ( errno == EBADF )
