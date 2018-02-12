@@ -1,3 +1,5 @@
+#pragma once
+
 #include <unistd.h>
 
 namespace exprtest {
