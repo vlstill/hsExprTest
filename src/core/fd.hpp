@@ -1,3 +1,5 @@
+// (c) 2018 Vladimír Štill
+
 #pragma once
 
 #include <unistd.h>
