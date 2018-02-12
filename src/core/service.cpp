@@ -33,6 +33,7 @@
 #include <poll.h>
 
 #include "signalfd.hpp"
+#include "config.hpp"
 
 using namespace std::literals;
 
@@ -42,12 +43,7 @@ using Duration = Timer::duration;
 using Seconds = std::chrono::seconds;
 using Milliseconds = std::chrono::milliseconds;
 
-struct Config {
-    int max_workers = 4;
-    bool allow_isolation = false;
-    std::string qdir;
-    std::map< std::string, std::string > checker;
-};
+using Config = exprtest::Config;
 
 struct Worker
 {
@@ -295,10 +291,6 @@ struct Eval
         return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
     }
 
-    std::string qdir( std::string course ) const {
-        return _config.qdir; //  + "/"s + course;
-    }
-
     // input: a packet in the form "I<xid>Q<id>S<solution>" or
     // "HI<xid>Q<id>S<solution>" (where 'H' at the beginning stands for hint mode)
     //
@@ -346,7 +338,7 @@ struct Eval
                 student << solution;
             }
             {
-                auto q = qdir( course ) + "/"s + std::string( id ) + ".q"s;
+                auto q = _config.qdir( course ) + "/"s + std::string( id ) + ".q"s;
                 auto qs = { q + ".hs", q + ".cpp", q + ".c", q + ".prolog", q + ".py", q };
 
                 for ( auto qf : qs ) {
@@ -359,10 +351,14 @@ struct Eval
                 }
             }
 
-            std::vector< std::string > args = { _config.checker.at( course ), qfile, studentfile, "-I" + qdir( course ) };
+            std::vector< std::string > args = { _config[ course ].checker,
+                                                qfile,
+                                                studentfile,
+                                                "-I" + _config.qdir( course )
+                                              };
             if ( hint )
                 args.push_back( "--hint" );
-            auto r = spawnAndWait( _config.allow_isolation, course, args );
+            auto r = spawnAndWait( _config[course].isolation, course, args );
 
             std::stringstream reply;
             reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
@@ -407,20 +403,20 @@ struct Eval
     const Config &_config;
 };
 
-int start( const std::string &insock, const Config &config ) {
+int start( const Config &config ) {
     INFO( "Creating socket" );
     int input = socket( AF_UNIX, SOCK_STREAM, 0 );
     input >= 0 || SYSDIE( "socket" );
 
     INFO( "Binding socket" );
-    unlink( insock.c_str() );
-    int ilen = addrsize( insock );
+    unlink( config.socket.c_str() );
+    int ilen = addrsize( config.socket );
     sockaddr_un *inaddr = reinterpret_cast< sockaddr_un * >( alloca( ilen ) );
     inaddr->sun_family = AF_UNIX;
-    std::copy( insock.begin(), insock.end(), inaddr->sun_path );
-    inaddr->sun_path[ insock.size() ] = 0;
+    std::copy( config.socket.begin(), config.socket.end(), inaddr->sun_path );
+    inaddr->sun_path[ config.socket.size() ] = 0;
     bind( input, reinterpret_cast< const sockaddr * >( inaddr ), ilen ) == 0 || SYSDIE( "bind" );
-    chmod( insock.c_str(), 0666 ) == 0 || SYSDIE( "chmod" );
+    chmod( config.socket.c_str(), 0666 ) == 0 || SYSDIE( "chmod" );
 
     INFO( "Setting up socket for listening" );
     listen( input, config.max_workers ) == 0 || SYSDIE( "listen" );
@@ -443,15 +439,12 @@ int main( int argc, char **argv )
     std::vector< std::string > args{ argv, argv + argc };
     std::vector< std::string > persistArgs;
     auto argit = args.begin();
-    std::string insock = "/var/lib/checker/socket";
-    config.qdir= "/var/lib/checker/qdir";
-    config.checker[ "ib015" ] = "hsExprTest";
     auto hasOpt = [&] { return argit != args.end(); };
 
-    auto self = *argit;
     ++argit;
 
     int input = -1;
+    std::string conffile;
 
     if ( hasOpt() && *argit == "--hotstart" ) {
         ++argit;
@@ -461,7 +454,7 @@ int main( int argc, char **argv )
         ++argit;
     }
 
-    for ( auto *opt : { &insock, &config.qdir, &config.checker[ "ib015" ] } ) {
+    for ( auto *opt : { &conffile } ) {
         if ( hasOpt() ) {
             persistArgs.push_back( *argit );
             *opt = *argit;
@@ -469,12 +462,22 @@ int main( int argc, char **argv )
         }
     }
 
+    if ( !conffile.empty() ) {
+        ASSERT( brick::fs::access( conffile, R_OK ) );
+        INFO( "loading config from " + conffile );
+        config.load( conffile );
+    } else {
+        config.socket = "/var/lib/checker/socket";
+        config.qdir_root = "/var/lib/checker/qdir";
+        config.courses[ "ib015" ] = { "ib015", "hsExprTest", std::nullopt, false };
+    }
+
     if ( input < 0 )
-        input = start( insock, config );
+        input = start( config );
 
 
-    INFO( "Listening on " + std::to_string( input ) + ", insock = " + insock +
-          ", qdir = " + config.qdir + ", hsExprTest = " + config.checker[ "ib015" ] );
+    INFO( "Listening on " + std::to_string( input ) + ", socket = " + config.socket +
+          ", qdir = " + config.qdir_root + ", hsExprTest = " + config[ "ib015" ].checker );
 
     setenv( "LANG", "en_US.UTF-8", 1 );
 
