@@ -8,6 +8,8 @@
 #include "fd.hpp"
 #include "fun.hpp"
 
+namespace exprtest {
+
 struct SignalFD
 {
     SignalFD() : _sigfd( -1 ) {
@@ -66,3 +68,4 @@ struct SignalFD
     sigset_t _sigset;
 };
 
+}

@@ -35,6 +35,8 @@
 #include "signalfd.hpp"
 #include "config.hpp"
 
+namespace exprtest {
+
 using namespace std::literals;
 
 using Timer = std::chrono::steady_clock;
@@ -42,8 +44,6 @@ using Time = Timer::time_point;
 using Duration = Timer::duration;
 using Seconds = std::chrono::seconds;
 using Milliseconds = std::chrono::milliseconds;
-
-using Config = exprtest::Config;
 
 struct Worker
 {
@@ -424,8 +424,11 @@ int start( const Config &config ) {
     return input;
 }
 
+} // namespace exprtest
+
 int main( int argc, char **argv )
 {
+    using namespace exprtest;
     // setup signals
     SignalFD sfd;
     sfd.add( { SIGUSR1, SIGTERM } );

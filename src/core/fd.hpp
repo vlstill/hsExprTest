@@ -1,5 +1,7 @@
 #include <unistd.h>
 
+namespace exprtest {
+
 // unique_ptr-like holder for file descriptors
 struct FD {
     FD() : fd( -1 ) { }
@@ -24,3 +26,4 @@ struct FD {
     int fd;
 };
 
+}
