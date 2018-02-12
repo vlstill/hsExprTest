@@ -1,5 +1,16 @@
 // (c) 2015-2018 Vladimír Štill
 
+#include "work.hpp"
+#include "signalfd.hpp"
+#include "config.hpp"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused"
+#include <brick-assert>
+#include <brick-fs>
+#include <brick-proc>
+#pragma GCC diagnostic pop
+
 #include <string>
 #include <iostream>
 #include <cstdlib>
@@ -16,13 +27,6 @@
 #include <atomic>
 #include <array>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused"
-#include <brick-assert>
-#include <brick-fs>
-#include <brick-proc>
-#pragma GCC diagnostic pop
-
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -31,10 +35,6 @@
 #include <sys/stat.h>
 #include <alloca.h>
 #include <poll.h>
-
-#include "work.hpp"
-#include "signalfd.hpp"
-#include "config.hpp"
 
 namespace exprtest {
 

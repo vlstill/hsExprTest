@@ -6,8 +6,12 @@
 #include <string_view>
 #include <optional>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused"
 #include <brick-assert>
 #include <brick-fs>
+#include <brick-string>
+#pragma GCC diagnostic pop
 
 namespace exprtest {
 
