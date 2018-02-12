@@ -31,10 +31,12 @@ ${CONFIG_STAMP} :
 	make ${BUILD_DIR}/${SANDBOX_DIR}
 	touch $@
 
-build : ${CONFIG_STAMP} ${BUILD_DIR}/hsExprTest-service ${BUILD_DIR}/hsExprTest
+build : ${CONFIG_STAMP} service ${BUILD_DIR}/hsExprTest
 	cd ${BUILD_DIR} && cabal install ${HS_CABAL}
 
-${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp ${BUILD_DIR}/obj
+service : ${BUILD_DIR}/hsExprTest-service
+
+${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hpp) ${BUILD_DIR}/obj
 	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
 
 ${BUILD_DIR}/hsExprTest-service :	${BUILD_DIR}/obj/service.o
