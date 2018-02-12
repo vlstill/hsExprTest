@@ -176,6 +176,10 @@ struct Eval
             }
 
             std::string course = "ib015";
+            if ( auto c = id.find( ':' ); c != std::string_view::npos ) {
+                course = id.substr( 0, c );
+                id = id.substr( c + 1 );
+            }
 
             auto solution = packet.substr( spos + 1 );
 
