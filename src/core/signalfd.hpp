@@ -6,7 +6,6 @@
 #include <initializer_list>
 
 #include "fd.hpp"
-#include "fun.hpp"
 
 namespace exprtest {
 
