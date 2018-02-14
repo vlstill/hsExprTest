@@ -231,27 +231,22 @@ struct Eval
     {
         _buffer.resize( MAX_PKG_LEN );
         try {
-            INFO( "work pop" );
             auto isSock = work.pop();
             if ( !isSock ) {
-                INFO( "no work here" );
                 return;
             }
 
             RQT _;
 
-            INFO( "connection established" );
             int rsize = recv( isSock->fd, &_buffer[0], MAX_PKG_LEN, 0 );
 
             if ( rsize < 0 ) {
                 SYSWARN( "recv" );
             }
             else {
-                INFO( "packet received" );
                 _buffer.resize( rsize );
                 auto reply = runChecker( _buffer );
                 send( isSock->fd, reply.c_str(), reply.size(), 0 ) == int( reply.size() ) || SYSWARN( "send" );
-                INFO( "Request handled" );
             }
         } catch ( std::exception &ex ) {
             WARN( "EXCEPTION: "s + ex.what() );
