@@ -15,15 +15,11 @@
 var syntax_check;
 
 if (typeof syntax_check !== 'function') {
-	var skripty = {
-        ib015: 'https://hesperia.fi.muni.cz/is',
-		test: 'https://www.fi.muni.cz/~xmajor/cgi-bin/cors.pl'
-	}, otazky = {};
+	var url = 'https://hesperia.fi.muni.cz/is', otazky = {};
 
 	var onl = window.onload || function() {};
 	window.onload = function() {
 		onl();
-		var url = typeof predmet == 'string' && predmet in skripty ? skripty[predmet] : skripty.test;
 		var pole = document.getElementsByTagName('textarea');
 		for (var n in otazky) {
 			// cilova textarea je n-ta v poradi
