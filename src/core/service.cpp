@@ -185,25 +185,29 @@ struct Eval
 
             brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
                                    brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
-            std::string studentfile = wd.path + "/StudentRaw.hs"s;
+            std::string studentfile = wd.path + "/StudentRaw";
             std::string qfile;
 
             {
-                std::ofstream student( studentfile );
-                student << solution;
-            }
-            {
                 auto q = _config.qdir( course ) + "/"s + std::string( id ) + ".q"s;
-                auto qs = { q + ".hs", q + ".cpp", q + ".c", q + ".prolog", q + ".py", q };
+                auto exts = { ".hs", ".py" };
 
-                for ( auto qf : qs ) {
-                    if ( brick::fs::access( qf, R_OK ) )
-                        qfile = qf;
+                for ( auto e : exts ) {
+                    auto name = q + e;
+                    if ( brick::fs::access( name, R_OK ) ) {
+                        qfile = name;
+                        studentfile += e;
+                        break;
+                    }
                 }
                 if ( qfile.empty() ) {
                     INFO( "Unknown ID" );
                     return replyUnknown();
                 }
+            }
+            {
+                std::ofstream student( studentfile );
+                student << solution;
             }
 
             std::vector< std::string > args = { _config[ course ].checker,
