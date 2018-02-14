@@ -10,6 +10,8 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused"
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wignored-attributes"
 #include <brick-assert>
 #include <brick-fs>
 #include <brick-string>
