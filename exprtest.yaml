@@ -3,5 +3,9 @@ qdir_root: /home/xstill/repo/ib015_questions
 courses:
   - name: ib015
     isolation: false
-    checker: hsExprTest
+    checker: ./hsExprTest
     qdir: .
+  - name: ib002
+    isolation: false
+    checker: ./pycheck
+    qdir: /tmp
