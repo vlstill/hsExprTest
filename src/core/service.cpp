@@ -75,7 +75,7 @@ struct Msg {
             else
                 std::cerr << "INFO: ";
             std::cerr << msg;
-            if ( file )
+            if ( verbose && file )
                 std::cerr << ", at " << file << ":" << line
                           << " (" << func << ")" << std::endl;
             if ( level == Level::Error )
@@ -83,7 +83,7 @@ struct Msg {
         }
     }
 
-    bool inhibit = false;
+    bool inhibit = false, verbose = false;
     const Level level;
     std::string msg;
     const char *file = nullptr;
