@@ -25,73 +25,77 @@ if (typeof syntax_check !== 'function') {
 			// cilova textarea je n-ta v poradi
 			var txa = pole[n],
 				wrap = document.createElement('p'),
-				btn = document.createElement('input'),
                 up = document.createElement('input'),
 				res = document.createElement('span');
-			btn.type = 'button';
-			btn.value = 'Zkontrolovat syntax';
             up.type = 'file';
-			(function(n, txa, btn, res, up) {
-				btn.onclick = function() {
-					var xhr = new XMLHttpRequest(),
-						data = 'id=' + otazky[n] + '&odp=' + encodeURIComponent(txa.value);
-					if ('withCredentials' in xhr) {
-						xhr.open('POST', url, true);
-						xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-						xhr.onreadystatechange = function() {
-							if (this.readyState == 4 && this.status == 200) {
-								var text, barva;
-								var resp = "<pre>"
-								           + this.responseText.replace( /^n?ok~~/, '' ).replace( /check_id=.*/, '' )
-								           + "</pre>";
-								if (/^ok/.test(this.responseText)) {
-									text = 'V pořádku.\n' + resp;
-									barva = 'green';
-								} else {
-									text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>'
-									       + resp;
-									barva = 'red';
-								}
-								res.innerHTML = text;
-								res.style.color = barva;
-							}
-						};
-						xhr.send(data);
 
-						// odpocet 10 sekund do dalsi kontroly
-						this.disabled = true;
-						this.value += ' (10)';
-						res.innerHTML = 'Probíhá dotazování na server...';
-						res.style.color = 'gray';
-						setTimeout(function() {
-							var zbyva = parseInt(btn.value.match(/\((\d+)\)$/)[1], 10);
-							if (zbyva > 1) {
-								btn.value = btn.value.replace(/\(\d+\)$/, '(' + (zbyva - 1) + ')');
-								setTimeout(arguments.callee, 1000);
-							} else {
-								btn.disabled = false;
-								btn.value = btn.value.replace(/\s+\(\d+\)$/, '');
-							}
-						}, 1000);
-					} else {
-						this.disabled = true;
-						this.value = 'Kontrola syntaxe není v tomto prohlížeči dostupná.';
-					}
-				};
-                up.addEventListener('change', function(evt) {
-                        var file = evt.target.files[0];
-                        if ( file ) {
-                            var reader = new FileReader();
-                            reader.onloadend = function ( ev ) {
-                                txa.value = this.result;
+            if ( otazky[n] != null ) {
+                var btn = document.createElement('input');
+                btn.type = 'button';
+                btn.value = 'Zkontrolovat syntax';
+                (function(n, txa, btn, res, up) {
+                    btn.onclick = function() {
+                        var xhr = new XMLHttpRequest(),
+                            data = 'id=' + otazky[n] + '&odp=' + encodeURIComponent(txa.value);
+                        if ('withCredentials' in xhr) {
+                            xhr.open('POST', url, true);
+                            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+                            xhr.onreadystatechange = function() {
+                                if (this.readyState == 4 && this.status == 200) {
+                                    var text, barva;
+                                    var resp = "<pre>"
+                                               + this.responseText.replace( /^n?ok~~/, '' ).replace( /check_id=.*/, '' )
+                                               + "</pre>";
+                                    if (/^ok/.test(this.responseText)) {
+                                        text = 'V pořádku.\n' + resp;
+                                        barva = 'green';
+                                    } else {
+                                        text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>'
+                                               + resp;
+                                        barva = 'red';
+                                    }
+                                    res.innerHTML = text;
+                                    res.style.color = barva;
+                                }
                             };
-                            reader.readAsText( file );
-                        }
-                    }, false );
-			})(n, txa, btn, res, up);
-			res.style.paddingLeft = '1em';
+                            xhr.send(data);
 
-			wrap.appendChild(btn);
+                            // odpocet 10 sekund do dalsi kontroly
+                            this.disabled = true;
+                            this.value += ' (10)';
+                            res.innerHTML = 'Probíhá dotazování na server...';
+                            res.style.color = 'gray';
+                            setTimeout(function() {
+                                var zbyva = parseInt(btn.value.match(/\((\d+)\)$/)[1], 10);
+                                if (zbyva > 1) {
+                                    btn.value = btn.value.replace(/\(\d+\)$/, '(' + (zbyva - 1) + ')');
+                                    setTimeout(arguments.callee, 1000);
+                                } else {
+                                    btn.disabled = false;
+                                    btn.value = btn.value.replace(/\s+\(\d+\)$/, '');
+                                }
+                            }, 1000);
+                        } else {
+                            this.disabled = true;
+                            this.value = 'Kontrola syntaxe není v tomto prohlížeči dostupná.';
+                        }
+                    };
+                    up.addEventListener('change', function(evt) {
+                            var file = evt.target.files[0];
+                            if ( file ) {
+                                var reader = new FileReader();
+                                reader.onloadend = function ( ev ) {
+                                    txa.value = this.result;
+                                };
+                                reader.readAsText( file );
+                            }
+                        }, false );
+                })(n, txa, btn, res, up);
+
+                wrap.appendChild(btn);
+            }
+
+			res.style.paddingLeft = '1em';
             wrap.appendChild(up);
             wrap.appendChild( document.createElement('br') );
 			wrap.appendChild(res);
