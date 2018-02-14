@@ -33,7 +33,7 @@ if (typeof syntax_check !== 'function') {
                 var btn = document.createElement('input');
                 btn.type = 'button';
                 btn.value = 'Zkontrolovat syntax';
-                (function(n, txa, btn, res, up) {
+                (function(n, txa, btn, res) {
                     btn.onclick = function() {
                         var xhr = new XMLHttpRequest(),
                             data = 'id=' + otazky[n] + '&odp=' + encodeURIComponent(txa.value);
@@ -80,20 +80,21 @@ if (typeof syntax_check !== 'function') {
                             this.value = 'Kontrola syntaxe není v tomto prohlížeči dostupná.';
                         }
                     };
-                    up.addEventListener('change', function(evt) {
-                            var file = evt.target.files[0];
-                            if ( file ) {
-                                var reader = new FileReader();
-                                reader.onloadend = function ( ev ) {
-                                    txa.value = this.result;
-                                };
-                                reader.readAsText( file );
-                            }
-                        }, false );
-                })(n, txa, btn, res, up);
-
+                })(n, txa, btn, res);
                 wrap.appendChild(btn);
             }
+            (function(txa, up) {
+                up.addEventListener('change', function(evt) {
+                        var file = evt.target.files[0];
+                        if ( file ) {
+                            var reader = new FileReader();
+                            reader.onloadend = function ( ev ) {
+                                txa.value = this.result;
+                            };
+                            reader.readAsText( file );
+                        }
+                    }, false );
+            })(txa, up);
 
 			res.style.paddingLeft = '1em';
             wrap.appendChild(up);
