@@ -12,7 +12,7 @@
 // Access-Control-Allow-Origin: https://is.muni.cz
 // Access-Control-Allow-Methods: POST
 
-var syntax_check;
+var syntax_check, upload;
 
 if (typeof syntax_check !== 'function') {
 	var url = 'https://hesperia.fi.muni.cz/is', otazky = {};
@@ -108,4 +108,5 @@ if (typeof syntax_check !== 'function') {
 		// v okamziku volani funkce nase textarea jeste neexistuje, ale bude to hned ta nejblizsi
 		otazky[document.getElementsByTagName('textarea').length] = id;
 	};
+    upload = function() { syntax_check( null ); };
 }
