@@ -77,7 +77,8 @@ struct Msg {
             std::cerr << msg;
             if ( verbose && file )
                 std::cerr << ", at " << file << ":" << line
-                          << " (" << func << ")" << std::endl;
+                          << " (" << func << ")";
+            std::cerr << std::endl;
             if ( level == Level::Error )
                 std::abort();
         }
