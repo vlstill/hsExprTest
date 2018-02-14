@@ -1,0 +1,15 @@
+[Unit]
+Description=hsExprTest IS frontend socket
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "cd /home/checker/hsExprTest/_build/; PATH=$PWD:/opt/ghc-8.2.1/bin:$PATH ./hsExprTest-service /home/checker/hsExprTest/hesperia.yaml"
+User=checker
+Group=checker
+Restart=always
+RestartSec=5
+
+[Install]
+
+[Install]
+WantedBy=multi-user.target
