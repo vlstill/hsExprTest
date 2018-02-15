@@ -280,6 +280,8 @@ struct Eval
                                                 studentfile,
                                                 "-I" + _config.qdir( course )
                                               };
+            if ( hint && !_config[ course ].hint )
+                throw std::runtime_error( "unauthorized" );
             if ( hint )
                 args.push_back( "--hint" );
             auto r = spawnAndWait( _config[course].isolation, course, args );

@@ -27,6 +27,7 @@ struct Config
         std::string checker;
         std::optional< std::string > qdir;
         bool isolation = false;
+        bool hint = false;
     };
 
     Config() = default;
@@ -70,15 +71,10 @@ struct Config
                     vcourses.back().checker = strip( val );
                 else if ( skey == "qdir" )
                     vcourses.back().qdir = strip( val );
-                else if ( skey == "isolation" ) {
-                    auto sval = strip( val );
-                    if ( sval == "true" || sval == "yes" || sval == "1" )
-                        vcourses.back().isolation = true;
-                    else if ( sval == "false" || sval == "no" || sval == "0" )
-                        vcourses.back().isolation = false;
-                    else
-                        UNREACHABLE_F( "unexpected value for isolation: %s", val.c_str() );
-                }
+                else if ( skey == "isolation" )
+                    vcourses.back().isolation = to_bool( val );
+                else if ( skey == "hint" )
+                    vcourses.back().hint = to_bool( val );
             } else
                 UNREACHABLE_F( "unexpected config key: %s", key.c_str() );
         }
@@ -112,6 +108,15 @@ struct Config
     static bool new_arr_entry( std::string_view s ) {
         s = strip( s );
         return !s.empty() && s[0] == '-';
+    }
+
+    static bool to_bool( std::string_view val ) {
+        auto sval = strip( val );
+        if ( sval == "true" || sval == "yes" || sval == "1" )
+            return true;
+        if ( sval == "false" || sval == "no" || sval == "0" )
+            return false;
+        UNREACHABLE_F( "unexpected value for isolation: %s", val.data() );
     }
 
     const Course &operator[]( const std::string &c ) const {

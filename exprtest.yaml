@@ -5,6 +5,7 @@ courses:
     isolation: false
     checker: ./hsExprTest
     qdir: .
+    hint: true
   - name: ib002
     isolation: false
     checker: ./pycheck
