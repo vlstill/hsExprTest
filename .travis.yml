@@ -40,3 +40,5 @@ addons:
       - time
       - g++-7
       - ghc-8.2
+      - acl
+      - libacl1-dev
