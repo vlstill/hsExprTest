@@ -35,6 +35,9 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/acl.h>
+#include <pwd.h>
+
 #include <alloca.h>
 #include <poll.h>
 
@@ -131,6 +134,8 @@ struct Eval
 {
     Eval( const Config &c ) : _config( c ) { }
 
+    static std::string sudousr( std::string course ) { return "rc-"s + course; }
+
     static std::string replyError( long xid, std::string msg ) {
         WARN( msg );
         std::stringstream reply;
@@ -141,7 +146,7 @@ struct Eval
     static auto spawnAndWait( bool sudo, std::string usr, std::vector< std::string > args )
     {
         if ( sudo )
-            args.insert( args.begin(), { "sudo",  "-n", "-u", "rc-"  + usr } );
+            args.insert( args.begin(), { "sudo",  "-n", "-u", sudousr( usr ) } );
         return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
     }
 
@@ -188,6 +193,63 @@ struct Eval
 
             brick::fs::TempDir wd( "hsExprTestService.XXXXXX",
                                    brick::fs::AutoDelete::Yes, brick::fs::UseSystemTemp::Yes );
+
+            if ( _config[ course ].isolation )
+            {
+                auto usrname = sudousr( course );
+                auto passwd = getpwnam( usrname.c_str() );
+                ASSERT( passwd != nullptr && "getpwnam" );
+                auto checker = geteuid();
+
+                // normal ACL
+                acl_t acl = acl_get_file( wd.path.c_str(), ACL_TYPE_ACCESS );
+                ASSERT( acl != 0 && "acl_get_file" );
+
+                // grant SUDO user rwx
+                acl_entry_t usr_perms;
+                auto r = acl_create_entry( &acl, &usr_perms );
+                ASSERT( r == 0 && "acl_create_entry" );
+
+                r = acl_set_tag_type( usr_perms, ACL_USER );
+                ASSERT( r == 0 && "acl_set_tag_type" );
+                r = acl_set_qualifier( usr_perms, &passwd->pw_uid );
+                ASSERT( r == 0 && "acl_set_qualifier" );
+                acl_permset_t usr_permset;
+                r = acl_get_permset( usr_perms, &usr_permset );
+                ASSERT( r == 0 && "acl_get_permset" );
+                r = acl_add_perm( usr_permset, ACL_READ | ACL_WRITE | ACL_EXECUTE );
+                ASSERT( r == 0 && "acl_add_perm" );
+
+                r = acl_calc_mask( &acl );
+                ASSERT( r == 0 && "acl_add_perm" );
+
+                acl_set_file( wd.path.c_str(), ACL_TYPE_ACCESS, acl );
+
+                // ACL for default entry - based on normal
+                acl_t defacl = acl_dup( acl );
+                ASSERT( defacl != 0 && "acl_dup" );
+
+                // add RWX for checker so we can delete everything
+                acl_entry_t checker_rwx;
+                r = acl_create_entry( &defacl, &checker_rwx );
+                ASSERT( r == 0 && "acl_create_entry" );
+
+                r = acl_set_tag_type( checker_rwx, ACL_USER );
+                ASSERT( r == 0 && "acl_set_tag_type" );
+                r = acl_set_qualifier( checker_rwx, &checker );
+                ASSERT( r == 0 && "acl_set_qualifier" );
+                acl_permset_t checker_permset;
+                r = acl_get_permset( checker_rwx, &checker_permset );
+                ASSERT( r == 0 && "acl_get_permset" );
+                r = acl_add_perm( checker_permset, ACL_READ | ACL_WRITE | ACL_EXECUTE );
+                ASSERT( r == 0 && "acl_add_perm" );
+
+                acl_set_file( wd.path.c_str(), ACL_TYPE_DEFAULT, defacl );
+
+                acl_free( acl );
+                acl_free( defacl );
+            }
+
             std::string studentfile = wd.path + "/StudentRaw";
             std::string qfile;
 

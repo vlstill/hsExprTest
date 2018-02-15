@@ -41,7 +41,7 @@ ${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hp
 
 ${BUILD_DIR}/hsExprTest-service :	${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
-	$(CXX) $(LDFLAGS) $< -o $@ -pthread
+	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
 ${BUILD_DIR}/hsExprTest :
 	echo "#!/usr/bin/env bash" > $@
