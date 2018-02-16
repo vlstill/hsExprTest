@@ -143,11 +143,14 @@ struct Eval
         return reply.str();
     }
 
-    static auto spawnAndWait( bool sudo, std::string usr, std::vector< std::string > args )
+    static auto spawnAndWait( bool sudo, std::string usr, std::string wd,
+                              std::vector< std::string > args )
     {
         if ( sudo )
             args.insert( args.begin(), { "sudo",  "-n", "-u", sudousr( usr ) } );
-        return brick::proc::spawnAndWait( brick::proc::CaptureStdout, args );
+        return brick::proc::spawnAndWait( brick::proc::CaptureStdout
+                                          | brick::proc::WorkDir( wd ),
+                                          args );
     }
 
     // input: a packet in the form "I<xid>Q<id>S<solution>" or
@@ -284,7 +287,7 @@ struct Eval
                 throw std::runtime_error( "unauthorized" );
             if ( hint )
                 args.push_back( "--hint" );
-            auto r = spawnAndWait( _config[course].isolation, course, args );
+            auto r = spawnAndWait( _config[course].isolation, course, wd.path, args );
 
             std::stringstream reply;
             reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
