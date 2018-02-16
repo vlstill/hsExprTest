@@ -36,8 +36,8 @@ build : ${CONFIG_STAMP} service ${BUILD_DIR}/hsExprTest
 
 service : ${BUILD_DIR}/hsExprTest-service
 
-${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hpp) ${BUILD_DIR}/obj
-	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks/bricks -pthread $< -o $@
+${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hpp) $(wildcard ext/bricks/*) ${BUILD_DIR}/obj
+	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks -pthread $< -o $@
 
 ${BUILD_DIR}/hsExprTest-service :	${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service

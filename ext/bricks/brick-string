@@ -1,0 +1,423 @@
+// -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
+/*
+ * String utilities.
+ */
+
+/*
+ * (c) 2007 Enrico Zini <enrico@enricozini.org>
+ * (c) 2014 Petr Ročkai <me@mornfall.net>
+ */
+
+/* Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE. */
+
+#include <string>
+#include <cctype>
+#include <cstring>
+#include <cstdarg>
+#include <cstdlib>
+#include <cstddef>
+
+#include <deque>
+#include <vector>
+#include <set>
+#include <stdexcept>
+#include <regex>
+
+#include <brick-assert>
+
+#ifndef BRICK_STRING_H
+#define BRICK_STRING_H
+
+namespace brick {
+namespace string {
+
+#if _WIN32 || __xlC__
+namespace {
+
+int vasprintf (char **result, const char *format, va_list args)
+{
+  const char *p = format;
+  /* Add one to make sure that it is never zero, which might cause malloc
+     to return NULL.  */
+  int total_width = strlen (format) + 1;
+  va_list ap;
+
+  memcpy (static_cast< void * >( &ap ), static_cast< void * >( &args ), sizeof (va_list));
+
+  while (*p != '\0')
+    {
+      if (*p++ == '%')
+	{
+	  while (strchr ("-+ #0", *p))
+	    ++p;
+	  if (*p == '*')
+	    {
+	      ++p;
+	      total_width += abs (va_arg (ap, int));
+	    }
+	  else
+	    total_width += strtoul (p, const_cast< char ** >( &p ), 10);
+	  if (*p == '.')
+	    {
+	      ++p;
+	      if (*p == '*')
+		{
+		  ++p;
+		  total_width += abs (va_arg (ap, int));
+		}
+	      else
+	      total_width += strtoul (p, const_cast< char ** >( &p ), 10);
+	    }
+	  while (strchr ("hlL", *p))
+	    ++p;
+	  /* Should be big enough for any format specifier except %s and floats.  */
+	  total_width += 30;
+	  switch (*p)
+	    {
+	    case 'd':
+	    case 'i':
+	    case 'o':
+	    case 'u':
+	    case 'x':
+	    case 'X':
+	    case 'c':
+	      (void) va_arg (ap, int);
+	      break;
+	    case 'f':
+	    case 'e':
+	    case 'E':
+	    case 'g':
+	    case 'G':
+	      (void) va_arg (ap, double);
+	      /* Since an ieee double can have an exponent of 307, we'll
+		 make the buffer wide enough to cover the gross case. */
+	      total_width += 307;
+	      break;
+	    case 's':
+	      total_width += strlen (va_arg (ap, char *));
+	      break;
+	    case 'p':
+	    case 'n':
+	      (void) va_arg (ap, char *);
+	      break;
+	    }
+	  p++;
+	}
+    }
+  *result = static_cast< char * >( malloc (total_width) );
+  if (*result != NULL) {
+    return vsprintf (*result, format, args);}
+  else {
+    return 0;
+  }
+}
+
+}
+#endif
+
+namespace {
+
+std::string fmtf( const char* f, ... ) {
+    char *c;
+    va_list ap;
+    va_start( ap, f );
+    int r UNUSED = vasprintf( &c, f, ap );
+    std::string ret( c );
+    free( c );
+    return ret;
+}
+
+/// Format any value into a string using a std::stringstream
+template< typename T >
+inline std::string fmt(const T& val)
+{
+    std::stringstream str;
+    str << val;
+    return str.str();
+}
+
+// show chars as numbers
+inline std::string fmt( int8_t c ) { return fmt( int( c ) ); }
+inline std::string fmt( uint8_t c ) { return fmt( int( c ) ); }
+
+template< typename C >
+inline std::string fmt_container( const C &c, std::string f, std::string l, std::string sep = ", " )
+{
+    std::string s;
+    s += f;
+    if ( c.empty() )
+        return s + l;
+
+    s += ' ';
+    for ( typename C::const_iterator i = c.begin(); i != c.end(); ++i ) {
+        s += fmt( *i );
+        if ( i != c.end() && std::next( i ) != c.end() )
+            s += sep;
+    }
+    s += ' ';
+    s += l;
+    return s;
+}
+
+template< typename X >
+inline std::string fmt(const std::set< X >& val) {
+    return fmt_container( val, "{", "}" );
+}
+
+template< typename X >
+inline std::string fmt(const std::vector< X > &val) {
+    return fmt_container( val, "[", "]" );
+}
+
+template< typename X >
+inline std::string fmt(const std::deque< X > &val) {
+    return fmt_container( val, "[", "]" );
+}
+
+inline bool startsWith(const std::string& str, const std::string& part)
+{
+    if (str.size() < part.size())
+        return false;
+    return str.substr(0, part.size()) == part;
+}
+
+inline bool endsWith(const std::string& str, const std::string& part)
+{
+    if (str.size() < part.size())
+        return false;
+    return str.substr(str.size() - part.size()) == part;
+}
+
+}
+
+/**
+ * Simple string wrapper.
+ *
+ * wibble::text::Wrap takes a string and splits it in lines of the give length
+ * with proper word wrapping.
+ *
+ * Example:
+ * \code
+ * WordWrap ww("The quick brown fox jumps over the lazy dog");
+ * ww.get(5);  // Returns "The"
+ * ww.get(14); // Returns "quick brown"
+ * ww.get(3);  // Returns "fox"
+ * // A line always gets some text, to avoid looping indefinitely in case of
+ * // words that are too long.  Words that are too long are split crudely.
+ * ww.get(2);  // Returns "ju"
+ * ww.get(90); // Returns "mps over the lazy dog"
+ * \endcode
+ */
+class WordWrap
+{
+    std::string s;
+    size_t cursor;
+
+public:
+    /**
+     * Creates a new word wrapper that takes data from the given string
+     */
+WordWrap(const std::string& s) : s(s), cursor(0) {}
+
+    /**
+     * Rewind the word wrapper, restarting the output from the beginning of the
+     * string
+     */
+    void restart() { cursor = 0; }
+
+    /**
+     * Returns true if there is still data to be read in the string
+     */
+    bool hasData() const { return cursor < s.size(); }
+
+    /**
+     * Get a line of text from the string, wrapped to a maximum of \c width
+     * characters
+     */
+    std::string get(unsigned int width) {
+
+	if (cursor >= s.size())
+            return "";
+
+	// Find the last work break before `width'
+	unsigned int brk = cursor;
+	for (unsigned int j = cursor; j < s.size() && j < cursor + width; j++)
+	{
+            if (s[j] == '\n')
+            {
+                brk = j;
+                break;
+            } else if (!isspace(s[j]) && (j + 1 == s.size() || isspace(s[j + 1])))
+                brk = j + 1;
+	}
+	if (brk == cursor)
+            brk = cursor + width;
+
+	std::string res;
+	if (brk >= s.size())
+	{
+            res = std::string(s, cursor, std::string::npos);
+            cursor = s.size();
+	} else {
+            res = std::string(s, cursor, brk - cursor);
+            cursor = brk;
+            while (cursor < s.size() && isspace(s[cursor]))
+                cursor++;
+	}
+	return res;
+    }
+};
+
+/// Given a pathname, return the file name without its path
+inline std::string basename(const std::string& pathname)
+{
+    size_t pos = pathname.rfind("/");
+    if (pos == std::string::npos)
+        return pathname;
+    else
+        return pathname.substr(pos+1);
+}
+
+struct SplitRange {
+
+    using const_iterator = std::sregex_token_iterator;
+
+    SplitRange( std::string str, std::regex re ) :
+        re( std::move( re ) ), str( std::move( str ) )
+    { }
+
+    std::sregex_token_iterator begin() const {
+        return std::sregex_token_iterator( str.begin(), str.end(), re, -1 );
+    }
+
+    std::sregex_token_iterator end() { return { }; }
+
+  private:
+    std::regex re;
+    std::string str;
+};
+
+inline SplitRange splitStringBy( const std::string &str, const std::regex &re ) {
+    return SplitRange( str, re );
+}
+
+inline SplitRange splitStringBy( const std::string &str, const std::string &re,
+                          std::regex::flag_type flags = std::regex::basic )
+{
+    return SplitRange( str, std::regex( re, flags ) );
+}
+
+/**
+ * Split a string using a regular expression to match the token separators.
+ *
+ * This does a similar work to the split functions of perl, python and ruby.
+ *
+ * Example code:
+ * \code
+ *   utils::Splitter splitter( "[ \t]*,[ \t]*", std::regex::extended );
+ *   vector<string> split;
+ *   std::copy(splitter.begin(myString), splitter.end(), back_inserter(split));
+ * \endcode
+ *
+ */
+struct Splitter {
+
+    struct const_iterator : private std::string, public std::sregex_token_iterator {
+        const_iterator() = default;
+        const_iterator( std::string str, const std::regex &re ) :
+            std::string( str ),
+            std::sregex_token_iterator( std::string::begin(), std::string::end(),
+                    re, -1 )
+        { }
+    };
+
+    /**
+     * Create a splitter that uses the given regular expression to find tokens.
+     */
+    Splitter( const std::string &re, std::regex::flag_type flags )
+        : re( re, flags )
+    { }
+
+    explicit Splitter( std::regex &re ) : re( re ) { }
+
+    const_iterator begin( const std::string &str ) const {
+        return const_iterator( str, re );
+    }
+
+    const_iterator end() { return { }; }
+
+  private:
+    std::regex re;
+};
+
+}
+
+namespace t_string {
+
+using namespace brick::string;
+using std::string;
+
+struct TestRegexp {
+
+    TEST(splitter)
+    {
+        Splitter splitter("[ \t]+or[ \t]+", std::regex::extended | std::regex::icase );
+        Splitter::const_iterator i = splitter.begin("a or b OR c   or     dadada");
+        ASSERT_EQ(*i, "a");
+        ASSERT_EQ(i->length(), 1u);
+        ++i;
+        ASSERT_EQ(*i, "b");
+        ASSERT_EQ(i->length(), 1u);
+        ++i;
+        ASSERT_EQ(*i, "c");
+        ASSERT_EQ(i->length(), 1u);
+        ++i;
+        ASSERT_EQ(*i, "dadada");
+        ASSERT_EQ(i->length(), 6u);
+        ++i;
+        ASSERT(i == splitter.end());
+    }
+
+    TEST(splitString)
+    {
+        std::vector< std::string > matches = { "a", "b", "c", "dadada" };
+        auto i = matches.begin();
+
+        for ( const auto &m : splitStringBy( "a or b OR c   or     dadada", "[ \t]+or[ \t]+",
+                                std::regex::extended | std::regex::icase ) )
+        {
+            ASSERT( i != matches.end() );
+            ASSERT_EQ( m.length(), i->size() );
+            ASSERT_EQ( m, *i );
+            ++i;
+        }
+        ASSERT( i == matches.end() );
+    }
+};
+
+}
+}
+
+#endif
+// vim: syntax=cpp tabstop=4 shiftwidth=4 expandtab ft=cpp

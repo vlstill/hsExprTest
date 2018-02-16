@@ -1,0 +1,477 @@
+// -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
+/*
+ * (c) 2016 Vladimír Štill <xstill@fi.muni.cz>
+ */
+
+/* Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE. */
+
+#include <brick-except>
+#include <brick-fs>
+#include <brick-string>
+
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <iterator>
+#include <sstream>
+#include <iostream>
+#include <future>
+#include <memory>
+
+#if defined( __unix__ ) || defined( __divine__ )
+#include <termios.h>
+#include <unistd.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#endif
+
+#ifndef BRICK_PROC
+#define BRICK_PROC
+
+namespace brick {
+namespace proc {
+
+struct ProcError : brick::except::Error
+{
+    using brick::except::Error::Error;
+};
+
+enum SpawnOptsEnum : unsigned {
+    None = 0,
+    CaptureStdout = 0x1,
+    CaptureStderr = 0x2,
+    ShowCmd = 0x100
+};
+
+struct SpawnOpts {
+    SpawnOpts( SpawnOptsEnum f ) : flags( f ) { }
+    SpawnOpts( unsigned f ) : flags( SpawnOptsEnum( f ) ) { }
+    explicit SpawnOpts( std::string in ) : hasStdin( true ), in( in ) { }
+
+    bool hasFlag( SpawnOptsEnum f ) const { return (flags & f) == f; }
+
+    bool hasStdin = false;
+    std::string in;
+    SpawnOptsEnum flags = None;
+};
+
+inline SpawnOpts StdinString( std::string in ) { return SpawnOpts( in ); }
+
+inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b ) {
+    a.flags = SpawnOptsEnum( a.flags | b.flags );
+    ASSERT( !(a.hasStdin && b.hasStdin) );
+    if ( b.hasStdin ) {
+        a.hasStdin = true;
+        a.in = std::move( b.in );
+    }
+    return a;
+}
+
+struct SystemOutput {
+
+    SystemOutput( int exitcode, int signal, std::string out, std::string err ) :
+        _exitcode( exitcode ), _signal( signal ), _out( out ), _err( err )
+    { }
+
+    bool ok() const { return _exitcode == 0 && _signal == 0; }
+    explicit operator bool() const { return ok(); }
+
+    int exitcode() const { return _exitcode; }
+    int signal() const { return _signal; }
+
+    const std::string &out() const { return _out; }
+    const std::string &err() const { return _err; }
+
+  private:
+    int _exitcode;
+    int _signal;
+    std::string _out;
+    std::string _err;
+};
+
+inline namespace {
+
+std::string to_string( const SystemOutput &o ) {
+    std::stringstream ss;
+    ss << "exitcode = " << o.exitcode() << ", signal = " << o.signal() << std::endl;
+    for ( auto x : { std::make_pair( "stdout", &o.out() ), std::make_pair( "stderr", &o.err() ) } ) {
+        if ( !x.second->empty() ) {
+            ss << x.first << ":" << std::endl;
+            std::stringstream data( *x.second );
+            std::string line;
+            while ( std::getline( ss, line ) )
+                ss << "    " << line << std::endl;
+            ss << std::endl;
+        }
+    }
+    return ss.str();
+}
+
+}
+
+struct Pipe {
+    Pipe() {
+        if ( ::pipe( _fds ) == -1 )
+            throw ProcError( "could not create pipe" );
+    }
+
+    ~Pipe() { close(); }
+
+    void close() {
+        closeRead();
+        closeWrite();
+    }
+
+    void closeRead() {
+        int r = _fds[0];
+        _fds[0] = -1;
+        if ( r >= 0 )
+            ::close( r );
+    }
+
+    void closeWrite() {
+        int w = _fds[1];
+        _fds[1] = -1;
+        if ( w >= 0 )
+            ::close( w );
+    }
+
+    std::string drain() {
+        std::string str;
+        char data[ 1024 ];
+        long n;
+        do {
+            n = ::read( read(), data, sizeof( data ) );
+            if ( n > 0 )
+                str += std::string( data, n );
+        } while( n > 0 );
+        return str;
+    }
+
+    void push( std::string s ) {
+        const char *ptr = s.data();
+        const char *const end = ptr + s.size();
+        int r = 0;
+        while ( ptr < end && r >= 0 ) {
+            r = ::write( write(), ptr, end - ptr );
+            ptr += r;
+        }
+    }
+
+    int read() const { return _fds[0]; }
+    int write() const { return _fds[1]; }
+
+#ifdef __unix__
+    void attachStdout() { ::dup2( write(), STDOUT_FILENO ); }
+    void attachStderr() { ::dup2( write(), STDERR_FILENO ); }
+    void attachStdin() { ::dup2( read(), STDIN_FILENO ); }
+#else
+#error attach* fuctions are not supporrted on this platfrom
+#endif
+
+  private:
+    int _fds[2];
+};
+
+inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > args )
+{
+    if ( opts.hasFlag( ShowCmd ) ) {
+        std::cerr << "+ ";
+        std::copy( args.begin(), args.end(), std::ostream_iterator< std::string >( std::cerr, " " ) );
+        std::cerr << std::endl;
+    }
+    std::vector< const char * > cargs;
+    std::transform( args.begin(), args.end(), std::back_inserter( cargs ),
+                    []( const std::string &s ) { return s.c_str(); } );
+    cargs.push_back( nullptr );
+    std::string out, err;
+
+#ifdef __unix__
+    std::future< void > inf;
+    std::future< std::string > outf, errf;
+    std::unique_ptr< Pipe > inp, outp, errp;
+    if ( opts.hasStdin )
+        inp = std::make_unique< Pipe >();
+    if ( opts.hasFlag( CaptureStdout ) )
+        outp = std::make_unique< Pipe >();
+    if ( opts.hasFlag( CaptureStderr ) )
+        errp = std::make_unique< Pipe >();
+
+    pid_t pid;
+    if ( (pid = ::fork()) == 0 ) {
+        if ( inp ) {
+            inp->attachStdin();
+            inp->close();
+        }
+        if ( outp ) {
+            outp->attachStdout();
+            outp->close();
+        }
+        if ( errp ) {
+            errp->attachStderr();
+            errp->close();
+        }
+
+        ::execvp( cargs[ 0 ], const_cast< char *const * >( cargs.data() ) );
+        std::terminate();
+    } else if ( pid > 0 ) {
+        if ( inp ) {
+            inp->closeRead();
+            inf = std::async( std::launch::async, [&] { inp->push( opts.in ); inp->close(); } );
+        }
+        if ( outp ) {
+            outp->closeWrite();
+            outf = std::async( std::launch::async, [&] { return outp->drain(); } );
+        }
+        if ( errp ) {
+            errp->closeWrite();
+            errf = std::async( std::launch::async, [&] { return errp->drain(); } );
+        }
+        int status;
+        int r = ::waitpid( pid, &status, 0 );
+
+        if ( inf.valid() )
+            inf.get();
+        out = outf.valid() ? outf.get() : "";
+        err = errf.valid() ? errf.get() : "";
+
+        if ( r < 0 )
+            throw ProcError( "waitpid error" );
+        return SystemOutput( WIFEXITED( status ) ? WEXITSTATUS( status ) : 0,
+                             WIFSIGNALED( status ) ? WTERMSIG( status ) : 0,
+                             out, err );
+    } else
+        throw ProcError( "fork failed" );
+#else
+#error implementation of brick::proc::spawnAndWait for this platform is missing
+#endif
+}
+
+inline SystemOutput spawnAndWait( std::vector< std::string > args ) {
+    return spawnAndWait( None, args );
+}
+
+template< typename... Args >
+SystemOutput spawnAndWait( SpawnOpts opts, Args &&...args ) {
+    return spawnAndWait( opts, std::vector< std::string >{ std::forward< Args >( args )... } );
+}
+
+template< typename... Args >
+SystemOutput spawnAndWait( SpawnOptsEnum opts, Args &&...args ) {
+    return spawnAndWait( SpawnOpts( opts ), std::forward< Args >( args )... );
+}
+
+template< typename... Args >
+SystemOutput spawnAndWait( unsigned opts, Args &&...args ) { // note: result of | on SpawnOptsEnum in unsigned
+    return spawnAndWait( SpawnOpts( SpawnOptsEnum( opts ) ), std::forward< Args >( args )... );
+}
+
+template< typename... Args >
+SystemOutput spawnAndWait( Args &&...args ) {
+    return spawnAndWait( None, std::forward< Args >( args )... );
+}
+
+inline SystemOutput shellSpawnAndWait( SpawnOpts opts, std::string shellcmd ) {
+#ifdef __unix__
+    return spawnAndWait( opts, "/bin/sh", "-c", shellcmd );
+#else
+#error shell spawn is not supported on this platform
+#endif
+}
+
+inline SystemOutput shellSpawnAndWait( std::string shellcmd ) {
+    return shellSpawnAndWait( None, shellcmd );
+}
+
+struct XTerm
+{
+    struct
+    {
+        int pid = 0;
+        int masterfd, slavefd;
+
+        std::unique_ptr< std::iostream > stream;
+        std::unique_ptr< brick::fs::PosixBuf > buf;
+    } _d;
+
+    struct SBuf : fs::PosixBuf
+    {
+        using fs::PosixBuf::PosixBuf;
+
+        int sync()
+        {
+            char tmp[ _buf_size * 2 ];
+            int i = 0;
+            for ( auto p = pbase(); p < pptr(); ++p )
+            {
+                if ( *p == '\n' )
+                    tmp[ i++ ] = '\r';
+                tmp[ i++ ] = *p;
+            }
+            do_sync( tmp, i );
+            return 0;
+        }
+    };
+
+    void open()
+    {
+        _d.masterfd = posix_openpt( O_RDWR );
+        if ( grantpt( _d.masterfd ) )
+            throw std::system_error( errno, std::system_category(),
+                                     "Could not grantpt()." );
+        if ( unlockpt( _d.masterfd ) )
+            throw std::system_error( errno, std::system_category(),
+                                     "Could not unlockpt()." );
+
+        const char *slavepts = ptsname( _d.masterfd );
+        if ( !slavepts )
+            throw std::system_error( errno, std::system_category(),
+                                     "Could not ptsname()." );
+        _d.slavefd = ::open( slavepts, O_RDWR );
+        if ( _d.slavefd < 0 )
+            throw std::system_error( errno, std::system_category(),
+                                     "Could not open slave PTS." );
+
+        std::string slave = std::string( "-S" ) +
+                            slavepts + "/" + brick::string::fmt( _d.slavefd );
+        const char *argv[] = { "xterm", slave.c_str(), nullptr };
+
+        posix_spawnp( &_d.pid, "xterm", nullptr, nullptr,
+                      const_cast< char ** >( argv ), environ );
+
+        char buf[8];
+        ::read( _d.masterfd, buf, 8 ); /* handshake */
+
+        struct termios tio;
+        tcgetattr( _d.slavefd, &tio );
+        tio.c_lflag = 0; /* no ECHO means we don't read things back */
+        tio.c_iflag = 0;
+        tio.c_oflag = 0;
+        tcsetattr( _d.slavefd, TCSANOW, &tio );
+
+        _d.buf.reset( new SBuf( _d.masterfd ) );
+        _d.stream.reset( new std::iostream( _d.buf.get() ) );
+    }
+
+    std::iostream &stream() { return *_d.stream; }
+
+    XTerm() = default;
+    XTerm( const XTerm & ) = delete;
+    XTerm( XTerm &&o )
+    {
+        _d = std::move( o._d );
+        o._d.pid = 0;
+    }
+
+    ~XTerm()
+    {
+        if ( _d.pid )
+        {
+            kill( _d.pid, SIGTERM );
+            close( _d.masterfd );
+            close( _d.slavefd );
+            waitpid( _d.pid, nullptr, 0 );
+        }
+        _d.pid = 0;
+    }
+};
+
+}
+
+namespace t_proc {
+
+struct TestSpawn {
+    TEST( basic_true ) {
+        auto r = proc::spawnAndWait( "true" );
+        ASSERT_EQ( r.exitcode(), 0 );
+        ASSERT_EQ( r.signal(), 0 );
+        ASSERT( r );
+    }
+
+    TEST( basic_false ) {
+        auto r = proc::spawnAndWait( "false" );
+        ASSERT_LT( 0, r.exitcode() );
+        ASSERT_EQ( r.signal(), 0 );
+        ASSERT( !r );
+    }
+
+    TEST( echo1 ) {
+        auto r = proc::spawnAndWait( proc::CaptureStdout, "printf", "a" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "a" );
+        ASSERT_EQ( r.err(), "" );
+    }
+
+    TEST( echo2 ) {
+        auto r = proc::spawnAndWait( proc::CaptureStdout | proc::CaptureStderr, "printf", "a" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "a" );
+        ASSERT_EQ( r.err(), "" );
+    }
+
+    TEST( echoSpec ) {
+        auto r = proc::spawnAndWait( proc::CaptureStdout, "printf", "a\nb" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "a\nb" );
+        ASSERT_EQ( r.err(), "" );
+    }
+
+    TEST( shellEchoStdout ) {
+        auto r = proc::shellSpawnAndWait( proc::CaptureStdout, "printf a" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "a" );
+        ASSERT_EQ( r.err(), "" );
+    }
+
+    TEST( shellEchoStderr ) {
+        auto r = proc::shellSpawnAndWait( proc::CaptureStdout | proc::CaptureStderr, "printf a >&2" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "" );
+        ASSERT_EQ( r.err(), "a" );
+    }
+
+    TEST( in_basic ) {
+        auto r = proc::spawnAndWait( proc::StdinString( "abcbd" ) | proc::CaptureStdout | proc::CaptureStderr,
+                                     "sed", "s/b/x/g" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "axcxd" );
+        ASSERT_EQ( r.err(), "" );
+    }
+    TEST( in_lined ) {
+        auto r = proc::spawnAndWait( proc::StdinString( "abcbd\nebfg\n" ) | proc::CaptureStdout | proc::CaptureStderr,
+                                     "sed", "s/b/x/g" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "axcxd\nexfg\n" );
+        ASSERT_EQ( r.err(), "" );
+    }
+};
+
+};
+
+}
+
+#endif // BRICK_PROC
+
+// vim: syntax=cpp tabstop=4 shiftwidth=4 expandtab ft=cpp
