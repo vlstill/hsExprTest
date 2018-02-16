@@ -38,6 +38,7 @@
 #include <iostream>
 #include <future>
 #include <memory>
+#include <optional>
 
 #if defined( __unix__ ) || defined( __divine__ )
 #include <termios.h>
@@ -68,24 +69,35 @@ enum SpawnOptsEnum : unsigned {
 struct SpawnOpts {
     SpawnOpts( SpawnOptsEnum f ) : flags( f ) { }
     SpawnOpts( unsigned f ) : flags( SpawnOptsEnum( f ) ) { }
-    explicit SpawnOpts( std::string in ) : hasStdin( true ), in( in ) { }
+    SpawnOpts() = default;
 
     bool hasFlag( SpawnOptsEnum f ) const { return (flags & f) == f; }
 
-    bool hasStdin = false;
-    std::string in;
+    std::optional< std::string > in;
+    std::optional< std::string > work_dir;
     SpawnOptsEnum flags = None;
 };
 
-inline SpawnOpts StdinString( std::string in ) { return SpawnOpts( in ); }
+inline SpawnOpts StdinString( std::string in ) {
+    SpawnOpts so;
+    so.in.emplace( std::move( in ) );
+    return so;
+}
+
+inline SpawnOpts WorkDir( std::string wd ) {
+    SpawnOpts so;
+    so.work_dir.emplace( std::move( wd ) );
+    return so;
+}
 
 inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b ) {
     a.flags = SpawnOptsEnum( a.flags | b.flags );
-    ASSERT( !(a.hasStdin && b.hasStdin) );
-    if ( b.hasStdin ) {
-        a.hasStdin = true;
+    ASSERT( !(a.in && b.in) );
+    if ( b.in )
         a.in = std::move( b.in );
-    }
+    ASSERT( !(a.work_dir && b.work_dir ) );
+    if ( b.work_dir )
+        a.work_dir = std::move( b.work_dir );
     return a;
 }
 
@@ -212,7 +224,7 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
     std::future< void > inf;
     std::future< std::string > outf, errf;
     std::unique_ptr< Pipe > inp, outp, errp;
-    if ( opts.hasStdin )
+    if ( opts.in )
         inp = std::make_unique< Pipe >();
     if ( opts.hasFlag( CaptureStdout ) )
         outp = std::make_unique< Pipe >();
@@ -234,12 +246,14 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
             errp->close();
         }
 
+        if ( opts.work_dir )
+            brick::fs::chdir( opts.work_dir.value() );
         ::execvp( cargs[ 0 ], const_cast< char *const * >( cargs.data() ) );
         std::terminate();
     } else if ( pid > 0 ) {
         if ( inp ) {
             inp->closeRead();
-            inf = std::async( std::launch::async, [&] { inp->push( opts.in ); inp->close(); } );
+            inf = std::async( std::launch::async, [&] { inp->push( opts.in.value() ); inp->close(); } );
         }
         if ( outp ) {
             outp->closeWrite();
