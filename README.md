@@ -1,7 +1,13 @@
-hsExprTest
+ExprTest
 ==========
 
-Automatic comparison of Haskell expressions and types based on QuickCheck.
+[![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
+
+Automatic testing of small programming assignments.
+
+This project consists of two parts, an programming-language-agnostic driver for
+testing which invokes teacher-provided script on student's solution and a tool
+for comparison of Haskell expressions and types based on QuickCheck.
 
 This tool is used in the [Non-Imperative
 Programming](https://is.muni.cz/auth/predmet/fi/podzim2017/IB015)  course on
@@ -15,7 +21,6 @@ later extended by Vladimír Štill and is used in the couse from autumn 2014.
 As of autumn 2017, the new version 2 is planned to be used. Eventually, this
 version should allow testing of programs in languages other than Haskell.
 
-[![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
 
 ## Description
 
