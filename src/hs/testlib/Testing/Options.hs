@@ -16,7 +16,8 @@ import System.IO ( hPutStrLn, stdout, stderr, Handle )
 import Data.Time.Format ( formatTime, defaultTimeLocale )
 import Data.Time.LocalTime ( getZonedTime )
 import Data.List ( intercalate )
-import Data.Semigroup ( Semigroup, Monoid, mappend, mempty, (<>) )
+import Data.Semigroup ( Semigroup, (<>) )
+import Data.Monoid ( Monoid, mappend, mempty )
 
 data Options = Options { optAssignment :: FilePath
                        , optStudent    :: FilePath
