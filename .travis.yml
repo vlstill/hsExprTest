@@ -1,7 +1,5 @@
 language: haskell
 ghc:
-  - 7.10
-  - 8.0
   - 8.2
 cabal: 1.24
 
