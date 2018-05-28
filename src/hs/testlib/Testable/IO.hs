@@ -1,9 +1,5 @@
 {-# LANGUAGE Safe, NoImplicitPrelude, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-#ifndef NO_SEMIGROUP_WARNING
--- it is equeivalent, but we want to avoid semigroup requirement on mappend
-{-# OPTIONS_GHC -Wno-noncanonical-monoid-instances #-}
-#endif
 
 module Testable.IO (
     -- * IO replacements
@@ -45,6 +41,6 @@ instance Monad IO where
 instance Semigroup a => Semigroup (IO a) where
     (<>) = liftA2 (<>)
 
-instance Monoid a => Monoid (IO a) where
+instance (Semigroup a, Monoid a) => Monoid (IO a) where
     mempty = pure mempty
-    mappend = liftA2 mappend
+    mappend = (<>)
