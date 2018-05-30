@@ -2,13 +2,14 @@
 
 module Test.TH.Expression where
 
-import Test.QuickCheck
+import Test.QuickCheck ( (===), Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
-import Control.Monad
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
-import Language.Haskell.TH.ExpandSyns
-import Data.Tuple.TH.Curry
+import Control.Monad ( when, replicateM, filterM, zipWithM )
+import Language.Haskell.TH ( Ppr, Q, Name, Cxt
+                           , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
+                           , reportWarning, pprint, lookupValueName
+                           , reify, reifyInstances, newName, mkName )
+import Language.Haskell.TH.ExpandSyns ( substInType )
 
 dbg :: Ppr a => Q a -> Q a
 dbg qx = qx >>= \x -> reportWarning (pprint x) >> pure x
@@ -31,17 +32,17 @@ sprop teacher student = (,) <$> lookupValueName teacher <*> lookupValueName stud
 -- [()] /= []
 prop :: Name -> Name -> Q Exp
 prop teacher student = (,) <$> info teacher <*> info student >>= \case
-    (Right (tnam, ttype), Right (snam, stype)) -> testFun tnam ttype snam stype
-    (Left t, Left s) -> fail $ "prop: Invarid arguments for prop:\n        " ++ pprint t ++ "\n        " ++ pprint s
+    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun tnam ttype snam stype
+    ((t, _), (s, _)) -> fail $ "prop: Invarid arguments for prop:\n        " ++ pprint t ++ "\n        " ++ pprint s
 
   where
     info x = ex <$> reify x
 
-    ex :: Info -> Either Info (Name, Type)
-    ex (VarI     nam typ _) = Right (nam, typ)
-    ex (ClassOpI nam typ _) = Right (nam, typ)
-    ex (DataConI nam typ _) = Right (nam, typ)
-    ex i                    = Left i
+    ex :: Info -> (Info, Maybe (Name, Type))
+    ex i@(VarI     nam typ _) = (i, Just (nam, typ))
+    ex i@(ClassOpI nam typ _) = (i, Just (nam, typ))
+    ex i@(DataConI nam typ _) = (i, Just (nam, typ))
+    ex i                      = (i, Nothing)
 
 testFun :: Name -> Type -> Name -> Type -> Q Exp
 testFun tname ttype sname stype = do
@@ -102,16 +103,16 @@ type ClassName = Name
 type TyVarName = Name
 
 degeneralize :: Type -> Q Type
-degeneralize t = degen [] [] t
+degeneralize = degen [] []
   where
     degen :: [TyVarBndr] -> Cxt -> Type -> Q Type
     degen bndr cxt (ForallT b c t) = degen (bndr ++ b) (cxt ++ c) t
     degen bndr0 cxt0 t = do
         substc <- extractCandidates bndr0
         cxt <- extractCxt cxt0
-        subst <- filterSubstitutions substc cxt
+        sub <- filterSubstitutions substc cxt
 
-        pure $ foldr substInType t subst
+        pure $ foldr substInType t sub
 
     -- | extract simple contexts to
     extractCxt :: Cxt -> Q [(TyVarName, ClassName)]
@@ -161,5 +162,5 @@ uncurryType :: Type -> ([Type], Type)
 uncurryType t0 = let t = unct t0 in (init t, last t)
   where
     unct (AppT (AppT ArrowT t1) t2) = t1 : unct t2
-    unct (ForallT tyvs cxt ty) = unct ty
+    unct (ForallT _ _ ty) = unct ty
     unct x = [x]
