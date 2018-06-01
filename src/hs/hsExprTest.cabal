@@ -1,5 +1,5 @@
 name:                hsExprTest
-version:             1.99.0.1
+version:             2.0.0.0
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
