@@ -5,14 +5,14 @@ module Test.TH.Expression where
 import Test.QuickCheck ( (===), Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
 import Control.Monad ( when, replicateM, filterM, zipWithM )
-import Language.Haskell.TH ( Ppr, Q, Name, Cxt
+import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, lookupValueName
-                           , reify, reifyInstances, newName, mkName )
+                           , reify, newName, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 
-dbg :: Ppr a => Q a -> Q a
-dbg qx = qx >>= \x -> reportWarning (pprint x) >> pure x
+import Test.TH.Types
+import Test.TH.Utils
 
 sprop :: String -> String -> Q Exp
 sprop teacher student = (,) <$> lookupValueName teacher <*> lookupValueName student >>= \case
@@ -50,8 +50,8 @@ testFun tname ttype sname stype = do
     dsty <- degeneralize stype
 
     when (dtty /= dsty) . fail $ "testFun: incompatible degeneralized types derived:\n        " ++
-                                  "teacher: " ++ pprint dtty ++ "\n        " ++
-                                  "student: " ++ pprint dsty
+                                 "teacher: " ++ pprint dtty ++ "\n        " ++
+                                 "student: " ++ pprint dsty
 
     let (targs, rty) = uncurryType dtty
     let ar = length targs
@@ -137,30 +137,8 @@ degeneralize = degen [] []
         []  -> fail $ "degeneralize: Could not degeneralize " ++ pprint v ++ " with constraints " ++ show cands
         t:_ -> pure (v, t)
 
--- | Is the top-level type constructor a fully applied (->)?
-isFunctionType :: Type -> Bool
-isFunctionType (AppT (AppT ArrowT _) _) = True
-isFunctionType _                        = False
-
 hasShow :: Type -> Q Bool
 hasShow t = t `hasInstance` ''Show
 
 hasArbitrary :: Type -> Q Bool
 hasArbitrary t = t `hasInstance` ''Arbitrary
-
-apply :: Name -> [Exp] -> Exp
-apply name exs = foldl AppE (VarE name) exs
-
-hasInstance :: Type -> Name -> Q Bool
-hasInstance t cls = (== 1) . length <$> reifyInstances cls [t]
-
--- | @$('showQ' $ arity <$> [t| forall a . a -> (a -> a) -> (Int -> Int) |])@
-arity :: Type -> Int
-arity t = length (fst (uncurryType t))
-
-uncurryType :: Type -> ([Type], Type)
-uncurryType t0 = let t = unct t0 in (init t, last t)
-  where
-    unct (AppT (AppT ArrowT t1) t2) = t1 : unct t2
-    unct (ForallT _ _ ty) = unct ty
-    unct x = [x]
