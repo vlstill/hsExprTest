@@ -16,13 +16,10 @@ cabal-version:      >= 1.22
 build-type:         Simple
 tested-with:        GHC == 8.2.1, GHC == 8.4.2
 
-flag service
-    default: True
-
 Library
   hs-source-dirs:   testlib
 
-  build-depends:    base >= 4.8,
+  build-depends:    base >= 4.10,
                     template-haskell >= 2.12 && < 2.14,
                     th-expand-syns >= 0.4.4,
                     QuickCheck >= 2.7,
