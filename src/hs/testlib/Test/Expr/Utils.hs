@@ -1,4 +1,4 @@
-module Test.TH.Utils where
+module Test.Expr.Utils where
 
 import Language.Haskell.TH ( Exp (..), Lit (..), Name, Ppr, pprint, Q, reportWarning )
 

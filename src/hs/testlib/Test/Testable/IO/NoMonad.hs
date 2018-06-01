@@ -1,6 +1,6 @@
 {-# LANGUAGE Safe, NoImplicitPrelude #-}
 
-module Testable.IO.NoMonad (
+module Test.Testable.IO.NoMonad (
     -- * IO replacements
       IO
     , getLine
@@ -23,7 +23,7 @@ module Testable.IO.NoMonad (
     , (>>=), (>>), return
     ) where
 
-import Testable.IO.Base
+import Test.Testable.IO.Base
 
 fmap, (<$>) :: (a -> b) -> IO a -> IO b
 fmap = fmapIO

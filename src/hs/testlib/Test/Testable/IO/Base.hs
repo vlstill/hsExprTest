@@ -1,6 +1,6 @@
 {-# LANGUAGE Rank2Types, LambdaCase #-}
 
-module Testable.IO.Base (
+module Test.Testable.IO.Base (
     -- * IO replacements
       IO
     , getLine

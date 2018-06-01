@@ -26,14 +26,14 @@ Library
                     deepseq >= 1.2,
                     random >= 1.1
 
-  exposed-modules:    Testing.Test
+  exposed-modules:    Test.Expr
+                      Test.Expr.Types
+                      Test.Expr.Property
+                      Test.Expr.Utils
                       Test.QuickCheck.Range
-                      Testable.IO
-                      Testable.IO.Base
-                      Testable.IO.NoMonad
-                      Test.TH.Types
-                      Test.TH.Expression
-                      Test.TH.Utils
+                      Test.Testable.IO
+                      Test.Testable.IO.Base
+                      Test.Testable.IO.NoMonad
 
   default-language:   Haskell2010
   ghc-options:        -O1 -Wall -Wcompat -Wmissing-monadfail-instances -Wsemigroup -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances -Wno-simplifiable-class-constraints

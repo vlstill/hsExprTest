@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections #-}
 
-module Test.TH.Expression where
+module Test.Expr.Property where
 
 import Test.QuickCheck ( (===), Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
@@ -11,8 +11,8 @@ import Language.Haskell.TH ( Q, Name, Cxt
                            , reify, newName, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 
-import Test.TH.Types
-import Test.TH.Utils
+import Test.Expr.Types
+import Test.Expr.Utils
 
 sprop :: String -> String -> Q Exp
 sprop teacher student = (,) <$> lookupValueName teacher <*> lookupValueName student >>= \case

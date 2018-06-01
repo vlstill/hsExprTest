@@ -1,22 +1,13 @@
 {-# LANGUAGE NamedFieldPuns, Unsafe, ExistentialQuantification, BangPatterns #-}
 
--- | Simple interface to testing.
+-- | Simple utility functions for testing.
 --
--- (c) 2014-2017 Vladimír Štill
+-- (c) 2014-2018 Vladimír Štill
 
-module Testing.Test (
-    -- * Utility functions
-       runProperty
-    , mainRunProperty
-    , (<==>)
-    -- * Utility
-    , AnyProperty ( AnyProperty )
-    , withTypeOf
-    , testArgs
-    ) where
+module Test.Expr ( (<==>), withTypeOf, testArgs, mainRunProperty ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
-                       , quickCheckWithResult, counterexample, Testable, Args )
+                       , quickCheckWithResult, counterexample, Args )
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
@@ -25,13 +16,6 @@ import Control.DeepSeq ( rnf, ($!!), NFData )
 import System.Exit ( exitSuccess, exitFailure )
 
 import System.IO.Unsafe ( unsafePerformIO )
-
--- | Wrapper for any value of 'Testable' typeclass
-data AnyProperty = forall a. Testable a => AnyProperty a
-
--- | Run property, possibly with limit.
-runProperty :: AnyProperty -> IO Result
-runProperty (AnyProperty p) = quickCheckWithResult testArgs p
 
 testArgs :: Args
 testArgs = stdArgs { chatty = False
@@ -42,9 +26,9 @@ testArgs = stdArgs { chatty = False
                    , replay = Just (mkQCGen 0, 0)
                    }
 
-mainRunProperty :: AnyProperty -> IO ()
-mainRunProperty prop = do
-    r <- runProperty prop
+mainRunProperty :: Args -> Property -> IO ()
+mainRunProperty args prop = do
+    r <- quickCheckWithResult args prop
     case r of
         Success {} -> exitSuccess
         GaveUp {} -> exitSuccess

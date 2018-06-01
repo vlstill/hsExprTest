@@ -1,7 +1,7 @@
 {-# LANGUAGE Safe, NoImplicitPrelude, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Testable.IO (
+module Test.Testable.IO (
     -- * IO replacements
       IO
     , getLine
@@ -21,7 +21,7 @@ module Testable.IO (
     , runIOLines'
     ) where
 
-import Testable.IO.Base
+import Test.Testable.IO.Base
 import Data.Functor ( Functor, fmap )
 import Control.Applicative ( Applicative, pure, (<*>), liftA2 )
 import Control.Monad ( Monad, (>>=) )
