@@ -10,6 +10,7 @@ import Language.Haskell.TH ( Q, Name, Cxt
                            , reportWarning, pprint, lookupValueName
                            , reify, newName, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
+import Data.Int ( Int16 )
 
 import Test.Expr.Types
 import Test.Expr.Utils
@@ -124,8 +125,13 @@ degeneralize = degen [] []
     extractCandidates :: [TyVarBndr] -> Q [(TyVarName, [Type])]
     extractCandidates = mapM ex
       where
-        ex (PlainTV x) = (x, ) . (:[]) <$> [t| Integer |]
-        ex (KindedTV x StarT) = (x, ) . (:[]) <$> [t| Integer |]
+        ex (PlainTV x) = ex (KindedTV x StarT)
+        ex (KindedTV x StarT) = (x, ) <$> sequence
+                                            [ [t| Integer |]  -- the default
+                                            , [t| Rational |] -- for fractional
+                                            , [t| Int16 |]    -- for bounded
+                                            , [t| Double |]   -- for floating-point
+                                            ]
         ex (KindedTV x (AppT (AppT ArrowT StarT) StarT)) = (x, ) . (:[]) <$> [t| [] |]
         ex ktv = fail $ "degeneralize: Complex type variable " ++ pprint ktv ++ " not supported"
 
