@@ -21,7 +21,7 @@ import Data.Typeable ( typeOf )
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
 import System.Exit ( exitSuccess, exitFailure )
-import Language.Haskell.TH ( Q, Exp (..), Lit (..), lookupValueName )
+import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..), Lit (..), lookupValueName, mkName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -39,12 +39,16 @@ testArgs = stdArgs { chatty = False
 
 type ExprName = String
 
-testMain :: ExprName -> Q Exp
+testMain :: ExprName -> Q [Dec]
 testMain name = do
     let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
     cmp <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
-    [| scheduleAlarm $(timeout) >> runProperty $(args) $(sprop cmp tn sn) |]
+    let mainName = mkName "main"
+    mainType <- [t| IO () |]
+    body <- [| scheduleAlarm $(timeout) >> runProperty $(args) $(sprop cmp tn sn) |]
+    pure $ [ SigD mainName mainType
+           , FunD mainName [Clause [] (NormalB body) []] ]
   where
     defimeout = LitE $ IntegerL 10
     tmout x = VarE 'fromIntegral `AppE` VarE x
