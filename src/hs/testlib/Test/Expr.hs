@@ -18,8 +18,8 @@ import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Prope
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
-import Control.Exception ( SomeException ( SomeException ), Exception, catch )
-import Control.DeepSeq ( rnf, ($!!), NFData )
+import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
+import Control.DeepSeq ( force, NFData )
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Lit (..), lookupValueName )
 
@@ -67,16 +67,16 @@ runProperty args prp = do
     testFailure output = do putStrLn output
                             exitFailure
 
--- | Exception aware comparison, if no exception is thrown when evaluating
+-- | Exception aware comparison. If no exception is thrown when evaluating
 -- either of the values, compares them using '(==)', if exception is thrown
--- in both, exception type and message is compared, otherwise if exception
--- is thrown only in one, property fails. Mismatching values are returned
--- using 'QC.counterexample' on failure.
+-- in both, exception type is compared, otherwise if exception is thrown only
+-- in one, property fails. Mismatching values are returned using
+-- 'QC.counterexample' on failure.
 (<==>) :: (Eq a, Show a, NFData a) => a -> a -> Property
 infix 4 <==>
 x <==> y = x `comp` y
   where
-    wrap v = unsafePerformIO $ (return . OK $!! v) `catch` handler
+    wrap v = unsafePerformIO $ (evaluate . OK $ force v) `catch` handler
     handler (SomeException e) = return (Exc e)
     comp x0 y0 = counterexample (sx ++ " /= " ++ sy) (wx == wy)
       where
@@ -88,18 +88,14 @@ x <==> y = x `comp` y
     unwrap ex@(Exc _) = show ex
 
 data Wrapper a
-    = OK a
+    = OK !a
     | forall e. Exception e => Exc e
 
 instance Eq a => Eq (Wrapper a) where
     (OK x)  == (OK y)  = x == y
-    (Exc x) == (Exc y) = typeOf x == typeOf y && show x == show y -- can't do really better here
+    (Exc x) == (Exc y) = typeOf x == typeOf y
     _       == _       = False
 
 instance Show a => Show (Wrapper a) where
     show (OK a)  = show a
     show (Exc e) = "{ EXCEPTION THROWN (" ++ show (typeOf e) ++ "): " ++ show e ++ " }"
-
-instance NFData a => NFData (Wrapper a) where
-    rnf (OK a)  = rnf a
-    rnf (Exc !_) = ()
