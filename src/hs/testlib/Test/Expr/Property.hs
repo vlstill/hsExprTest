@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections #-}
 
-module Test.Expr.Property where
+-- | Property generation. Allows to generate property which compares two
+-- implementations of the same functionality.
+--
+-- (c) 2018 Vladimír Štill
+
+module Test.Expr.Property ( sprop, prop ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )

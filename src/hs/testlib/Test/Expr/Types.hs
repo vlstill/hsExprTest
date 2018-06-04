@@ -1,6 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Test.Expr.Types where
+-- | Functions for working with Template Haskell type representation.
+--
+-- (c) 2018 Vladimír Štill
+
+module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normalizeContext ) where
 
 import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt )
 

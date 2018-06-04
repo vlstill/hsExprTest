@@ -1,4 +1,8 @@
-module Test.Expr.Utils where
+-- | Miscellaneous utilities for Template Haskell
+--
+-- (c) 2018 Vladimír Štill
+
+module Test.Expr.Utils ( apply, apply', dbg_, showQ, showQ' ) where
 
 import Language.Haskell.TH ( Exp (..), Lit (..), Name, Ppr, pprint, Q, reportWarning )
 
