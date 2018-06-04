@@ -18,13 +18,21 @@ import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Prope
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
+import Data.Function ( (&) )
+import Data.Maybe ( isNothing )
+
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
+import Control.Monad ( when )
+import Control.Applicative ( (<|>) )
+
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..), Lit (..), lookupValueName, mkName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
+
+import Text.Printf.Mauke.TH
 
 import Test.Expr.Property
 
@@ -41,12 +49,24 @@ type ExprName = String
 
 testMain :: ExprName -> Q [Dec]
 testMain name = do
+    sname' <- lookupValueName sn
+    fail ($(sprintf "Could not find student expression %s") name) & when (isNothing sname')
+    tname <- lookupValueName tn
+    eval  <- lookupValueName "Teacher.evaluator"
+    fail ($(sprintf "Either teacher expression or evaluator has to be given for %s") name)
+         & when (isNothing (tname <|> eval))
+    let Just sname = sname'
+
     let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
     cmp <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
+
     let mainName = mkName "main"
     mainType <- [t| IO () |]
-    body <- [| scheduleAlarm $(timeout) >> runProperty $(args) $(sprop cmp tn sn) |]
+    body <- case (eval, tname) of
+              (Just ev, _) -> [| scheduleAlarm $(timeout) >> $(pure $ VarE ev `AppE` VarE sname) |]
+              (_, Just t)  -> [| scheduleAlarm $(timeout) >> runProperty $(args) $(prop cmp t sname) |]
+              _ -> fail "impossible"
     pure $ [ SigD mainName mainType
            , FunD mainName [Clause [] (NormalB body) []] ]
   where

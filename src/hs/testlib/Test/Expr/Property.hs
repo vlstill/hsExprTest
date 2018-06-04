@@ -5,15 +5,14 @@
 --
 -- (c) 2018 Vladimír Štill
 
-module Test.Expr.Property ( sprop, prop ) where
+module Test.Expr.Property ( prop ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
 import Control.Monad ( when, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
-                           , reportWarning, pprint, lookupValueName
-                           , reify, newName, mkName )
+                           , reportWarning, pprint, reify, newName, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 import Data.Int ( Int16 )
 
@@ -22,13 +21,6 @@ import Test.Expr.Utils
 
 type TeacherFnName = Name
 type StudentFnName = Name
-
-sprop :: Exp -> String -> String -> Q Exp
-sprop comp teacher student = (,) <$> lookupValueName teacher <*> lookupValueName student >>= \case
-    (Just tname, Just sname) -> prop comp tname sname
-    (Nothing, Nothing) -> fail $ "sprop: Could not find " ++ teacher ++ " and " ++ student
-    (Nothing, _)       -> fail $ "sprop: Could not find " ++ teacher
-    (_, Nothing)       -> fail $ "sprop: Could not find " ++ student
 
 -- | $(prop 'a 'b) :: Property
 -- >>> quickCheck $(prop 'drop 'drop)
