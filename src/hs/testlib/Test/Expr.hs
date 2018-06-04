@@ -1,21 +1,27 @@
-{-# LANGUAGE NamedFieldPuns, Unsafe, ExistentialQuantification, BangPatterns #-}
+{-# LANGUAGE TemplateHaskell, ExistentialQuantification, DeriveLift
+           , StandaloneDeriving, NamedFieldPuns, Unsafe, BangPatterns
+           #-}
 
 -- | Simple utility functions for testing.
 --
 -- (c) 2014-2018 Vladimír Štill
 
-module Test.Expr ( (<==>), withTypeOf, testArgs, mainRunProperty ) where
+module Test.Expr ( testMain, (<==>), testArgs, runProperty, scheduleAlarm ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
-                       , quickCheckWithResult, counterexample, Args )
+                       , quickCheckWithResult, counterexample, Args (..), Testable )
 import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Control.Exception ( SomeException ( SomeException ), Exception, catch )
 import Control.DeepSeq ( rnf, ($!!), NFData )
 import System.Exit ( exitSuccess, exitFailure )
+import Language.Haskell.TH ( Q, Exp (..), Lit (..), lookupValueName )
 
 import System.IO.Unsafe ( unsafePerformIO )
+import System.Posix.Signals ( scheduleAlarm )
+
+import Test.Expr.Property
 
 testArgs :: Args
 testArgs = stdArgs { chatty = False
@@ -26,9 +32,24 @@ testArgs = stdArgs { chatty = False
                    , replay = Just (mkQCGen 0, 0)
                    }
 
-mainRunProperty :: Args -> Property -> IO ()
-mainRunProperty args prop = do
-    r <- quickCheckWithResult args prop
+type ExprName = String
+
+testMain :: ExprName -> Q Exp
+testMain name = do
+    let timeout = maybe defimeout VarE <$> lookupValueName "Teacher.timeout"
+    cmp <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
+    let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
+    [| scheduleAlarm $(timeout) >> runProperty $(args) $(sprop cmp tn sn) |]
+  where
+    defimeout = LitE $ IntegerL 10
+    defcmp = VarE '(<==>)
+    defargs = VarE 'testArgs
+    tn = "Teacher." ++ name
+    sn = "Student." ++ name
+
+runProperty :: Testable prp => Args -> prp -> IO ()
+runProperty args prp = do
+    r <- quickCheckWithResult args prp
     case r of
         Success {} -> exitSuccess
         GaveUp {} -> exitSuccess
@@ -76,8 +97,3 @@ instance Show a => Show (Wrapper a) where
 instance NFData a => NFData (Wrapper a) where
     rnf (OK a)  = rnf a
     rnf (Exc !_) = ()
-
--- | specalized version of 'const', returns first value and type is unified
--- with type of second value (which can be 'unified' as it is not evaluated).
-withTypeOf :: a -> a -> a
-withTypeOf = const

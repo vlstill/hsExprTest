@@ -10,8 +10,8 @@ apply name exs = apply' (VarE name) exs
 apply' :: Exp -> [Exp] -> Exp
 apply' fun exs = foldl AppE fun exs
 
-_dbg :: Ppr a => Q a -> Q a
-_dbg qx = qx >>= \x -> reportWarning (pprint x) >> pure x
+dbg_ :: Ppr a => Q a -> Q a
+dbg_ qx = qx >>= \x -> reportWarning (pprint x) >> pure x
 
 -- | Show string representation of template haskell expression, such as AST:
 -- @$(showQ [| \x -> x |])@

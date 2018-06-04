@@ -2,7 +2,7 @@
 
 module Test.Expr.Property where
 
-import Test.QuickCheck ( (===), Blind (..), Arbitrary )
+import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
 import Control.Monad ( when, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
@@ -15,9 +15,12 @@ import Data.Int ( Int16 )
 import Test.Expr.Types
 import Test.Expr.Utils
 
-sprop :: String -> String -> Q Exp
-sprop teacher student = (,) <$> lookupValueName teacher <*> lookupValueName student >>= \case
-    (Just tname, Just sname) -> prop tname sname
+type TeacherFnName = Name
+type StudentFnName = Name
+
+sprop :: Exp -> String -> String -> Q Exp
+sprop comp teacher student = (,) <$> lookupValueName teacher <*> lookupValueName student >>= \case
+    (Just tname, Just sname) -> prop comp tname sname
     (Nothing, Nothing) -> fail $ "sprop: Could not find " ++ teacher ++ " and " ++ student
     (Nothing, _)       -> fail $ "sprop: Could not find " ++ teacher
     (_, Nothing)       -> fail $ "sprop: Could not find " ++ student
@@ -31,9 +34,9 @@ sprop teacher student = (,) <$> lookupValueName teacher <*> lookupValueName stud
 -- 0
 -- [()]
 -- [()] /= []
-prop :: Name -> Name -> Q Exp
-prop teacher student = (,) <$> info teacher <*> info student >>= \case
-    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun tnam ttype snam stype
+prop :: Exp -> TeacherFnName -> StudentFnName -> Q Exp
+prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
+    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp tnam ttype snam stype
     ((t, _), (s, _)) -> fail $ "prop: Invarid arguments for prop:\n        " ++ pprint t ++ "\n        " ++ pprint s
 
   where
@@ -45,8 +48,8 @@ prop teacher student = (,) <$> info teacher <*> info student >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
-testFun :: Name -> Type -> Name -> Type -> Q Exp
-testFun tname ttype sname stype = do
+testFun :: Exp -> TeacherFnName -> Type -> StudentFnName -> Type -> Q Exp
+testFun comp tname ttype sname stype = do
     dtty <- degeneralize ttype
     dsty <- degeneralize stype
 
@@ -63,7 +66,7 @@ testFun tname ttype sname stype = do
 
     pats <- zipWithM mkpat targs xs
     args <- zipWithM mkvar targs xs
-    pure $ LamE pats (VarE '(===) `AppE` (apply tname args) `AppE` (apply sname args))
+    pure $ LamE pats (UInfixE (apply tname args `SigE` rty) comp (apply sname args `SigE` rty))
 
   where
     -- | construct a pattern from its type and variable name (@x@)
