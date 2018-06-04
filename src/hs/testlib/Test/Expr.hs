@@ -6,7 +6,7 @@
 --
 -- (c) 2014-2018 Vladimír Štill
 
-module Test.Expr ( testMain, (<==>), testArgs, runProperty, scheduleAlarm ) where
+module Test.Expr ( testMain, (<==>), testArgs, Args (..), runProperty, scheduleAlarm ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
                        , quickCheckWithResult, counterexample, Args (..), Testable )
@@ -36,12 +36,13 @@ type ExprName = String
 
 testMain :: ExprName -> Q Exp
 testMain name = do
-    let timeout = maybe defimeout VarE <$> lookupValueName "Teacher.timeout"
+    let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
     cmp <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
     [| scheduleAlarm $(timeout) >> runProperty $(args) $(sprop cmp tn sn) |]
   where
     defimeout = LitE $ IntegerL 10
+    tmout x = VarE 'fromIntegral `AppE` VarE x
     defcmp = VarE '(<==>)
     defargs = VarE 'testArgs
     tn = "Teacher." ++ name
