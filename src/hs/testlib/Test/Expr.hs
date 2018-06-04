@@ -1,12 +1,17 @@
-{-# LANGUAGE TemplateHaskell, ExistentialQuantification, DeriveLift
-           , StandaloneDeriving, NamedFieldPuns, Unsafe, BangPatterns
+{-# LANGUAGE TemplateHaskell, ExistentialQuantification, NamedFieldPuns
+           , Unsafe, BangPatterns
            #-}
 
 -- | Simple utility functions for testing.
 --
 -- (c) 2014-2018 Vladimír Štill
 
-module Test.Expr ( testMain, (<==>), testArgs, Args (..), runProperty, scheduleAlarm ) where
+module Test.Expr (
+                 -- * Test Entry
+                   testMain
+                 -- * Test Expression Building Blocks
+                 , (<==>), testArgs, runProperty, Args (..), scheduleAlarm
+                 ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
                        , quickCheckWithResult, counterexample, Args (..), Testable )
