@@ -1,2 +1,3 @@
 :set -itestlib
 :set -icomparer
+:set -XTemplateHaskell -XExplicitForAll -XScopedTypeVariables
