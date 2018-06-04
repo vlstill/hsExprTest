@@ -24,7 +24,8 @@ Library
                     th-expand-syns >= 0.4.4,
                     QuickCheck >= 2.7,
                     deepseq >= 1.2,
-                    random >= 1.1
+                    random >= 1.1,
+                    unix
 
   exposed-modules:    Test.Expr
                       Test.Expr.Types
