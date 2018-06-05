@@ -15,6 +15,9 @@ import Language.Haskell.TH ( Q, Name, Cxt
                            , reportWarning, pprint, reify, newName, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 import Data.Int ( Int16 )
+import Data.List ( intercalate )
+
+import Text.Printf.Mauke.TH ( sprintf )
 
 import Test.Expr.Types
 import Test.Expr.Utils
@@ -34,7 +37,7 @@ type StudentFnName = Name
 prop :: Exp -> TeacherFnName -> StudentFnName -> Q Exp
 prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
     ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp tnam ttype snam stype
-    ((t, _), (s, _)) -> fail $ "prop: Invarid arguments for prop:\n        " ++ pprint t ++ "\n        " ++ pprint s
+    ((t, _), (s, _)) -> $(pfail "prop: Invarid arguments for prop:\n        %s\n        %s") (pprint t) (pprint s)
 
   where
     info x = ex <$> reify x
@@ -50,14 +53,13 @@ testFun comp tname ttype sname stype = do
     dtty <- degeneralize ttype
     dsty <- degeneralize stype
 
-    when (dtty /= dsty) . fail $ "testFun: incompatible degeneralized types derived:\n        " ++
-                                 "teacher: " ++ pprint dtty ++ "\n        " ++
-                                 "student: " ++ pprint dsty
+    when (dtty /= dsty) $ $(pfail "testFun: incompatible degeneralized types derived:\n        teacher: %s\n        student: %s")
+                           (pprint dtty) (pprint dsty)
 
     let (targs, rty) = uncurryType dtty
     let ar = length targs
     retEq <- rty `hasInstance` ''Eq
-    when (not retEq) . fail $ "testFun: return type not comparable: " ++ pprint rty
+    when (not retEq) . $(pfail "testFun: return type not comparable: %s") $ pprint rty
 
     xs <- replicateM ar (newName "x")
 
@@ -74,12 +76,12 @@ testFun comp tname ttype sname stype = do
     mkpat t x = do
         arb <- hasArbitrary baseT
         sh <- hasShow baseT
-        when (not arb) . fail $ "testFun: no instance of arbitrary for " ++ pprint t
+        when (not arb) . $(pfail "testFun: no instance of arbitrary for %s") $ pprint t
         let typed = SigP base baseT
         if sh
         then pure typed
         else do
-            reportWarning $ "testFun: no instance of Show for " ++ pprint t ++ ", using Blind"
+            reportWarning . $(sprintf "testFun: no instance of Show for %s, using Blind") $ pprint t
             pure $ ConP 'Blind [typed]
       where
         base | isFunctionType t = ConP 'Fun [WildP, VarP x]
@@ -120,7 +122,7 @@ degeneralize = degen [] []
     extractCxt = mapM ex
       where
         ex (AppT (ConT c) (VarT v)) = pure (v, c)
-        ex x = fail $ "degeneralize: Complex context " ++ pprint x ++ " not supported"
+        ex x = $(pfail "degeneralize: Complex context %s not supported") $ pprint x
 
     extractCandidates :: [TyVarBndr] -> Q [(TyVarName, [Type])]
     extractCandidates = mapM ex
@@ -133,14 +135,15 @@ degeneralize = degen [] []
                                             , [t| Double |]   -- for floating-point
                                             ]
         ex (KindedTV x (AppT (AppT ArrowT StarT) StarT)) = (x, ) . (:[]) <$> [t| [] |]
-        ex ktv = fail $ "degeneralize: Complex type variable " ++ pprint ktv ++ " not supported"
+        ex ktv = $(pfail "degeneralize: Complex type variable %s not supported") $ pprint ktv
 
     filterSubstitutions :: [(TyVarName, [Type])] -> [(TyVarName, ClassName)] -> Q [(TyVarName, Type)]
     filterSubstitutions vs cxt = mapM (\(v, cs) -> subst v cs (map snd $ filter (\x -> fst x == v) $ cxt)) vs
 
     subst :: TyVarName -> [Type] -> [ClassName] -> Q (TyVarName, Type)
     subst v cands clss = filterM (\t -> and <$> mapM (\c -> t `hasInstance` c) clss) cands >>= \case
-        []  -> fail $ "degeneralize: Could not degeneralize " ++ pprint v ++ " with constraints " ++ show cands
+        []  -> $(pfail "degeneralize: Could not degeneralize %s with constraints %s")
+                (pprint v) (intercalate "," $ map pprint clss)
         t:_ -> pure (v, t)
 
 hasShow :: Type -> Q Bool

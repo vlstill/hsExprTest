@@ -32,8 +32,9 @@ import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..), Lit 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
 
-import Text.Printf.Mauke.TH
+import Text.Printf.Mauke.TH ( sprintf )
 
+import Test.Expr.Utils
 import Test.Expr.Property
 
 testArgs :: Args
@@ -50,10 +51,10 @@ type ExprName = String
 testMain :: ExprName -> Q [Dec]
 testMain name = do
     sname' <- lookupValueName sn
-    fail ($(sprintf "Could not find student expression %s") name) & when (isNothing sname')
+    $(pfail "Could not find student expression %s") name & when (isNothing sname')
     tname <- lookupValueName tn
     eval  <- lookupValueName "Teacher.evaluator"
-    fail ($(sprintf "Either teacher expression or evaluator has to be given for %s") name)
+    $(pfail "Either teacher expression or evaluator has to be given for %s") name
          & when (isNothing (tname <|> eval))
     let Just sname = sname'
 
@@ -122,4 +123,4 @@ instance Eq a => Eq (Wrapper a) where
 
 instance Show a => Show (Wrapper a) where
     show (OK a)  = show a
-    show (Exc e) = "{ EXCEPTION THROWN (" ++ show (typeOf e) ++ "): " ++ show e ++ " }"
+    show (Exc e) = $(sprintf "{ EXCEPTION THROWN (%s): %s }") (show (typeOf e)) (show e)
