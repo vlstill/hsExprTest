@@ -101,7 +101,7 @@ infix 4 <==>
 x <==> y = x `comp` y
   where
     wrap v = unsafePerformIO $ (evaluate . OK $ force v) `catch` handler
-    handler (SomeException e) = return (Exc e)
+    handler (SomeException e) = pure (Exc e)
     comp x0 y0 = counterexample (sx ++ " /= " ++ sy) (wx == wy)
       where
         wx = wrap x0
@@ -111,9 +111,8 @@ x <==> y = x `comp` y
     unwrap  (OK str) = str
     unwrap ex@(Exc _) = show ex
 
-data Wrapper a
-    = OK !a
-    | forall e. Exception e => Exc e
+data Wrapper a = OK !a
+               | forall e. Exception e => Exc e
 
 instance Eq a => Eq (Wrapper a) where
     (OK x)  == (OK y)  = x == y
