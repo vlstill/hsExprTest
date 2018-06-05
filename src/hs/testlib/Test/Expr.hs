@@ -82,12 +82,11 @@ runProperty :: Testable prp => Args -> prp -> IO ()
 runProperty args prp = do
     r <- quickCheckWithResult args prp
     case r of
-        Success {} -> exitSuccess
-        GaveUp {} -> exitSuccess
-        Failure { output } -> testFailure output
-        NoExpectedFailure { output } -> testFailure output
-        _ -> do print r
-                exitFailure
+        Success {}                      -> exitSuccess
+        GaveUp { output }               -> testFailure output
+        Failure { output }              -> testFailure output
+        NoExpectedFailure { output }    -> testFailure output
+        InsufficientCoverage { output } -> testFailure output
   where
     testFailure output = do putStrLn output
                             exitFailure
