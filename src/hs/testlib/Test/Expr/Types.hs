@@ -10,16 +10,19 @@ module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normal
                        , Substitution, substitute, (//)
                        , Renaming, rename
                        -- * Unification
-                       , UniTypeId, TypeOrder, unify, unifyingSubstitution
+                       , UniTypeId (..), TypeOrder (..), unify, unifyingSubstitution
                        ) where
 
-import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt, newName, pprint )
+import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt
+                           , newName, pprint )
 import Language.Haskell.TH.Syntax ( Lift )
 import Language.Haskell.TH.ExpandSyns ( substInType )
-import Data.List ( foldl', nub )
+import Control.Arrow ( second )
+import Data.List ( foldl', nub, nubBy )
 import Data.Foldable ( toList )
 import Data.Semigroup ( (<>) )
 import Data.Monoid ( mempty )
+import Data.Function ( on )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import           Data.Set        ( Set )
@@ -104,6 +107,9 @@ data TypeOrder = TUnifiable | TLessGeneral | TMoreGeneral | TEqual
 --     constructor or a variable without kind signature)
 --   * quantified type variables have proper kind signatures only if they had
 --     them in both of the original types
+--   * type contexts cannot be simplified, so we can get contexts which
+--     constraints such as @Functor []@ and types misjudged as 'TUnifiable'
+--     instead of the actual ordering
 unify :: Type -> Type -> Either (UniTypeId, String) (TypeOrder, Type)
 unify lt rt = applyUnification <$> unifyingSubstitution lt rt
   where
@@ -143,8 +149,16 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
             ([], []) -> basety
             _        -> ForallT bndrs scxt basety
 
-        restrict :: Set Name -> Substitution -> Substitution
-        restrict varnames = filter ((`Set.member` varnames) . fst)
+        -- | restrict the substitution to the given set of source variables and
+        -- make it total for this set
+        restrictAndTotalize :: Set Name -> Substitution -> Substitution
+        restrictAndTotalize varnames sb = nubBy ((==) `on` fst) $
+                                            filter ((`Set.member` varnames) . fst) sb
+                                            <> foldr (\x xs -> (x, VarT x) : xs) [] varnames
+
+        transitiveClosure :: Substitution -> Substitution
+        transitiveClosure sb = let sb1 = map (second (// sb)) sb
+                               in if sb == sb1 then sb else transitiveClosure sb1
 
         isInjective :: Substitution -> Bool
         isInjective xs = length xs == length (nub (map snd xs))
@@ -152,25 +166,25 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
         isRenaming :: Substitution -> Bool
         isRenaming = all (\case VarT _ -> True; _ -> False) . map snd
 
-        ls = restrict lvars subst
-        rs = restrict rvars subst
+        isTrivial sb = isInjective sb && isRenaming sb
+
+        tsubst = transitiveClosure subst
+        ls = restrictAndTotalize lvars tsubst
+        rs = restrictAndTotalize rvars tsubst
 
         typeOrd :: TypeOrder
-        typeOrd = case (isInjective ls, isInjective rs) of
-                (True, True)  | isRenaming subst -> TEqual
-                              | otherwise        -> TUnifiable
-                (True, False) | isRenaming ls    -> TMoreGeneral
-                              | otherwise        -> TUnifiable
-                (False, True) | isRenaming rs    -> TLessGeneral
-                              | otherwise        -> TUnifiable
-                _                                -> TUnifiable
+        typeOrd = case (isTrivial ls, isTrivial rs) of
+                     (True,  True ) -> TEqual
+                     (False, True ) -> TMoreGeneral
+                     (True,  False) -> TLessGeneral
+                     (False, False) -> TUnifiable
 
         -- a meet on the lattice of TypeOrder
         meet :: TypeOrder -> TypeOrder -> TypeOrder
         meet TEqual y = y
         meet x TEqual = x
         meet x      y | x == y    = x
-                       | otherwise = TUnifiable
+                      | otherwise = TUnifiable
 
         cxtOrd :: TypeOrder
         cxtOrd = case (slcxt `subset` srcxt, srcxt `subset` slcxt) of
