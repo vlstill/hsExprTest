@@ -1,5 +1,7 @@
 {-# LANGUAGE Rank2Types, LambdaCase #-}
 
+-- (c) 2016-2018 Vladimír Štill
+
 module Test.Testable.IO.Base (
     -- * IO replacements
       IO

@@ -1,5 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- (c) 2018 Vladimír Štill
+
 import System.Exit
 import Test.Expr.TypesUnitTest
 

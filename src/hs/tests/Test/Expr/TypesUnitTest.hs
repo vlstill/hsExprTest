@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell, LambdaCase, RankNTypes, KindSignatures #-}
 
+-- (c) 2018 Vladimír Štill
+
 module Test.Expr.TypesUnitTest where
 
 import Test.Expr.Types

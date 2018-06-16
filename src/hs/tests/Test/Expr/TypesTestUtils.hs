@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
 
+-- (c) 2018 Vladimír Štill
+
 module Test.Expr.TypesTestUtils where
 
 import Test.Expr.Types

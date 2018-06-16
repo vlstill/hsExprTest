@@ -1,6 +1,8 @@
 {-# LANGUAGE Safe, NoImplicitPrelude, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- (c) 2016-2018 Vladimír Štill
+
 module Test.Testable.IO (
     -- * IO replacements
       IO

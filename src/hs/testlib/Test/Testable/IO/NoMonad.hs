@@ -1,5 +1,7 @@
 {-# LANGUAGE Safe, NoImplicitPrelude #-}
 
+-- (c) 2016-2018 Vladimír Štill
+
 module Test.Testable.IO.NoMonad (
     -- * IO replacements
       IO

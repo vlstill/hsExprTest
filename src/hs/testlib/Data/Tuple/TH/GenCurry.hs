@@ -1,5 +1,7 @@
 module Data.Tuple.TH.GenCurry ( curryN, uncurryN, genCurries, genUncurries ) where
 
+-- (c) 2018 Vladimír Štill
+
 import Control.Monad
 import Language.Haskell.TH
 
