@@ -4,7 +4,7 @@
 --
 -- (c) 2014 Vladimír Štill
 
-module Testing.Data
+module Test.Testable.Data
     ( showData
     , reflectData
     , conArgs

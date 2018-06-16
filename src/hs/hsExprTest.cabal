@@ -37,6 +37,7 @@ Library
                       Test.Testable.IO
                       Test.Testable.IO.Base
                       Test.Testable.IO.NoMonad
+                      Test.Testable.Data
 
   default-language:   Haskell2010
   ghc-options:        -O1 -Wall -Wcompat -Wmissing-monadfail-instances -Wsemigroup -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances -Wno-simplifiable-class-constraints
