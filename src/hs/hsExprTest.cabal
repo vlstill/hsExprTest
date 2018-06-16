@@ -6,7 +6,7 @@ description:
         See https://github.com/vlstill/hsExprTest/blob/master/README.md for usage details.
 synopsis:           Expression Testing
 category:           Testing
-author:             Martin Jonáš <359542@mail.muni.cz>, Vladimír Štill <xstill@mail.muni.cz>
+author:             Vladimír Štill <xstill@mail.muni.cz>
 maintainer:         xstill@mail.muni.cz
 license:            BSD2
 license-file:       LICENSE
