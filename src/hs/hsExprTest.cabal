@@ -26,7 +26,8 @@ Library
                     deepseq >= 1.2,
                     random >= 1.1,
                     printf-mauke >= 0.7.0,
-                    unix
+                    unix,
+                    containers
 
   exposed-modules:    Test.Expr
                       Test.Expr.Types
