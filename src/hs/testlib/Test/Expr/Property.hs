@@ -13,7 +13,6 @@ import Control.Monad ( when, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName, mkName )
-import Language.Haskell.TH.ExpandSyns ( substInType )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
 
@@ -106,7 +105,7 @@ type ClassName = Name
 type TyVarName = Name
 
 degeneralize :: Type -> Q Type
-degeneralize = degen [] []
+degeneralize t0 = degen [] [] $ normalizeContext t0
   where
     degen :: [TyVarBndr] -> Cxt -> Type -> Q Type
     degen bndr cxt (ForallT b c t) = degen (bndr ++ b) (cxt ++ c) t
@@ -115,7 +114,7 @@ degeneralize = degen [] []
         cxt <- extractCxt cxt0
         sub <- filterSubstitutions substc cxt
 
-        pure $ foldr substInType t sub
+        pure $ t // sub
 
     -- | extract simple contexts to
     extractCxt :: Cxt -> Q [(TyVarName, ClassName)]
