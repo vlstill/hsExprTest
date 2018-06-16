@@ -6,13 +6,14 @@
 
 module Test.Expr.Utils ( -- * Template Haskell Utilities
                          apply, apply', dbg_, showQ, showQ'
-                       , -- * Other Utilities
-                         pfail
+                         -- * Other Utilities
+                       , pfail, spliceModule, spliceFileLoc
+
                        ) where
 
 import Control.Monad.Fail ( fail )
 import Prelude hiding ( fail )
-import Language.Haskell.TH ( Exp (..), Lit (..), Name, Ppr, pprint, Q, reportWarning )
+import Language.Haskell.TH ( Exp (..), Lit (..), Name, Ppr, pprint, Q, reportWarning, Loc (..), location )
 import Text.Printf.Mauke.TH ( sprintf )
 
 -- | Create a function application expression calling given function with given arguments.
@@ -45,3 +46,11 @@ pfail str = pushFail <$> sprintf str
   where
     pushFail (LamE bnd body) = LamE bnd (pushFail body)
     pushFail body            = VarE 'fail `AppE` body
+
+spliceModule :: Q String
+spliceModule = loc_module <$> location
+
+spliceFileLoc :: Q String
+spliceFileLoc = do
+    l <- location
+    pure $ $(sprintf "%s:%d") (loc_filename l) (fst $ loc_start l)
