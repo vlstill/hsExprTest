@@ -54,6 +54,7 @@ Test-Suite unit-hsExprTest
     main-is:          unit.hs
     other-modules:    Test.Expr.TypesUnitTest
                       Test.Expr.TypesTestUtils
+                      Testlib
 
     build-depends:    base, hsExprTest,
                       template-haskell,

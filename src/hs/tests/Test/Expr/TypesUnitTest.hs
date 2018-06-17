@@ -7,8 +7,8 @@ module Test.Expr.TypesUnitTest where
 import Test.Expr.Types
 import Test.Expr.TypesTestUtils
 
-test_types :: IO Bool
-test_types = (fmap and . sequence)
+test :: IO Bool
+test = (fmap and . sequence)
     -- The testUnify function (splice) takes three parameters:  an expected
     -- result of type comparison and two types. The expected result is
     -- 'Either UniTypeId TypeOrder' and is a projection of the result of the
