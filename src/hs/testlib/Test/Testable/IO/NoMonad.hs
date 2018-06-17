@@ -47,6 +47,6 @@ return = pureIO
 infixl 1 >>=
 
 (>>) :: IO a -> IO b -> IO b
-x >> y = x >>= \_ -> y
+x >> y = x >>= const y
 infixl 1 >>
 

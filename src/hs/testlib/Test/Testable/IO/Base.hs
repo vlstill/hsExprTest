@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, LambdaCase #-}
+{-# LANGUAGE Rank2Types, LambdaCase, Safe #-}
 
 -- (c) 2016-2018 Vladimír Štill
 
@@ -33,11 +33,10 @@ module Test.Testable.IO.Base (
 --                      , readFile, writeFile, appendFile
 --                      )
 
-import Prelude ()
 import Control.Monad ( (>>=), return )
 import Prelude ( Int, String, Char, Maybe(..), Show(..), Num(..), Read(..), read
                , ($), (.)
-               , reverse, map, error, head, tail, foldr )
+               , reverse, map, error, head, tail, foldr, fmap, const )
 import Control.Monad.ST ( ST, runST )
 import Control.Applicative ( (<*>), (<$>), pure )
 import Data.STRef ( STRef, newSTRef, readSTRef, writeSTRef, modifySTRef )
@@ -47,7 +46,7 @@ import Data.STRef ( STRef, newSTRef, readSTRef, writeSTRef, modifySTRef )
 --
 -- Internally, we use 'ST' to accumulate user output and line generator
 -- to represent input.
-data IO a = IO { unIO :: forall s. STRef s IOContext -> ST s a }
+newtype IO a = IO { unIO :: forall s. STRef s IOContext -> ST s a }
 
 -- | Module private.
 --
@@ -64,7 +63,7 @@ data IOContext = IOContext { generator :: Int -> Maybe String
                            }
 
 fmapIO :: (a -> b) -> IO a -> IO b
-fmapIO f (IO io) = IO (\ctx -> f <$> io ctx)
+fmapIO f (IO io) = IO (fmap f . io)
 
 pureIO :: a -> IO a
 pureIO x = IO (\_ -> pure x)
@@ -76,10 +75,10 @@ bindIO :: IO a -> (a -> IO b) -> IO b
 bindIO (IO a) f = IO (\ctx -> a ctx >>= \x -> unIO (f x) ctx)
 
 thenIO :: IO a -> IO b -> IO b
-thenIO x y = x `bindIO` \_ -> y
+thenIO x y = x `bindIO` const y
 
-mapM_IO :: (a -> IO b) -> [a] -> IO ()
-mapM_IO f = foldr (thenIO . f) (pureIO ())
+mapMIO :: (a -> IO b) -> [a] -> IO ()
+mapMIO f = foldr (thenIO . f) (pureIO ())
 
 -- | Run virtual 'IO'
 --
@@ -102,7 +101,7 @@ mapM_IO f = foldr (thenIO . f) (pureIO ())
 -- (1, ["1",""])
 runIOLines' :: (Int -> Maybe String) -> IO a -> (a, [String])
 runIOLines' gen (IO io) = runST $ do
-    ctx <- newSTRef (IOContext { generator = gen, lineIx = 1, inLine = gen 0, outLines = [[]] })
+    ctx <- newSTRef IOContext { generator = gen, lineIx = 1, inLine = gen 0, outLines = [[]] }
     r <- io ctx
     out <- outLines <$> readSTRef ctx
     return (r, reverse (map reverse out))
@@ -162,11 +161,11 @@ putChar c = IO $ \sctx -> modifySTRef sctx $ \ctx -> ctx { outLines = (c : head 
 
 -- | Write a string to the standard output device.
 putStr :: String -> IO ()
-putStr = mapM_IO putChar
+putStr = mapMIO putChar
 
 -- | The same as putStr, but adds a newline character.
 putStrLn :: String -> IO ()
-putStrLn x = mapM_IO putChar x `thenIO` putChar '\n'
+putStrLn x = mapMIO putChar x `thenIO` putChar '\n'
 
 -- | The 'print' function outputs a value of any printable type to the
 -- standard output device.
