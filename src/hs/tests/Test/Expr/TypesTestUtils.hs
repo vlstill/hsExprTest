@@ -26,7 +26,7 @@ testUnify pat t1 t2 = do
     loc <- spliceFileLoc
     let res = simplifyRet uni
         sres = show res
-        pres = (either (const "<<failed>>") (pprint . snd) uni)
+        pres = either (const "<<failed>>") (pprint . snd) uni
     [| case res of
             $(pat) -> putStr "." >> pure True
             _      -> putStrLn ($(sprintf "\nunification test failed:\n    %s\n    `unify`\n    %s\n    =\n    %s\n\n        expected %s\n        got      %s\n        at       %s")

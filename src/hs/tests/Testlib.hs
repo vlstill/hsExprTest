@@ -9,7 +9,7 @@ module Testlib ( getTests, wrapTest ) where
 import Language.Haskell.TH ( Q, Exp (..), Lit (..), Name, reifyModule
                            , thisModule, lookupValueName )
 import Language.Haskell.TH.Syntax ( Module (..), ModName (..), ModuleInfo (..) )
-import Data.Maybe ( mapMaybe )
+import Data.Maybe ( mapMaybe, catMaybes )
 import Text.Printf.Mauke.TH ( sprintf )
 
 -- | Find all 'test' functions exported by modules from this packages imported
@@ -28,10 +28,10 @@ getTests = do
         testInfo :: String -> Q (Maybe (String, Name))
         testInfo imp = fmap (imp, ) <$> lookupValueName (testName imp)
 
-        testCallE m test = (VarE 'wrapTest `AppE` (LitE (StringL m))) `AppE` VarE test
+        testCallE m test = (VarE 'wrapTest `AppE` LitE (StringL m)) `AppE` VarE test
 
     imports <- mapMaybe getName . (\(ModuleInfo x) -> x) <$> reifyModule self
-    tests <- mapMaybe id <$> mapM testInfo imports
+    tests <- catMaybes <$> mapM testInfo imports
     pure . ListE $ map (uncurry testCallE) tests
 
 -- | Print test name before it is run and OK/FAILED after it ended.
