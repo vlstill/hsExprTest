@@ -13,6 +13,7 @@ before_install:
     - $CXX --version
 
 install:
+    - true
 
 script:
     - make build
