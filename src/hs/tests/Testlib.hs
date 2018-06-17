@@ -28,7 +28,7 @@ getTests = do
         testInfo :: String -> Q (Maybe (String, Name))
         testInfo imp = fmap (imp, ) <$> lookupValueName (testName imp)
 
-        testCallE mod test = (VarE 'wrapTest `AppE` (LitE (StringL mod))) `AppE` VarE test
+        testCallE m test = (VarE 'wrapTest `AppE` (LitE (StringL m))) `AppE` VarE test
 
     imports <- mapMaybe getName . (\(ModuleInfo x) -> x) <$> reifyModule self
     tests <- mapMaybe id <$> mapM testInfo imports

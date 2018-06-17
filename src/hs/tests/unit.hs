@@ -6,6 +6,7 @@ import System.Exit ( exitFailure, exitSuccess )
 import Test.Expr.TypesUnitTest
 import Testlib
 
+main :: IO ()
 main = (fmap and . sequence) $(getTests) >>= \case
           True  -> exitSuccess
           False -> exitFailure
