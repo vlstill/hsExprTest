@@ -9,7 +9,7 @@ module Test.Expr.Property ( prop ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
-import Control.Monad ( when, replicateM, filterM, zipWithM )
+import Control.Monad ( when, unless, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName, mkName )
@@ -58,7 +58,7 @@ testFun comp tname ttype sname stype = do
     let (targs, rty) = uncurryType dtty
     let ar = length targs
     retEq <- rty `hasInstance` ''Eq
-    when (not retEq) . $(pfail "testFun: return type not comparable: %s") $ pprint rty
+    unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint rty
 
     xs <- replicateM ar (newName "x")
 
@@ -75,7 +75,7 @@ testFun comp tname ttype sname stype = do
     mkpat t x = do
         arb <- hasArbitrary baseT
         sh <- hasShow baseT
-        when (not arb) . $(pfail "testFun: no instance of arbitrary for %s") $ pprint t
+        unless arb . $(pfail "testFun: no instance of arbitrary for %s") $ pprint t
         let typed = SigP base baseT
         if sh
         then pure typed
@@ -86,7 +86,7 @@ testFun comp tname ttype sname stype = do
         base | isFunctionType t = ConP 'Fun [WildP, VarP x]
              | otherwise        = VarP x
 
-        baseT | isFunctionType t = ConT ''Fun `AppT` (foldl AppT (TupleT arrt) ct) `AppT` rt
+        baseT | isFunctionType t = ConT ''Fun `AppT` foldl AppT (TupleT arrt) ct `AppT` rt
               | otherwise        = t
 
         (ct, rt) = uncurryType t
@@ -137,7 +137,7 @@ degeneralize t0 = degen [] [] $ normalizeContext t0
         ex ktv = $(pfail "degeneralize: Complex type variable %s not supported") $ pprint ktv
 
     filterSubstitutions :: [(TyVarName, [Type])] -> [(TyVarName, ClassName)] -> Q [(TyVarName, Type)]
-    filterSubstitutions vs cxt = mapM (\(v, cs) -> subst v cs (map snd $ filter (\x -> fst x == v) $ cxt)) vs
+    filterSubstitutions vs cxt = mapM (\(v, cs) -> subst v cs (map snd $ filter (\x -> fst x == v) cxt)) vs
 
     subst :: TyVarName -> [Type] -> [ClassName] -> Q (TyVarName, Type)
     subst v cands clss = filterM (\t -> and <$> mapM (\c -> t `hasInstance` c) clss) cands >>= \case

@@ -97,6 +97,10 @@ data UniTypeId = LeftType | RightType | BothTypes
 data TypeOrder = TUnifiable | TLessGeneral | TMoreGeneral | TEqual
                  deriving (Eq, Show, Read, Lift)
 
+{-# ANN gmap "HLint: ignore" #-}
+gmap :: Foldable t => (a -> b) -> t a -> [b]
+gmap f = foldr (\x xs -> f x : xs) []
+
 -- | Unify two types
 --
 -- There are certain limitations, i.e. some unifyable types will not be unified:
@@ -127,7 +131,7 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
     toMap (PlainTV _)    = mempty
     toMap (KindedTV n k) = Map.singleton n k
 
-    fromMap = foldr (\x xs -> toBndr x : xs) []
+    fromMap = gmap toBndr
 
     toBndr var = case Map.lookup var kindmap of
                     Just k  -> KindedTV var k
@@ -154,7 +158,7 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
         restrictAndTotalize :: Set Name -> Substitution -> Substitution
         restrictAndTotalize varnames sb = nubBy ((==) `on` fst) $
                                             filter ((`Set.member` varnames) . fst) sb
-                                            <> foldr (\x xs -> (x, VarT x) : xs) [] varnames
+                                            <> gmap (\x -> (x, VarT x)) varnames
 
         transitiveClosure :: Substitution -> Substitution
         transitiveClosure sb = let sb1 = map (second (// sb)) sb
@@ -207,8 +211,8 @@ unifyingSubstitution t0 t1 = go t0n t1n
     stripCxt (ForallT _ _ t) = t
     stripCxt t               = t
 
-    go (ForallT _ _ _) _         = Left (LeftType,  "RankNType unification not supported")
-    go _ (ForallT _ _ _)         = Left (RightType, "RankNType unification not supported")
+    go ForallT { } _             = Left (LeftType,  "RankNType unification not supported")
+    go _ ForallT { }             = Left (RightType, "RankNType unification not supported")
     go (ParensT _) _             = Left (LeftType,  "Explicit parenthesis not supported in unification")
     go _ (ParensT _)             = Left (RightType, "Explicit parenthesis not supported in unification")
 
@@ -242,7 +246,7 @@ unifyingSubstitution t0 t1 = go t0n t1n
 
 -- | Extract all type variables from a type.
 getTVars :: Type -> Set Name
-getTVars t0 = go t0
+getTVars = go
   where
     -- note: we deliberately write all cases verbatim to make compiler warnings
     -- notify us if something is added
@@ -273,7 +277,7 @@ getTVars t0 = go t0
     goBndr (KindedTV n _) = Set.singleton n
 
 rename :: Renaming -> Type -> Type
-rename sub t0 = go t0
+rename sub = go
   where
     go (ForallT bndrs ctx t) = ForallT (map goBndr bndrs) (map go ctx) (go t)
     go (AppT a b)            = AppT (go a) (go b)

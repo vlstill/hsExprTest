@@ -18,11 +18,11 @@ import Text.Printf.Mauke.TH ( sprintf )
 
 -- | Create a function application expression calling given function with given arguments.
 apply :: Name -> [Exp] -> Exp
-apply name exs = apply' (VarE name) exs
+apply name = apply' (VarE name)
 
 -- | Like 'apply', but function is given as an expression.
 apply' :: Exp -> [Exp] -> Exp
-apply' fun exs = foldl AppE fun exs
+apply' = foldl AppE
 
 dbg_ :: Ppr a => Q a -> Q a
 dbg_ qx = qx >>= \x -> reportWarning (pprint x) >> pure x

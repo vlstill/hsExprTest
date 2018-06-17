@@ -68,8 +68,8 @@ testMain name = do
               (Just ev, _) -> [| scheduleAlarm $(timeout) >> $(pure $ VarE ev `AppE` VarE sname) |]
               (_, Just t)  -> [| scheduleAlarm $(timeout) >> runProperty $(args) $(prop cmp t sname) |]
               _ -> fail "impossible"
-    pure $ [ SigD mainName mainType
-           , FunD mainName [Clause [] (NormalB body) []] ]
+    pure [ SigD mainName mainType
+         , FunD mainName [Clause [] (NormalB body) []] ]
   where
     defimeout = LitE $ IntegerL 10
     tmout x = VarE 'fromIntegral `AppE` VarE x
