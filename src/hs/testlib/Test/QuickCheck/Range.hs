@@ -79,7 +79,7 @@ instance forall i ranges.
 
         shrink = unRange >>>
                  shrinkIntegral >>>
-                 filter (flip inRanges (toRanges (Proxy :: Proxy ranges))) >>>
+                 filter (`inRanges` toRanges (Proxy :: Proxy ranges)) >>>
                  map Range
 
 newtype CharRanges ranges = CharRange { charRangeToRange :: Ranges Char ranges }
