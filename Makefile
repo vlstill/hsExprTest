@@ -1,12 +1,12 @@
+# vim: noexpandtab
 
-BUILD_DIR=_build
-SANDBOX_DIR=_cabal_sandbox
 PWD=$(shell pwd)
+BUILD_DIR=${PWD}/_build
 SRC=${PWD}/src
-WRAP=${PWD}/wrap
-CONFIG_STAMP=${BUILD_DIR}/.config-stamp
-HS_CABAL=${SRC}/hs/hsExprTest.cabal
-GHC_PACKAGE_PATH_VAR=GHC_PACKAGE_PATH="$(shell cd ${BUILD_DIR} && cabal sandbox hc-pkg list 2>/dev/null | grep '^/' | tac | sed 's/://' | paste -d: - -)"
+HS_ROOT=${SRC}/hs
+HS_CABAL=${HS_ROOT}/hsExprTest.cabal
+CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
+CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
 
 -include local.make
 
@@ -22,37 +22,31 @@ ${BUILD_DIR}/obj :
 	mkdir -p $@
 	touch $@
 
-${BUILD_DIR}/${SANDBOX_DIR} : ${BUILD_DIR}
-	cd ${BUILD_DIR} && cabal sandbox init --sandbox=${SANDBOX_DIR}
-
-configure : ${CONFIG_STAMP}
-
-${CONFIG_STAMP} :
-	make ${BUILD_DIR}/${SANDBOX_DIR}
-	touch $@
-
-build : ${CONFIG_STAMP} service ${BUILD_DIR}/hsExprTest
-	cd ${BUILD_DIR} && cabal install ${HS_CABAL}
+build : service
+	mkdir -p ${BUILD_DIR}/data
+	mkdir -p ${BUILD_DIR}/bin
+	cabal install ${HS_CABAL} --dependencies-only ${CABAL_OPTS}
+	cd ${HS_ROOT} && cabal configure ${CABAL_OPTS}
+	cd ${HS_ROOT} && cabal build ${CABAL_OPTS_BUILD}
+	cabal install ${HS_CABAL} ${CABAL_OPTS}
 
 service : ${BUILD_DIR}/hsExprTest-service
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hpp) $(wildcard ext/bricks/*) ${BUILD_DIR}/obj
 	$(CXX) $(CXXFLAGS) -c -Wall -Wextra -Wold-style-cast -std=c++1z -Iext/bricks -pthread $< -o $@
 
-${BUILD_DIR}/hsExprTest-service :	${BUILD_DIR}/obj/service.o
+${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-${BUILD_DIR}/hsExprTest :
-	echo "#!/usr/bin/env bash" > $@
-	echo 'export ${GHC_PACKAGE_PATH_VAR}' >> $@
-	echo 'export PATH="$(shell cd ${BUILD_DIR} && pwd)/${SANDBOX_DIR}/bin:$$PATH"' >> $@
-	echo 'exec $(notdir $@) "$$@"' >> $@
-	chmod +x $@
+test :
+	cabal install ${HS_CABAL} --only-dependencies --enable-tests
+	cd ${HS_ROOT} && cabal configure --enable-tests ${CABAL_OPTS}
+	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
 
-test : build
-	./test/driver examples $T
-	./test/driver test $T
+# test : build
+#	./test/driver examples $T
+#	./test/driver test $T
 
 clean :
 	rm -rf ${BUILD_DIR}
@@ -60,14 +54,8 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean configure build ${BUILD_DIR}/hsExprTest submodules
+.PHONY: all clean test build submodules
 
-# test : .cabal-sandbox
-# 	cabal install --only-dependencies --enable-tests
-# 	cabal configure --enable-tests
-# 	cabal install
-# 	chmod +x wrap/env.sh
-# 	./wrap/env.sh -c "cabal test --show-details=always"
 #
 # haddock : .cabal-sandbox/bin/haddock
 # 	cabal haddock --html --with-haddock=./.cabal-sandbox/bin/haddock
