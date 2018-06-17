@@ -25,6 +25,7 @@ module Test.Testable.IO.NoMonad (
     , (>>=), (>>), return
     ) where
 
+import Prelude ( const )
 import Test.Testable.IO.Base
 
 fmap, (<$>) :: (a -> b) -> IO a -> IO b
