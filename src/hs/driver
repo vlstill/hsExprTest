@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+
+# (c) 2018 Vladimír Štill
+
+import os
+import re
+import sys
+import shutil
+import os.path
+import tempfile
+import subprocess
+from typing import List, Union, Optional, Pattern
+
+FilePath = str
+
+if len( sys.argv ) < 3:
+    print( "usage: {} TEACHER_FILE STUDENT_FILE [-IDIR ...] [--hint]".format( sys.argv[0] ), file=sys.stderr )
+    sys.exit( 1 )
+
+teacher : str = sys.argv[1]
+student : str = sys.argv[2]
+hint : bool = False
+include : List[str] = []
+
+for i in range( 3, len( sys.argv ) ):
+    v = sys.argv[i]
+    if v == "--hint":
+        hint = True
+    elif v.startswith( "-I" ) or v.startswith( "-i" ):
+        include.append( v[2:] )
+
+ALL_EXTS : List[str] = [ "NoMonomorphismRestriction" ]
+ST_EXTS : List[str] = [ "Safe" ] + ALL_EXTS
+T_EXTS : List[str] = [ "TemplateHaskell", "Unsafe", "ExplicitForAll", "ScopedTypeVariables" ] + ALL_EXTS
+MAIN_EXTS : List[str] = T_EXTS
+
+OPT_R : Pattern[str] = re.compile( "-- @ +([^:]*)(?:: +(.*))?" )
+LIST_SPLIT_R : Pattern[str] = re.compile(" *, *| +")
+
+class TestConf:
+    def __init__( self ) -> None:
+        self.inject : str = ""
+        self.expr : Optional[str] = None
+        self.exts : List[str] = []
+
+def warn( msg : str ) -> None:
+    print( "W: " + msg, file=sys.stderr )
+
+def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
+    with open( dstFile, "w" ) as dst:
+        with open( srcFile, "r" ) as src:
+            conf = TestConf()
+
+            dst.write( "{-# LANGUAGE " + ", ".join( T_EXTS ) + " #-}\n\n" )
+            dst.write( "module Teacher where\n\n" )
+
+            inject : bool = False
+            inject_end : bool = False
+
+            for l in src:
+                match = OPT_R.fullmatch( l.rstrip() )
+                if match:
+                    key : str = match[1]
+                    val : str = match[2]
+
+                    if key == "expr":
+                        assert val, "missing expression"
+                        conf.expr = val
+                    elif key == "exts":
+                        conf.exts += LIST_SPLIT_R.split( val )
+                    elif key == "INJECT BEGIN":
+                        assert not inject, "inject inside inject"
+                        inject = True
+                    elif key == "INJECT END":
+                        assert inject, "inject end without start"
+                        inject = False
+                        inject_end = True
+                    else:
+                        warn( "unknown option '{}: {}'".format( key, val ) )
+
+                if inject:
+                    conf.inject += l
+                if inject_end:
+                    conf.inject += l
+                    inject_end = False
+
+                dst.write( l )
+
+            assert conf.expr, "no expression given"
+
+            return conf
+
+def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> None:
+    with open( dstFile, "w" ) as dst:
+        with open( srcFile, "r" ) as src:
+            dst.write( "{-# LANGUAGE " + ", ".join( ST_EXTS + conf.exts ) + " #-}\n\n" )
+            dst.write( "module Student where\n\n" )
+
+            if conf.inject:
+                dst.write( conf.inject )
+
+            dst.write( '{-# LINE 1 "IS.hs" #-}\n' )
+            for l in src:
+                dst.write( l )
+
+def mkMainFile( filename : FilePath, conf : TestConf ) -> None:
+    with open( filename, "w" ) as dst:
+        dst.write( "{-# LANGUAGE " + ", ".join( MAIN_EXTS ) + "#-}\n" )
+        dst.write( """
+module Main ( main ) where
+
+import Teacher
+import safe Student
+import Test.Expr
+
+""" )
+        dst.write( '$(testMain "{}")\n'.format( conf.expr ) )
+
+with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
+    conf = mkTeacherFile( teacher, os.path.join( wd, "Teacher.hs" ) )
+    mkStudentFile( student, os.path.join( wd, "Student.hs" ), conf )
+    os.chdir( wd )
+
+    mkMainFile( "Main.hs", conf )
+
+    invocation : List[str] = list( map( lambda x: "-I" + x, include ) ) + [ "-dynamic" ]
+
+    if hint:
+        invocation.insert( 0, "ghc" )
+        invocation.extend( ["-e", "return 0"] )
+    else:
+        invocation.insert( 0, "runghc" )
+
+    invocation.append( "Main.hs" )
+    r = subprocess.run( invocation, stdin = subprocess.DEVNULL )
+
+    if r.returncode != 0:
+        print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file=sys.stderr );
+        sys.exit( 1 )
+    sys.exit( 0 )
