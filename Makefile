@@ -26,9 +26,11 @@ ${BUILD_DIR}/obj :
 	mkdir -p $@
 	touch $@
 
-build : service pycheck
+builddir :
 	mkdir -p ${BUILD_DIR}/data
 	mkdir -p ${BUILD_DIR}/bin
+
+build : builddir service pycheck
 	cabal install ${HS_CABAL} --dependencies-only ${CABAL_OPTS}
 	cd ${HS_ROOT} && cabal configure ${CABAL_OPTS}
 	cd ${HS_ROOT} && cabal build ${CABAL_OPTS_BUILD}
@@ -43,7 +45,7 @@ ${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-test : pycheck
+test : builddir pycheck
 	cabal install ${HS_CABAL} --only-dependencies --enable-tests
 	cd ${HS_ROOT} && cabal configure --enable-tests ${CABAL_OPTS}
 	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
@@ -63,7 +65,7 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean test build submodules pycheck $(PYSRC:%=%-mypy)
+.PHONY: all clean test build builddir submodules pycheck $(PYSRC:%=%-mypy)
 
 #
 # haddock : .cabal-sandbox/bin/haddock
