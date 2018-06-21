@@ -1,12 +1,16 @@
 # vim: noexpandtab
 
-PWD=$(shell pwd)
+PWD != pwd
 BUILD_DIR=${PWD}/_build
 SRC=${PWD}/src
 HS_ROOT=${SRC}/hs
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
 CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
+
+PYSRC_PY != find src -type f -name '*.py'
+PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
+PYSRC=$(PYSRC_PY) $(PYSRC_HASHBANG)
 
 -include local.make
 
@@ -22,7 +26,7 @@ ${BUILD_DIR}/obj :
 	mkdir -p $@
 	touch $@
 
-build : service
+build : service pycheck
 	mkdir -p ${BUILD_DIR}/data
 	mkdir -p ${BUILD_DIR}/bin
 	cabal install ${HS_CABAL} --dependencies-only ${CABAL_OPTS}
@@ -39,10 +43,15 @@ ${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-test :
+test : pycheck
 	cabal install ${HS_CABAL} --only-dependencies --enable-tests
 	cd ${HS_ROOT} && cabal configure --enable-tests ${CABAL_OPTS}
 	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
+
+pycheck : $(PYSRC:%=%-mypy)
+
+$(PYSRC:%=%-mypy) :
+	mypy $(@:%-mypy=%)
 
 # test : build
 #	./test/driver examples $T
@@ -54,7 +63,7 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean test build submodules
+.PHONY: all clean test build submodules pycheck $(PYSRC:%=%-mypy)
 
 #
 # haddock : .cabal-sandbox/bin/haddock
