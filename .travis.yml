@@ -1,23 +1,29 @@
-language: haskell
-ghc:
-  - 8.2
-cabal: 1.24
+language: generic
+sudo: false
 
-env:
-    - CC=gcc-7 CXX=g++-7
+cache:
+  directories:
+    - $HOME/.stack
+
+matrix:
+  include:
+    - env: GHC=ghc-8.4 CC=gcc-7 CXX=g++-7
+    - env: GHC=ghc-8.2 CC=gcc-7 CXX=g++-7
 
 before_install:
+    - mkdir -p ~/.local/bin
+    - export PATH=$HOME/.local/bin:$PATH
+    - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
     - env
-    - cabal --version
-    - ghc --version
+    - stack --compiler ${GHC} exec ghc --version
     - $CXX --version
 
 install:
     - true
 
 script:
-    - make build
-    - make test
+    - stack --compiler ${GHC} exec make build
+    - stack --compiler ${GHC} exec make test
 
 notifications:
   email:
@@ -26,18 +32,15 @@ notifications:
     on_success: change # default: change
     on_failure: always # default: always
 
-sudo: false
-
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - hvr-ghc
     packages:
       - socat
       - time
       - g++-7
-      - ghc-8.2
+      - libgmp-dev # for the sake of Haskell stack
       - acl
       - libacl1-dev
       - mypy
