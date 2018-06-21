@@ -43,4 +43,3 @@ addons:
       - libgmp-dev # for the sake of Haskell stack
       - acl
       - libacl1-dev
-      - mypy
