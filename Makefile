@@ -14,7 +14,7 @@ PYSRC=$(PYSRC_PY) $(PYSRC_HASHBANG)
 
 -include local.make
 
-all : submodules build
+all : submodules build test
 
 CXXFLAGS += -D_POSIX_C_SOURCE
 
