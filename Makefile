@@ -30,11 +30,15 @@ builddir :
 	mkdir -p ${BUILD_DIR}/data
 	mkdir -p ${BUILD_DIR}/bin
 
-build : builddir service pycheck
-	cabal install ${HS_CABAL} --dependencies-only ${CABAL_OPTS}
-	cd ${HS_ROOT} && cabal configure ${CABAL_OPTS}
+configure : builddir ${BUILD_DIR}/_confstamp
+
+${BUILD_DIR}/_confstamp :
+	cabal install ${HS_CABAL} --only-dependencies --enable-tests
+	cd ${HS_ROOT} && cabal configure --enable-tests ${CABAL_OPTS}
+
+build : configure service pycheck
 	cd ${HS_ROOT} && cabal build ${CABAL_OPTS_BUILD}
-	cabal install ${HS_CABAL} ${CABAL_OPTS}
+	cabal install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
 
 service : ${BUILD_DIR}/hsExprTest-service
 
@@ -45,9 +49,7 @@ ${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-test : builddir pycheck
-	cabal install ${HS_CABAL} --only-dependencies --enable-tests
-	cd ${HS_ROOT} && cabal configure --enable-tests ${CABAL_OPTS}
+test : configure builddir pycheck
 	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
 
 pycheck : $(PYSRC:%=%-mypy)
@@ -65,7 +67,7 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean test build builddir submodules pycheck $(PYSRC:%=%-mypy)
+.PHONY: all clean test configure build builddir submodules pycheck $(PYSRC:%=%-mypy)
 
 #
 # haddock : .cabal-sandbox/bin/haddock
