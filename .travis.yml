@@ -20,9 +20,6 @@ before_install:
     - ghc --version
     - $CXX --version
 
-install:
-    - true
-
 script:
     - make build
     - make test
