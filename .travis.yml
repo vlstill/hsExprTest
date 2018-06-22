@@ -19,6 +19,7 @@ before_install:
     - env
     - ghc --version
     - $CXX --version
+    - cabal update
 
 script:
     - make build
