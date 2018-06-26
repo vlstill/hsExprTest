@@ -74,9 +74,9 @@ testFun comp tname ttype0 sname stype0 = do
         Left err -> uncurry typeFail err
         Right (ord, cmpty) -> pure (ord, cmpty)
 
-    typeFail LeftType err = $(pfail "error in teacher type: %s\n\t%s") err (pprint ttype0)
-    typeFail RightType err = $(pfail "error in student type: %s\n\t%s") err (pprint stype0)
-    typeFail BothTypes err = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (pprint ttype0) (pprint stype0)
+    typeFail LeftType err = $(pfail "error in teacher type: %s\n\t%s") err (ppty ttype0)
+    typeFail RightType err = $(pfail "error in student type: %s\n\t%s") err (ppty stype0)
+    typeFail BothTypes err = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (ppty ttype0) (ppty stype0)
 
     -- | construct a pattern from its type and variable name (@x@)
     -- * for function types, it constructs @Fun _ x@

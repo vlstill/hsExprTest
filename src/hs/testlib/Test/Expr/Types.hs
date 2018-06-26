@@ -11,18 +11,21 @@ module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normal
                        , Renaming, rename
                        -- * Unification
                        , UniTypeId (..), TypeOrder (..), unify, unifyingSubstitution
+                       -- * Printing
+                       , ppty
                        ) where
 
 import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt
                            , newName, pprint )
-import Language.Haskell.TH.Syntax ( Lift )
+import Language.Haskell.TH.Syntax ( Lift, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
-import Control.Arrow ( second )
+import Control.Arrow ( second, (>>>) )
 import Data.List ( foldl', nub, nubBy )
 import Data.Foldable ( toList )
 import Data.Semigroup ( (<>) )
 import Data.Monoid ( mempty )
 import Data.Function ( on )
+import Data.Char ( isSpace )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import           Data.Set        ( Set )
@@ -220,7 +223,7 @@ unifyingSubstitution t0 t1 = go t0n t1n
     go (SigT lt lk) (SigT rt rk)
         | lk == rk               = go lt rt
         | otherwise              = Left (BothTypes, $(sprintf "kind mismatch in matching kind signatures: %s vs. %s")
-                                                     (pprint lk) (pprint rk))
+                                                     (ppty lk) (ppty rk))
     go (VarT l) r                = occursCheck l r
     go l (VarT r)                = occursCheck r l
     go (InfixT la lo lb) (InfixT ra ro rb)
@@ -234,14 +237,14 @@ unifyingSubstitution t0 t1 = go t0n t1n
     go l r
         | l == r                 = pure []
         | otherwise              = Left (BothTypes, $(sprintf "constructor mismatch: %s vs. %s")
-                                                     (pprint l) (pprint r))
+                                                     (ppty l) (ppty r))
 
     gobin (la, lb) (ra, rb) = go la ra >>= \subst -> (subst <>) <$> go (lb // subst) (rb // subst)
 
     occursCheck nam typ
         | VarT nam == typ         = pure [(nam, typ)]
         | nam `elem` getTVars typ = Left (BothTypes, $(sprintf "attempt to construct infinite type, occursch check failed: %s ~ %s")
-                                                      (pprint nam) (pprint typ))
+                                                      (pprint nam) (ppty typ))
         | otherwise               = pure [(nam, typ)]
 
 -- | Extract all type variables from a type.
@@ -315,3 +318,34 @@ regenTVars v t = do
     subst <- mapM (\x -> (x, ) <$> newName v) vars
     let r = rename subst t
     pure r
+
+-- | Print a simplified type, more similar to the type printed by GHCi.
+-- There are some serious limitations:
+-- * the namespaces of types are stripped, regardless of its correctness
+-- * explicit foralls are strippend, regardless of need for kind signatures in them
+ppty :: Type -> String
+ppty = normalizeContext >>> simplify >>> \case
+    ty@ForallT {} -> dropWhile isSpace . drop 1 . dropWhile (/= '.') $ pprint ty
+    ty            -> pprint ty
+  where
+    simplify (ForallT bndrs ctx t) = ForallT (map unkind bndrs) (map simplify ctx) (simplify t)
+    simplify (AppT a b)            = AppT (simplify a) (simplify b)
+    simplify (SigT t k)            = SigT (simplify t) (simplify k)
+    simplify (VarT n)              = VarT n
+    simplify (ConT n)              = ConT $ simpName n
+    simplify (PromotedT n)         = PromotedT $ simpName n
+    simplify (InfixT a op b)       = InfixT (simplify a) (simpName op) (simplify b)
+    simplify (UInfixT a op b)      = UInfixT (simplify a) (simpName op) (simplify b)
+    simplify (ParensT t)           = ParensT (simplify t)
+    simplify x                     = x
+
+    simpName = pprint >>> reverse >>> splitdot >>> reverse >>> mkName
+
+    -- get the last part of namespaced name, correctly handling names with dots in them
+    splitdot = span (/= '.') >>> \case
+                  ("", b)                         -> '.' : splitdot (drop 1 b)
+                  (a, b) | filter (== '.') b == b -> a ++ b
+                         | otherwise              -> a ++ drop 1 (takeWhile (== '.') b)
+
+    unkind (KindedTV n _) = PlainTV n
+    unkind p@(PlainTV _)  = p
