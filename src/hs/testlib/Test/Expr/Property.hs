@@ -9,7 +9,7 @@ module Test.Expr.Property ( prop ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
-import Control.Monad ( when, unless, replicateM, filterM, zipWithM )
+import Control.Monad ( unless, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName, mkName )
@@ -21,19 +21,19 @@ import Text.Printf.Mauke.TH ( sprintf )
 import Test.Expr.Types
 import Test.Expr.Utils
 
-type TeacherFnName = Name
-type StudentFnName = Name
+type Student a = a
+type Teacher a = a
 
--- | $(prop 'a 'b) :: Property
--- >>> quickCheck $(prop 'drop 'drop)
+-- | $(prop 'cmp 'a 'b) :: Property
+-- >>> quickCheck $(prop '(===) 'drop 'drop)
 -- +++ OK, passed 100 tests.
 --
--- >>> quickCheck $(prop 'drop 'take)
+-- >>> quickCheck $(prop '(===) 'drop 'take)
 -- *** Failed! Falsifiable (after 3 tests):
 -- 0
 -- [()]
 -- [()] /= []
-prop :: Exp -> TeacherFnName -> StudentFnName -> Q Exp
+prop :: Exp -> Teacher Name -> Student Name -> Q Exp
 prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
     ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp tnam ttype snam stype
     ((t, _), (s, _)) -> $(pfail "prop: Invarid arguments for prop:\n        %s\n        %s") (pprint t) (pprint s)
@@ -47,15 +47,16 @@ prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
-testFun :: Exp -> TeacherFnName -> Type -> StudentFnName -> Type -> Q Exp
-testFun comp tname ttype sname stype = do
-    dtty <- degeneralize ttype
-    dsty <- degeneralize stype
+testFun :: Exp -> Teacher Name -> Teacher Type -> Student Name -> Teacher Type -> Q Exp
+testFun comp tname ttype0 sname stype0 = do
+    let nttype = normalizeContext ttype0
+        ttype = stripAnnotations nttype
+        stype = normalizeContext stype0
 
-    when (dtty /= dsty) $ $(pfail "testFun: incompatible degeneralized types derived:\n        teacher: %s\n        student: %s")
-                           (pprint dtty) (pprint dsty)
+    (_ord, cmpty) <- unifyOrFail ttype stype
+    dcmpty <- degeneralize cmpty
 
-    let (targs, rty) = uncurryType dtty
+    let (targs, rty) = uncurryType dcmpty
     let ar = length targs
     retEq <- rty `hasInstance` ''Eq
     unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint rty
@@ -67,6 +68,16 @@ testFun comp tname ttype sname stype = do
     pure $ LamE pats (UInfixE (apply tname args `SigE` rty) comp (apply sname args `SigE` rty))
 
   where
+    stripAnnotations = id
+
+    unifyOrFail tty sty = case unify tty sty of
+        Left err -> uncurry typeFail err
+        Right (ord, cmpty) -> pure (ord, cmpty)
+
+    typeFail LeftType err = $(pfail "error in teacher type: %s\n\t%s") err (pprint ttype0)
+    typeFail RightType err = $(pfail "error in student type: %s\n\t%s") err (pprint stype0)
+    typeFail BothTypes err = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (pprint ttype0) (pprint stype0)
+
     -- | construct a pattern from its type and variable name (@x@)
     -- * for function types, it constructs @Fun _ x@
     -- * if the type is not Show-able, wraps the pattern in 'Blind'
