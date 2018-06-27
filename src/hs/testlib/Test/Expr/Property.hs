@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections #-}
+{-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections, Unsafe #-}
 
 -- | Property generation. Allows to generate property which compares two
 -- implementations of the same functionality.

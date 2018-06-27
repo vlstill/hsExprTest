@@ -1,4 +1,4 @@
-{-# LANGUAGE ExplicitForAll, ScopedTypeVariables, DeriveDataTypeable #-}
+{-# LANGUAGE ExplicitForAll, ScopedTypeVariables, DeriveDataTypeable, Safe #-}
 
 -- | Support for testing data type declarations.
 --

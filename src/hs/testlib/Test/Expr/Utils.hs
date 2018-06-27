@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, Unsafe #-}
 
 -- | Miscellaneous utilities for Template Haskell and other.
 --

@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DefaultSignatures, Safe #-}
 
 module Data.PartialOrder where
 

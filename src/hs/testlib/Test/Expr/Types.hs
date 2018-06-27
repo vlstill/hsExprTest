@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift, Unsafe #-}
 
 -- | Functions for working with Template Haskell type representation.
 --
