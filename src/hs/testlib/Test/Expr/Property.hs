@@ -15,6 +15,7 @@ import Language.Haskell.TH ( Q, Name, Cxt
                            , reportWarning, pprint, reify, newName, mkName )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
+import Data.PartialOrder ( gte )
 
 import Text.Printf.Mauke.TH ( sprintf )
 
@@ -33,9 +34,9 @@ type Teacher a = a
 -- 0
 -- [()]
 -- [()] /= []
-prop :: Exp -> Teacher Name -> Student Name -> Q Exp
-prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
-    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp tnam ttype snam stype
+prop :: Exp -> TypeOrder -> Teacher Name -> Student Name -> Q Exp
+prop comp to teacher student = (,) <$> info teacher <*> info student >>= \case
+    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp to tnam ttype snam stype
     ((t, _), (s, _)) -> $(pfail "prop: Invarid arguments for prop:\n        %s\n        %s") (pprint t) (pprint s)
 
   where
@@ -47,13 +48,16 @@ prop comp teacher student = (,) <$> info teacher <*> info student >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
-testFun :: Exp -> Teacher Name -> Teacher Type -> Student Name -> Teacher Type -> Q Exp
-testFun comp tname ttype0 sname stype0 = do
+testFun :: Exp -> TypeOrder -> Teacher Name -> Teacher Type -> Student Name -> Teacher Type -> Q Exp
+testFun comp to tname ttype0 sname stype0 = do
     let nttype = normalizeContext ttype0
         ttype = stripAnnotations nttype
         stype = normalizeContext stype0
 
-    (_ord, cmpty) <- unifyOrFail ttype stype
+    (ord, cmpty) <- unifyOrFail ttype stype
+    unless (ord `gte` to) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
+                             (typeOrdExpected to) (typeOrdErr ord) (ppty ttype) (ppty stype)
+
     dcmpty <- degeneralize cmpty
 
     let (targs, rty) = uncurryType dcmpty
@@ -77,6 +81,18 @@ testFun comp tname ttype0 sname stype0 = do
     typeFail LeftType err = $(pfail "error in teacher type: %s\n\t%s") err (ppty ttype0)
     typeFail RightType err = $(pfail "error in student type: %s\n\t%s") err (ppty stype0)
     typeFail BothTypes err = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (ppty ttype0) (ppty stype0)
+
+    typeOrdExpected :: TypeOrder -> String
+    typeOrdExpected TEqual = "types to be equal"
+    typeOrdExpected TLessGeneral = "student's type to be more general"
+    typeOrdExpected TMoreGeneral = "student's type to be less general"
+    typeOrdExpected TUnifiable = "types to be unifiable"
+
+    typeOrdErr :: TypeOrder -> String
+    typeOrdErr TEqual = "they are equal"
+    typeOrdErr TLessGeneral = "the student's type is more general then the teacher's type"
+    typeOrdErr TMoreGeneral = "the student's type is less general then the teacher's type"
+    typeOrdErr TUnifiable = "they are unifiable, but neither of them is more general then the other"
 
     -- | construct a pattern from its type and variable name (@x@)
     -- * for function types, it constructs @Fun _ x@

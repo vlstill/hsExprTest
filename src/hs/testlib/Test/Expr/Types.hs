@@ -26,6 +26,7 @@ import Data.Semigroup ( (<>) )
 import Data.Monoid ( mempty )
 import Data.Function ( on )
 import Data.Char ( isSpace )
+import Data.PartialOrder ( PartialOrder ( pcompare ) )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import           Data.Set        ( Set )
@@ -99,6 +100,18 @@ data UniTypeId = LeftType | RightType | BothTypes
 
 data TypeOrder = TUnifiable | TLessGeneral | TMoreGeneral | TEqual
                  deriving (Eq, Show, Read, Lift)
+
+instance PartialOrder TypeOrder where
+    pcompare TUnifiable   TUnifiable   = Just EQ
+    pcompare TLessGeneral TLessGeneral = Just EQ
+    pcompare TMoreGeneral TMoreGeneral = Just EQ
+    pcompare TEqual       TEqual       = Just EQ
+    pcompare TUnifiable   _            = Just LT
+    pcompare TEqual       _            = Just GT
+    pcompare _            TUnifiable   = Just GT
+    pcompare _            TEqual       = Just LT
+    pcompare _            _            = Nothing
+
 
 {-# ANN gmap "HLint: ignore" #-}
 gmap :: Foldable t => (a -> b) -> t a -> [b]
