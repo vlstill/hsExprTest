@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, ExistentialQuantification, NamedFieldPuns
-           , Unsafe, BangPatterns
+           , Unsafe, BangPatterns, LambdaCase
            #-}
 
 -- | Simple utility functions for testing.
@@ -8,7 +8,7 @@
 
 module Test.Expr (
                  -- * Test Entry
-                   testMain
+                   testMain, extractOption, extractOption'
                  -- * Test Expression Building Blocks
                  , (<==>), testArgs, runProperty, Args (..), scheduleAlarm
                  ) where
@@ -35,6 +35,7 @@ import System.Posix.Signals ( scheduleAlarm )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import Test.Expr.Utils
+import Test.Expr.Types
 import Test.Expr.Property
 
 testArgs :: Args
@@ -48,8 +49,8 @@ testArgs = stdArgs { chatty = False
 
 type ExprName = String
 
-testMain :: ExprName -> Q [Dec]
-testMain name = do
+testMain :: ExprName -> TypeOrder -> Q [Dec]
+testMain name typeOrder = do
     sname' <- lookupValueName sn
     $(pfail "Could not find student expression %s") name & when (isNothing sname')
     tname <- lookupValueName tn
@@ -66,7 +67,7 @@ testMain name = do
     mainType <- [t| IO () |]
     body <- case (eval, tname) of
               (Just ev, _) -> [| scheduleAlarm $(timeout) >> $(pure $ VarE ev `AppE` VarE sname) |]
-              (_, Just t)  -> [| scheduleAlarm $(timeout) >> runProperty $(args) $(prop cmp t sname) |]
+              (_, Just t)  -> [| scheduleAlarm $(timeout) >> runProperty $(args) $(prop cmp typeOrder t sname) |]
               _ -> fail "impossible"
     pure [ SigD mainName mainType
          , FunD mainName [Clause [] (NormalB body) []] ]
@@ -77,6 +78,14 @@ testMain name = do
     defargs = VarE 'testArgs
     tn = "Teacher." ++ name
     sn = "Student." ++ name
+
+extractOption :: String -> Exp -> Q Exp
+extractOption name def = maybe def VarE <$> lookupValueName ("Teacher." ++ name)
+
+extractOption' :: String -> Q Exp
+extractOption' name = lookupValueName ("Teacher." ++ name) >>= \case
+                        Nothing -> $(pfail "missing a mandatory option %s") name
+                        Just x  -> pure $ VarE x
 
 runProperty :: Testable prp => Args -> prp -> IO ()
 runProperty args prp = do
