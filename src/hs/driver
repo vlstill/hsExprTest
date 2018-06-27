@@ -123,7 +123,7 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
 
     if hint:
         invocation.insert( 0, "ghc" )
-        invocation.extend( ["-e", "return 0"] )
+        invocation.extend( ["-e", "return ()"] )
     else:
         invocation.insert( 0, "runghc" )
 
