@@ -7,6 +7,7 @@ HS_ROOT=${SRC}/hs
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
 CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
+GHC ?= ghc-8.4
 
 PYSRC_PY != find src -type f -name '*.py'
 PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
@@ -40,6 +41,9 @@ build : configure service pycheck
 	cd ${HS_ROOT} && cabal build ${CABAL_OPTS_BUILD}
 	cabal install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
 
+build-stack : builddir service pycheck
+	stack --compiler $(GHC) build
+
 service : ${BUILD_DIR}/hsExprTest-service
 
 ${BUILD_DIR}/obj/service.o : ${SRC}/core/service.cpp $(wildcard ${SRC}/core/*.hpp) $(wildcard ext/bricks/*) ${BUILD_DIR}/obj
@@ -49,8 +53,11 @@ ${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-test : configure builddir pycheck
+test : configure pycheck
 	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
+
+test-stack : builddir pycheck
+	stack --compiler $(GHC) test
 
 pycheck : $(PYSRC:%=%-mypy)
 
