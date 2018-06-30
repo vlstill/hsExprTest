@@ -13,6 +13,7 @@ import Control.Monad ( unless, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName, mkName )
+import Language.Haskell.TH.ExpandSyns ( expandSyns )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
 import Data.PartialOrder ( gte )
@@ -51,8 +52,8 @@ prop comp to teacher student = (,) <$> info teacher <*> info student >>= \case
 testFun :: Exp -> TypeOrder -> Teacher Name -> Teacher Type -> Student Name -> Teacher Type -> Q Exp
 testFun comp to tname ttype0 sname stype0 = do
     let nttype = normalizeContext ttype0
-        ttype = stripAnnotations nttype
-        stype = normalizeContext stype0
+    ttype <- expandSyns $ stripAnnotations nttype
+    stype <- expandSyns $ normalizeContext stype0
 
     (ord, cmpty) <- unifyOrFail ttype stype
     unless (ord `gte` to) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
