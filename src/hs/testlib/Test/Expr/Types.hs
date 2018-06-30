@@ -20,6 +20,7 @@ import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..),
 import Language.Haskell.TH.Syntax ( Lift, mkName )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 import Control.Arrow ( second, (>>>) )
+import Control.Monad ( filterM )
 import Data.List ( foldl', nub, nubBy )
 import Data.Foldable ( toList )
 import Data.Semigroup ( (<>) )
@@ -31,7 +32,7 @@ import Data.Data ( Data, Typeable )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import           Data.Set        ( Set )
-import qualified Data.Set as Set ( singleton, member )
+import qualified Data.Set as Set ( singleton, member, null )
 import qualified Data.Map as Map ( singleton, lookup )
 
 -- | Get arity of a type (i.e. the number of arguments needed to make the value
@@ -131,9 +132,12 @@ gmap f = foldr (\x xs -> f x : xs) []
 --   * type contexts cannot be simplified, so we can get contexts which
 --     constraints such as @Functor []@ and types misjudged as 'TUnifiable'
 --     instead of the actual ordering
-unify :: Type -> Type -> Either (UniTypeId, String) (TypeOrder, Type)
-unify lt rt = applyUnification <$> unifyingSubstitution lt rt
+unify :: Type -> Type -> Q (Either (UniTypeId, String) (TypeOrder, Type))
+unify lt rt = hoistQ $ applyUnification <$> unifyingSubstitution lt rt
   where
+    hoistQ (Right x)  = fmap Right x
+    hoistQ (Left y) = pure (Left y)
+
     (lbndrs, lcxt, nlt) = splitCxt $ normalizeContext lt
     (rbndrs, rcxt, _  ) = splitCxt $ normalizeContext rt
 
@@ -154,21 +158,36 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
                     Just k  -> KindedTV var k
                     Nothing -> PlainTV var
 
-    applyUnification :: Substitution -> (TypeOrder, Type)
-    applyUnification subst = (typeOrd `meet` cxtOrd, ty)
+    applyUnification :: Substitution -> Q (TypeOrder, Type)
+    applyUnification subst = do
+        slcxt <- nub <$> filterM constraintNeeded (map (// subst) lcxt)
+        srcxt <- nub <$> filterM constraintNeeded (map (// subst) rcxt)
+        let scxt  = nub $ slcxt <> srcxt
+
+        let ty = case (bndrs, scxt) of
+                ([], []) -> basety
+                _        -> ForallT bndrs scxt basety
+
+        let cxtOrd :: TypeOrder
+            cxtOrd = case (slcxt `subset` srcxt, srcxt `subset` slcxt) of
+                      (True,  True) -> TEqual
+                      -- left context is subset of the right -> the left context is *less* restrictive
+                      (True, False) -> TMoreGeneral
+                      (False, True) -> TLessGeneral
+                      _             -> TUnifiable
+
+        pure (typeOrd `meet` cxtOrd, ty)
       where
         basety = nlt // subst
         vars = getTVars basety
 
-        slcxt = nub $ map (// subst) lcxt
-        srcxt = nub $ map (// subst) rcxt
-        scxt  = nub $ slcxt <> srcxt
-
         bndrs = fromMap vars
 
-        ty = case (bndrs, scxt) of
-            ([], []) -> basety
-            _        -> ForallT bndrs scxt basety
+        constraintNeeded :: Type -> Q Bool
+        constraintNeeded constraint@(AppT (ConT cls) t)
+          | Set.null (getTVars constraint) = not <$> hasInstance t cls
+          | otherwise = pure True
+        constraintNeeded _ = pure True
 
         -- | restrict the substitution to the given set of source variables and
         -- make it total for this set
@@ -206,14 +225,6 @@ unify lt rt = applyUnification <$> unifyingSubstitution lt rt
         meet x TEqual = x
         meet x      y | x == y    = x
                       | otherwise = TUnifiable
-
-        cxtOrd :: TypeOrder
-        cxtOrd = case (slcxt `subset` srcxt, srcxt `subset` slcxt) of
-                  (True,  True) -> TEqual
-                  -- left context is subset of the right -> the left context is *less* restrictive
-                  (True, False) -> TMoreGeneral
-                  (False, True) -> TLessGeneral
-                  _             -> TUnifiable
 
         subset :: Cxt -> Cxt -> Bool
         subset l r = all (`elem` r) l

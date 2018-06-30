@@ -8,6 +8,7 @@ import Test.Expr.Types
 import Test.Expr.Utils ( spliceFileLoc )
 import Language.Haskell.TH ( Q, Type, Exp, Pat, pprint )
 import Control.Applicative ( liftA2 )
+import Control.Monad ( join )
 import Text.Printf.Mauke.TH ( sprintf )
 
 data TestSuccess = TS
@@ -22,7 +23,7 @@ testUnify pat t1 t2 = do
     (ppat :: String) <- pprint <$> pat
     (pt1 :: String) <- pprint <$> t1
     (pt2 :: String) <- pprint <$> t2
-    uni <- liftA2 unify t1 t2
+    uni <- join $ liftA2 unify t1 t2
     loc <- spliceFileLoc
     let res = simplifyRet uni
         sres = show res

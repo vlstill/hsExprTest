@@ -74,7 +74,7 @@ testFun comp to tname ttype0 sname stype0 = do
   where
     stripAnnotations = id
 
-    unifyOrFail tty sty = case unify tty sty of
+    unifyOrFail tty sty = unify tty sty >>= \case
         Left err -> uncurry typeFail err
         Right (ord, cmpty) -> pure (ord, cmpty)
 
