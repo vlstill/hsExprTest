@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift, Unsafe #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift, DeriveDataTypeable, Unsafe #-}
 
 -- | Functions for working with Template Haskell type representation.
 --
@@ -27,6 +27,7 @@ import Data.Monoid ( mempty )
 import Data.Function ( on )
 import Data.Char ( isSpace )
 import Data.PartialOrder ( PartialOrder ( pcompare ) )
+import Data.Data ( Data, Typeable )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import           Data.Set        ( Set )
@@ -96,10 +97,10 @@ infixl 9 //
 t // sub = substitute sub t
 
 data UniTypeId = LeftType | RightType | BothTypes
-                 deriving (Eq, Show, Read, Lift)
+                 deriving (Eq, Show, Read, Lift, Data, Typeable)
 
 data TypeOrder = TUnifiable | TLessGeneral | TMoreGeneral | TEqual
-                 deriving (Eq, Show, Read, Lift)
+                 deriving (Eq, Show, Read, Lift, Data, Typeable)
 
 instance PartialOrder TypeOrder where
     pcompare TUnifiable   TUnifiable   = Just EQ
