@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell, ExistentialQuantification, NamedFieldPuns
-           , Unsafe, BangPatterns, LambdaCase
+{-# LANGUAGE TemplateHaskell, ExistentialQuantification, Unsafe, BangPatterns
+           , LambdaCase, NamedFieldPuns, RecordWildCards
            #-}
 
 -- | Simple utility functions for testing.
@@ -57,17 +57,20 @@ testMain name typeOrder = do
     eval  <- lookupValueName "Teacher.evaluator"
     $(pfail "Either teacher expression or evaluator has to be given for %s") name
          & when (isNothing (tname <|> eval))
-    let Just sname = sname'
+    let Just studentName = sname'
 
     let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
-    cmp <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
+    comparer <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
 
     let mainName = mkName "main"
+    let pattern = Nothing
     mainType <- [t| IO () |]
     body <- case (eval, tname) of
-              (Just ev, _) -> [| scheduleAlarm $(timeout) >> $(pure $ VarE ev `AppE` VarE sname) |]
-              (_, Just t)  -> [| scheduleAlarm $(timeout) >> runProperty $(args) $(prop cmp typeOrder t sname) |]
+              (Just ev, _) -> [| scheduleAlarm $(timeout) >>
+                                 $(pure $ VarE ev `AppE` VarE studentName) |]
+              (_, Just teacherName) -> [| scheduleAlarm $(timeout) >>
+                                          runProperty $(args) $(prop Prop {..}) |]
               _ -> fail "impossible"
     pure [ SigD mainName mainType
          , FunD mainName [Clause [] (NormalB body) []] ]

@@ -1,11 +1,13 @@
-{-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections, Unsafe #-}
+{-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections, Unsafe
+           , NamedFieldPuns, RecordWildCards
+           #-}
 
 -- | Property generation. Allows to generate property which compares two
 -- implementations of the same functionality.
 --
 -- (c) 2018 Vladimír Štill
 
-module Test.Expr.Property ( prop ) where
+module Test.Expr.Property ( prop, Prop (..) ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun ( Fun ) )
@@ -26,6 +28,13 @@ import Test.Expr.Utils
 type Student a = a
 type Teacher a = a
 
+data Prop = Prop { comparer :: Exp
+                 , pattern :: Maybe Pat
+                 , typeOrder :: TypeOrder
+                 , teacherName :: Teacher Name
+                 , studentName :: Student Name
+                 } deriving ( Eq, Show )
+
 -- | $(prop 'cmp 'a 'b) :: Property
 -- >>> quickCheck $(prop '(===) 'drop 'drop)
 -- +++ OK, passed 100 tests.
@@ -35,10 +44,12 @@ type Teacher a = a
 -- 0
 -- [()]
 -- [()] /= []
-prop :: Exp -> TypeOrder -> Teacher Name -> Student Name -> Q Exp
-prop comp to teacher student = (,) <$> info teacher <*> info student >>= \case
-    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) -> testFun comp to tnam ttype snam stype
-    ((t, _), (s, _)) -> $(pfail "prop: Invarid arguments for prop:\n        %s\n        %s") (pprint t) (pprint s)
+prop :: Prop -> Q Exp
+prop p@Prop {..} = (,) <$> info teacherName <*> info studentName >>= \case
+    ((_, Just (tnam, ttype)), (_, Just (snam, stype))) ->
+            testFun p { teacherName = tnam, studentName = snam } ttype stype
+    ((t, _), (s, _)) ->
+            $(pfail "prop: Invarid arguments for prop:\n        %s\n        %s") (pprint t) (pprint s)
 
   where
     info x = ex <$> reify x
@@ -49,15 +60,15 @@ prop comp to teacher student = (,) <$> info teacher <*> info student >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
-testFun :: Exp -> TypeOrder -> Teacher Name -> Teacher Type -> Student Name -> Teacher Type -> Q Exp
-testFun comp to tname ttype0 sname stype0 = do
+testFun :: Prop -> Teacher Type -> Student Type -> Q Exp
+testFun Prop {..} ttype0 stype0 = do
     let nttype = normalizeContext ttype0
     ttype <- expandSyns $ stripAnnotations nttype
     stype <- expandSyns $ normalizeContext stype0
 
     (ord, cmpty) <- unifyOrFail ttype stype
-    unless (ord `gte` to) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
-                             (typeOrdExpected to) (typeOrdErr ord) (ppty ttype) (ppty stype)
+    unless (ord `gte` typeOrder) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
+            (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
 
     dcmpty <- degeneralize cmpty
 
@@ -70,7 +81,7 @@ testFun comp to tname ttype0 sname stype0 = do
 
     pats <- zipWithM mkpat targs xs
     args <- zipWithM mkvar targs xs
-    pure $ LamE pats (UInfixE (apply tname args `SigE` rty) comp (apply sname args `SigE` rty))
+    pure $ LamE pats (UInfixE (apply teacherName args `SigE` rty) comparer (apply studentName args `SigE` rty))
 
   where
     stripAnnotations = id
