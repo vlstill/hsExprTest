@@ -19,6 +19,8 @@ import Language.Haskell.TH.ExpandSyns ( expandSyns )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
 import Data.PartialOrder ( gte )
+import Data.Maybe ( fromJust )
+import Control.Arrow ( second )
 
 import Text.Printf.Mauke.TH ( sprintf )
 
@@ -77,10 +79,17 @@ testFun Prop {..} ttype0 stype0 = do
     retEq <- rty `hasInstance` ''Eq
     unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint rty
 
-    xs <- replicateM ar (newName "x")
+    (pats, args) <- case pattern of
+        Nothing -> do xs <- replicateM ar (newName "x")
+                      pats <- zipWithM mkpat targs xs
+                      args <- zipWithM mkvar targs xs
+                      pure (pats, args)
+        Just pats0 -> do let xs = extractVars pats0
+                             pats = untupP $ pushTypes (zip xs targs) pats0
+                         unless (length xs == length targs) $(pfail "teacher-provided patter does not match arity of the expression's type")
+                         args <- zipWithM mkvar targs xs
+                         pure (pats, args)
 
-    pats <- zipWithM mkpat targs xs
-    args <- zipWithM mkvar targs xs
     pure $ LamE pats (UInfixE (apply teacherName args `SigE` rty) comparer (apply studentName args `SigE` rty))
 
   where
@@ -139,6 +148,51 @@ testFun Prop {..} ttype0 stype0 = do
 
         (ta, _) = uncurryType t
         uc = mkName ("curry" ++ show (length ta))
+
+    extractVars :: Pat -> [Name]
+    extractVars (LitP _)            = []
+    extractVars (VarP x)            = [x]
+    extractVars (TupP ps)           = concatMap extractVars ps
+    extractVars (UnboxedTupP ps)    = concatMap extractVars ps
+    extractVars (UnboxedSumP p _ _) = extractVars p
+    extractVars (ConP _ ps)         = concatMap extractVars ps
+    extractVars (InfixP p1 _ p2)    = extractVars p1 ++ extractVars p2
+    extractVars (UInfixP p1 _ p2)   = extractVars p1 ++ extractVars p2
+    extractVars (ParensP p)         = extractVars p
+    extractVars (TildeP p)          = extractVars p
+    extractVars (BangP p)           = extractVars p
+    extractVars (AsP _ p)           = extractVars p
+    extractVars WildP               = []
+    extractVars (RecP _ fp)         = concatMap (extractVars . snd) fp
+    extractVars (ListP ps)          = concatMap extractVars ps
+    extractVars (SigP p _)          = extractVars p
+    extractVars (ViewP _ p)         = extractVars p
+
+    look x = fromJust . lookup x
+
+    pushTypes :: [(Name, Type)] -> Pat -> Pat
+    pushTypes _ l@(LitP _)          = l
+    pushTypes d v@(VarP x)          = SigP v (look x d)
+    pushTypes d (TupP ps)           = TupP $ map (pushTypes d) ps
+    pushTypes d (UnboxedTupP ps)    = UnboxedTupP $ map (pushTypes d) ps
+    pushTypes d (UnboxedSumP p a b) = UnboxedSumP (pushTypes d p) a b
+    pushTypes d (ConP c ps)         = ConP c $ map (pushTypes d) ps
+    pushTypes d (InfixP p1 i p2)    = InfixP (pushTypes d p1) i (pushTypes d p2)
+    pushTypes d (UInfixP p1 i p2)   = UInfixP (pushTypes d p1) i (pushTypes d p2)
+    pushTypes d (ParensP p)         = ParensP $ pushTypes d p
+    pushTypes d (TildeP p)          = TildeP $ pushTypes d p
+    pushTypes d (BangP p)           = BangP $ pushTypes d p
+    pushTypes d (AsP n p)           = AsP n $ pushTypes d p
+    pushTypes _ WildP               = WildP
+    pushTypes d (RecP n fp)         = RecP n $ map (second (pushTypes d)) fp
+    pushTypes d (ListP ps)          = ListP $ map (pushTypes d) ps
+    pushTypes d (SigP p t)          = SigP (pushTypes d p) t
+    pushTypes d (ViewP e p)         = ViewP e $ pushTypes d p
+
+
+    untupP :: Pat -> [Pat]
+    untupP (TupP ps) = ps
+    untupP p         = [p]
 
 type ClassName = Name
 type TyVarName = Name

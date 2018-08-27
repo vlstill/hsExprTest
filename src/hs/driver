@@ -109,7 +109,7 @@ import Test.Expr
 import Test.Expr.Types ( TypeOrder ( TEqual ) )
 import Language.Haskell.TH ( Exp ( ConE ) )
 
-$(testMain $(extractOption' "expr") $(extractOption "typeOrder" (ConE 'TEqual)))
+$(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
 """ )
 
 with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:

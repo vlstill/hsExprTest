@@ -8,7 +8,7 @@
 
 module Test.Expr (
                  -- * Test Entry
-                   testMain, extractOption, extractOption'
+                   testMain, extractOptionDef, extractOptionMaybe, extractOption
                  -- * Test Expression Building Blocks
                  , (<==>), testArgs, runProperty, Args (..), scheduleAlarm
                  ) where
@@ -27,7 +27,8 @@ import Control.Monad ( when )
 import Control.Applicative ( (<|>) )
 
 import System.Exit ( exitSuccess, exitFailure )
-import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..), Lit (..), lookupValueName, mkName )
+import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
+                             Lit (..), Pat, lookupValueName, mkName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -49,8 +50,8 @@ testArgs = stdArgs { chatty = False
 
 type ExprName = String
 
-testMain :: ExprName -> TypeOrder -> Q [Dec]
-testMain name typeOrder = do
+testMain :: ExprName -> TypeOrder -> Maybe (Q Pat) -> Q [Dec]
+testMain name typeOrder pat = do
     sname' <- lookupValueName sn
     $(pfail "Could not find student expression %s") name & when (isNothing sname')
     tname <- lookupValueName tn
@@ -64,8 +65,8 @@ testMain name typeOrder = do
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
 
     let mainName = mkName "main"
-    let pattern = Nothing
     mainType <- [t| IO () |]
+    pattern <- sequence pat
     body <- case (eval, tname) of
               (Just ev, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE ev `AppE` VarE studentName) |]
@@ -82,11 +83,15 @@ testMain name typeOrder = do
     tn = "Teacher." ++ name
     sn = "Student." ++ name
 
-extractOption :: String -> Exp -> Q Exp
-extractOption name def = maybe def VarE <$> lookupValueName ("Teacher." ++ name)
+extractOptionDef :: String -> Exp -> Q Exp
+extractOptionDef name def = maybe def VarE <$> lookupValueName ("Teacher." ++ name)
 
-extractOption' :: String -> Q Exp
-extractOption' name = lookupValueName ("Teacher." ++ name) >>= \case
+extractOptionMaybe :: String -> Q Exp
+extractOptionMaybe name = maybe (ConE 'Nothing) ((ConE 'Just `AppE`) . VarE)
+                                           <$> lookupValueName ("Teacher." ++ name)
+
+extractOption :: String -> Q Exp
+extractOption name = lookupValueName ("Teacher." ++ name) >>= \case
                         Nothing -> $(pfail "missing a mandatory option %s") name
                         Just x  -> pure $ VarE x
 
