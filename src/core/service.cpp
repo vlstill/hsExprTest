@@ -278,11 +278,18 @@ struct Eval
                 student << solution;
             }
 
-            std::vector< std::string > args = { _config[ course ].checker,
-                                                qfile,
-                                                studentfile,
-                                                "-I" + _config.qdir( course )
-                                              };
+            std::vector< std::string > args;
+            {
+                std::stringstream ss( _config[ course ].checker );
+                std::string cmdpart;
+                while ( std::getline( ss, cmdpart, ' ' ) ) {
+                    args.push_back( cmdpart );
+                }
+                args.insert( args.end(), { qfile,
+                                           studentfile,
+                                           "-I" + _config.qdir( course )
+                                          } );
+            }
             if ( hint && !_config[ course ].hint )
                 throw std::runtime_error( "unauthorized" );
             if ( hint )
