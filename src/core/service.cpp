@@ -358,6 +358,8 @@ int main( int argc, char **argv )
     sfd.add( { SIGUSR1, SIGTERM } );
     std::signal( SIGPIPE, SIG_IGN );
 
+    char *cwd = get_current_dir_name();
+
     std::atomic< bool > end = false;
     std::atomic< bool > hotrestart = false;
 
@@ -471,6 +473,7 @@ int main( int argc, char **argv )
             passargs.push_back( s.data() );
         passargs.push_back( nullptr );
         INFO( "hot restart" );
+        chdir( cwd ); // in case the working directory is deleted and re-created, this will go to it again
         execvp( argv[0], passargs.data() );
 
         WARN( "execvp failed, ignoring hot restart request" );
