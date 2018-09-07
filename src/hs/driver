@@ -120,15 +120,17 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
     mkMainFile( "Main.hs", conf )
 
     invocation : List[str] = list( map( lambda x: "-I" + x, include ) ) + [ "-dynamic" ]
+    stderr = sys.stderr
 
     if hint:
         invocation.insert( 0, "ghc" )
         invocation.extend( ["-e", "return ()"] )
     else:
         invocation.insert( 0, "runghc" )
+        stderr = sys.stdout
 
     invocation.append( "Main.hs" )
-    r = subprocess.run( invocation, stdin = subprocess.DEVNULL )
+    r = subprocess.run( invocation, stdin = subprocess.DEVNULL, stderr = stderr )
 
     if r.returncode != 0:
         print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file=sys.stderr );
