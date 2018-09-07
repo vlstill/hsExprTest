@@ -1,7 +1,5 @@
--- @ expr: inInterval
--- @ wrap: inInterval_wrap
--- @ limit: 4
--- @ inject
+expr = "inInterval_wrap"
+timeout = 4
 
 -- @ INJECT BEGIN
 inInterval_wrap :: Int -> Int -> Int -> Bool

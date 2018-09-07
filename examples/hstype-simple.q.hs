@@ -1,2 +1,3 @@
 -- @ type
+
 Bool  -> [[a]] -> Int

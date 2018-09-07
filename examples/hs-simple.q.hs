@@ -1,2 +1,2 @@
--- @ expr: foo
+expr = "foo"
 foo = id

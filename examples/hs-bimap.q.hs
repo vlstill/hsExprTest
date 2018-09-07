@@ -1,5 +1,5 @@
--- @ expr: binmap
--- @ limit: 5
+expr = "binmap"
+timeout = 5
 
 binmap :: (a -> a -> b) -> [a] -> [b]
 binmap _ []       = []

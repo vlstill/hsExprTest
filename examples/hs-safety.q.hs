@@ -1,4 +1,4 @@
--- @ expr: foo
+expr = "foo"
 
 foo :: ()
 foo = ()
