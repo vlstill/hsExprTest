@@ -100,10 +100,7 @@ runProperty args prp = do
     r <- quickCheckWithResult args prp
     case r of
         Success {}                      -> putStrLn "test passed" >> exitSuccess
-        GaveUp { output }               -> testFailure output
-        Failure { output }              -> testFailure output
-        NoExpectedFailure { output }    -> testFailure output
-        InsufficientCoverage { output } -> testFailure output
+        _                               -> testFailure (output r)
   where
     testFailure output = do putStrLn output
                             exitFailure
