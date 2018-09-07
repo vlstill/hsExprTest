@@ -134,11 +134,11 @@ struct Config
            << "\n    max_workers: " << max_workers
            << "\n    courses:";
         for ( auto [ course, info ] : courses ) {
-            os << "\n    - name: " << course
-               << "\n      checker: " << info.checker
-               << "\n      qdir: " << qdir( course )
-               << "\n      isolation: " << info.isolation
-               << "\n      hint: " << info.hint;
+            os << "\n      - name: " << course
+               << "\n        checker: " << info.checker
+               << "\n        qdir: " << qdir( course )
+               << "\n        isolation: " << info.isolation
+               << "\n        hint: " << info.hint;
         }
         os << std::endl;
     }
