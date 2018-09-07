@@ -39,6 +39,10 @@ Library
                       Test.Testable.IO.NoMonad
                       Test.Testable.Data
                       Data.PartialOrder
+                      Data.Tuple.TH.Curry
+
+  other-modules:
+                      Data.Tuple.TH.GenCurry
 
   default-language:   Haskell2010
   ghc-options:        -O1 -Wall -Wcompat -Wmissing-monadfail-instances -Wsemigroup -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances -Wno-simplifiable-class-constraints

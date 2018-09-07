@@ -107,6 +107,7 @@ import Teacher
 import safe Student
 import Test.Expr
 import Test.Expr.Types ( TypeOrder ( TEqual ) )
+import Data.Tuple.TH.Curry
 import Language.Haskell.TH ( Exp ( ConE ) )
 
 $(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
