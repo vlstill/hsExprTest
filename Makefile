@@ -15,6 +15,8 @@ PYSRC=$(PYSRC_PY) $(PYSRC_HASHBANG)
 
 -include local.make
 
+MYPY ?= mypy
+
 all : submodules build test
 
 CXXFLAGS += -D_POSIX_C_SOURCE
@@ -62,7 +64,7 @@ test-stack : builddir pycheck
 pycheck : $(PYSRC:%=%-mypy)
 
 $(PYSRC:%=%-mypy) :
-	mypy $(@:%-mypy=%)
+	$(MYPY) $(@:%-mypy=%)
 
 # test : build
 #	./test/driver examples $T
