@@ -55,8 +55,10 @@ ${BUILD_DIR}/hsExprTest-service : ${BUILD_DIR}/obj/service.o
 	-rm -f ${BUILD_DIR}/service
 	$(CXX) $(LDFLAGS) $< -o $@ -pthread -lacl
 
-test : configure pycheck
+test : configure pycheck build
 	cd ${HS_ROOT} && cabal test --show-details=always ${CABAL_OPTS_BUILD}
+	./test/driver examples $T
+	./test/driver test $T
 
 test-stack : builddir pycheck
 	stack --compiler $(GHC) test
@@ -65,10 +67,6 @@ pycheck : $(PYSRC:%=%-mypy)
 
 $(PYSRC:%=%-mypy) :
 	$(MYPY) $(@:%-mypy=%)
-
-# test : build
-#	./test/driver examples $T
-#	./test/driver test $T
 
 clean :
 	rm -rf ${BUILD_DIR}

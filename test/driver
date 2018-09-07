@@ -3,7 +3,7 @@
 BUILD=$PWD/_build
 OUTDIR=$BUILD/tests
 mkdir -p $OUTDIR
-EXPR_TEST=$BUILD/hsExprTest
+EXPR_TEST=$PWD/src/hs/driver
 cd $1
 
 FAILED=""
