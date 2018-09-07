@@ -129,6 +129,20 @@ struct Config
         return brick::fs::joinPath( qdir_root, c );
     }
 
+    void dump( std::ostream &os ) {
+        os << "config:\n    socket: " << socket
+           << "\n    max_workers: " << max_workers
+           << "\n    courses:";
+        for ( auto [ course, info ] : courses ) {
+            os << "\n    - name: " << course
+               << "\n      checker: " << info.checker
+               << "\n      qdir: " << qdir( course )
+               << "\n      isolation: " << info.isolation
+               << "\n      hint: " << info.hint;
+        }
+        os << std::endl;
+    }
+
     int max_workers = 4;
     std::string socket;
     std::string qdir_root;

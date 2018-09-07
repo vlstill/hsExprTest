@@ -412,8 +412,8 @@ int main( int argc, char **argv )
         input = start( config );
 
 
-    INFO( "Listening on " + std::to_string( input ) + ", socket = " + config.socket +
-          ", qdir = " + config.qdir_root + ", hsExprTest = " + config[ "ib015" ].checker );
+    INFO( "Listening on " + std::to_string( input ) );
+    config.dump( std::cerr );
 
     setenv( "LANG", "en_US.UTF-8", 1 );
 
