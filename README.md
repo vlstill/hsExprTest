@@ -81,7 +81,7 @@ they have a space, `@` and space right after the comment beginning (e\.g. `-- @
 ` for Haskell). These comments are instructions for the language driver (Haskell
 in the examples) on how to preprocess the student files.
 
-### Type comparison
+### Type Comparison
 
 **NOTE**: type comparison is temporarily unavailable
 
@@ -236,7 +236,7 @@ instance NFData a => NFData (BinTree a) where
     rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
-### Using QuickCheck Modifiers
+### Using QuickCheck Modifiers {#patterns}
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
@@ -344,7 +344,7 @@ wrapper and use [QuickCheck](#using-quickcheck-modifiers) or
 for numeric data types usually generate only small values (somewhere in range
 roughly -30 to 30).
 
-#### Arbitrary instances
+#### Arbitrary Instances
 
 Each type which is input to testing expression must be instance of
 [`Arbitrary`][arb] typeclass, see the link for more details. This typeclass
@@ -382,47 +382,31 @@ with probability proportional to first value in the tuple.
 [arb]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Arbitrary.html
 
 
-### Test options
+### Test Options for Haskell
 
-TODO: update
+There are two types of test options:
 
-<!--
-
-Test options are written in special comments starting with `-- @ ` (the space
-after `@` is required). These comments must be at the beginning of file, and
-there must not be anything else between them (not even empty lines).
-
-Options can be unparametrized (such as `-- @ type`, or parametrized, in
-`-- @ key: value` format (space after `:` is required).
-
-Available options are:
-
-*   `type` -- this question is typechcekging question
-*   `expr: NAME` -- this is expresion comparing question using `NAME` as expresion
-    to compare
-*   `limit` -- time limit (in seconds)[^limit] for test execution,
-*   `inject` -- allow source injection (see
-    [Using source injection](#using-source-injection)).
-*   `typecheck: LIST-OF { = | < | > | u | n }` -- a space separated list of
-    allowed type comparison results:
-    *   `=` student's and teacher's type are equal (up to naming of type
-        variables),
-    *   `<` student's type is less general,
-    *   `>` student's type is more general,
-    *   `u` types are unifiable (also includes cases when they are equal,
-        less/more general),
-    *   `n` types are not unifiable (**this option is not available for expression
-        comparing**).
-
-    Default for `typecheck` is `=`, that is equality checking.
-
-    Default `hintmode` is `typecheck`.
-
-[^limit]: Due to backward compatibility with `hsExprTest` v1.* the limit larger
-  than 1000 seconds is interpreted as number of milliseconds and converted
-  automatically.
-
--->
+- Preprocessing options, which direct how the student's and teacher's file is
+  processed before it is run.
+    * these include the inject directives and the `-- @ exts:` directive which
+     specifies GHC extensions which should be enabled in the student's file.
+- Testing options which affect generation of the test expression by the Template
+  Haksell testing library. These are normall Haskell variables in the teacher
+  file.
+    - `expr :: String` -- specifies the name of the test expession; this is the
+      only mandatory option.
+    - `pattern :: Q Pat` -- specifies [the pattern](#patterns) of the generated
+      test inputs.
+    - `typeOrder :: Test.Expr.Type.TypeOrder` -- specifies the allowed relation
+      between the teacher's and student's type. Please note that you have to
+      import the corresponding type and value constructor from the
+      [`Test.Expr.Type` module](src/hs/testlib/Test/Expr/Type.hs).
+    - `timeout :: Integer` -- a timeout in seconds.
+    - `evaluator :: (…) -> IO ()` -- optionally, the teacher can provide an
+      evaluator instead of their own solution, it his case, the QuickCheck
+      comparison expression is not generated and the student's solution is
+      passed as the only argument to the evaluator. The evaluator must end with
+      non-zero exit code if and only if the student failed.
 
 ## IS MU Integration
 
