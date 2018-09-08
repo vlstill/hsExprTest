@@ -22,6 +22,7 @@ before_install:
     - env
     - ghc --version
     - $CXX --version
+    - python3.6 --version
     - cabal update
 
 script:
@@ -39,7 +40,9 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - deadsnakes
     packages:
+      - python3.6
       - socat
       - time
       - g++-7
