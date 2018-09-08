@@ -426,17 +426,34 @@ Available options are:
 
 ## IS MU Integration
 
-TODO: update
+For integration with IS MU, you will need a server capable of running a
+web server, the `exprtest` service and your language backends of choice. For
+running the service, you can start with [the systemd unit
+file](src/systemd/exprtest.service).
 
-If you wish to integrate with the IS MU, you should setup your `hsExprTest` and
-its service on a server and make it accessible. See [backend][].
+The service does not, however communicate with the webserver directly, it uses [a
+small Perl frontend script which runs as CGI](src/frontend/is.pl).
 
-[backend]: https://github.com/vlstill/hsExprTest/blob/master/ISMUNI_backend.md
+The service is configured by [a YAML file](exprtest.yaml). This file designates
+the socket of the IS Perl wrapper, the root for test declaration directories and
+the courses provided by the service. For each course it is possible to enable
+user-based isolation (requires existence of user `rc-COUSE_NAME` which has to
+have reading access to the teacher files and the driver/checker) and a hint
+mode. If a hint mode is enabled, queries marked as unauthorized by the frontend
+are processed but with the additional --hint argument to the checker. The
+checker should then check for this argument and provide partial answer, e.g.
+typechecking result in the case of Haskell. If hint mode is disable unauthorized
+queries are refused.
+
+The `exprtest` service has a hot restart feature to facilitate config reloads
+and service updates -- if it receives `SIGUSR1` signal, it will finish all
+running requests and the re-exec itself, reloading the config in process. The
+reload process should be robust enough to be performed under load.
 
 ### Writing questions for IS MUNI integration
 
 Questions are stored in question directory (defaults to `/var/lib/checker/qdir`),
-they have extension `.q.hs`.
+they have extension `.q.hs`, or other `.q.??` extension.
 
 
 ## Bug Reporting
