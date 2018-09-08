@@ -9,20 +9,22 @@ This project consists of two parts, an programming-language-agnostic driver for
 testing which invokes teacher-provided script on student's solution and a tool
 for comparison of Haskell expressions and types based on QuickCheck.
 
-This tool is used in the [Non-Imperative
-Programming](https://is.muni.cz/auth/predmet/fi/podzim2017/IB015)  course on
-[Faculty of Informatics, Masaryk University (FI MU)](https://www.fi.muni.cz).
-It can be used either locally (but that is not very useful) or connected to a
-testing frontend, such as the frontend of [IS MU](https://is.muni.cz).
-In either case, testing requires [assignment files](#assignment-files).
+This tool was initially used in the [Non-Imperative
+Programming](https://is.muni.cz/auth/predmet/fi/podzim2018/IB015) course on
+[Faculty of Informatics, Masaryk University (FI MU)](https://www.fi.muni.cz) and
+is now used in 3 more courses on the same faculty (with different-teacher
+provided components).  It can be used either locally (but that is not very
+useful) or connected to a testing frontend, such as the frontend of [IS
+MU](https://is.muni.cz).  In either case, testing requires [assignment
+files](#assignment-files).
 
 The work began with a bachelor thesis of Martin Jonáš on FI MU, the code was
 later extended by Vladimír Štill and is used in the couse from autumn 2014.
-As of autumn 2017, the new version 2 is planned to be used. Eventually, this
-version should allow testing of programs in languages other than Haskell.
+As of autumn 2018, a complete rewrite (version 3) of Haskell testing framework
+is going to be used.
 
 
-## Description
+## Description of Haskell Testing Support
 
 A tool for simple randomized testing of Haskell expressions based on the
 QuickCheck library. The idea is that, unless you need to use custom data
@@ -55,11 +57,12 @@ work with small code snippets.
 
 ## Building and Installation
 
-You will need GHC at least 7.10 (and cabal at least 1.22) for the Haskell part
-and either GCC 7 or newer or clang 4 or newer for the service. The easiest way
-to get a build is to checkout this repository and run `make` in its top-level
-directory. This will create a `_build` directory with cabal sandbox and two
-binaries `hsExprTest` and `hsExprTest-service`.
+You will need GHC at least 8.2 (and cabal at least 1.22) and Python at least
+\3.6 for the Haskell part and either GCC 7 or newer or clang 5 or newer for the
+service. The easiest way to get a build is to checkout this repository and run
+`make` in its top-level directory. This will create a `_build` directory with
+the `hsExprTest-service` binary and it will install Haskell testing library to
+your current cabal installation.
 
 Alternatively, if you do not wish to install the service, or wish to install
 `hsExprTest` into your profile using cabal, go to `src/hs` first and then run
@@ -67,24 +70,20 @@ Alternatively, if you do not wish to install the service, or wish to install
 
 After building, you should be able to run tests.
 
-    $ ./_build/hsExprTest ASSINMET_FILE STUDENT_FILE
-
-If you get `GHC exception: cannot satisfy -package …` error, your Haskell
-installation has (some) packages in nonstandard paths or your ghc-paths package
-is wrongly build. Either use sandboxes using `make`, or set GHC_PACKAGE_PATH to
-proper package path (something like
-`/{GHC-INSTALL-ROOT}/lib/ghc-{GHC-VERSION}/package.conf.d`).
+    $ ./src/hs/driver ASSINMET_FILE STUDENT_FILE
 
 ## Assignment Files
 
 Assignment files describe an assignment and a way to test the solution, usually
-by providing reference solution. There are now two modes of operation, Haskell
-type comparison and Haskell expression comparison. Assignment files must contain
-header which begins with comment with metadata. Metadata comments are like line
-comments, but they have a space, `@` and space right after the comment beginning
-(e\.g. `-- @ ` for Haskell).
+by providing reference solution. Assignment files must contain header which
+begins with comment with metadata. Metadata comments are like line comments, but
+they have a space, `@` and space right after the comment beginning (e\.g. `-- @
+` for Haskell). These comments are instructions for the language driver (Haskell
+in the examples) on how to preprocess the student files.
 
 ### Type comparison
+
+**NOTE**: type comparison is temporarily unavailable
 
 ```haskell
 -- @ type
@@ -99,7 +98,7 @@ would be allowed.
 
 Available comparison options can be found in [test options](#test-options).
 
-### Expression comparison
+### Haskell Expression Comparison
 
 Expression comparing questions work in following way:
 
@@ -120,8 +119,8 @@ Expression comparing questions work in following way:
 Example of very basic question definition:
 
 ```haskell
--- @ expr: binmap
--- @ limit: 5
+expr = "binmap" -- instruct the QickCheck wrapper on what to check
+timeout = 5 -- optionally modify the timeout
 
 binmap :: (a -> a -> b) -> [a] -> [b]
 binmap _ []       = []
@@ -129,16 +128,16 @@ binmap _ [_]      = []
 binmap f (x:y:xs) = f x y : binmap f (y:xs)
 ```
 
-In preamble, `-- @ expr: <name>` is needed to specify this is expression
-comparison and the name of expression to be compared. After this test follows.
-Available options can be found in [test options](#test-options).
+The `expr = "<name>"` is needed to specify the name of expression to be
+compared. After this test follows.  Available options can be found in [test
+options](#test-options).
 
 ### Using source injection
 
 Source injection is needed to specify helper functions, insert imports to
-student files, or disallow imports. It is enabled by `-- @ inject` in preamble
-and source between `-- @ INJECT BEGIN` and `-- @ INJECT END` is copied to the
-beginning of student's file, just after module header.
+student files, or disallow imports. The source between `-- @ INJECT BEGIN` and
+`-- @ INJECT END` is copied to the beginning of student's file, just after
+module header.
 
 The inject section can be anywhere in teacher's file, but it is recommended to
 put it in the beginning as it is left in place in teacher's and put at the
@@ -147,42 +146,15 @@ should not be defined directly in inject section, as they would be distinct in
 student's and teacher's module, see
 [Importing data types](#importing-data-types) for more details.
 
-#### Wrapping function
-
-Sometimes it is required to modify input and/or output of assigned function
-before testing it. In this case `INJECT` section and wrapper function can be used:
-
-```haskell
--- @ expr: inInterval_wrap
--- @ limit: 2
--- @ inject
-
--- @ INJECT BEGIN
-inInterval_wrap :: Int -> Int -> Int -> Bool
-inInterval_wrap x a b = inInterval x (min a b) (max a b)
--- @ INJECT END
-
-inInterval :: Int -> Int -> Int -> Bool
-inInterval x a b = a <= x && x <= b
-```
-
-Note that: `expr` is set to wrapper function, which will be copied at the
-beginning of student's solution. In this example, the task is to implement check
-whether number is in interval, and it should be assumed that interval is valid
-(`a <= b`), to ensure this, we wrap tested function in wrapper which swaps interval
-bounds if necessary.
-
 #### Hiding functions from prelude
 
 ```haskell
--- @ expr: myfoldr
--- @ limit: 2000000
--- @ inject
-
 import qualified Prelude
 -- @ INJECT BEGIN
 import Prelude hiding ( foldr, foldl, scanr, scanl, foldr1, foldl1, scanr1, scanl1 )
 -- @ INJECT END
+
+expr = "myfoldr"
 
 myfoldr :: (a -> b -> b) -> b -> [a] -> b
 myfoldr = Prelude.foldr
@@ -192,7 +164,7 @@ Here student is tasked with programming `foldr`, therefore `foldr` needs to be
 hidden from prelude. But solution file import of Prelude is not in inject
 section, so `foldr` can be used in solution file.
 
-#### Disallowing imports for student
+#### Disallowing Imports for Student
 
 Normally student is allowed to import any [Safe
 Haskell](https://ghc.haskell.org/trac/ghc/wiki/SafeHaskell)  module in scope
@@ -201,20 +173,18 @@ This can be disallowed by injecting any function declaration into student file,
 after this compilation of student file which attempts import will fail.
 
 ```haskell
--- @ expr: mapMaybe
--- @ limit: 4000000
--- @ inject
-
 import qualified Data.Maybe
 
 -- @ INJECT BEGIN
 no_imports_for_student = ()
 -- @ INJECT END
 
+expr = "mapMaybe"
+
 mapMaybe = Data.Maybe.mapMaybe
 ```
 
-#### Importing data types
+#### Importing Data Types
 
 Data types have to be provided in extra module (which should be located in
 question directory for the service, and local included (`-I`) directory for
@@ -223,13 +193,11 @@ solution module.
 
 question:
 ```haskell
--- @ expr: mirrorTree
--- @ limit: 4000000
--- @ inject
-
 -- @ INJECT BEGIN
 import P20140704Data
 -- @ INJECT END
+
+expr = "mirrorTree"
 
 mirrorTree :: BinTree a -> BinTree a
 /* ... */
@@ -268,57 +236,55 @@ instance NFData a => NFData (BinTree a) where
     rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
-### Using QuickCheck modifiers
+### Using QuickCheck Modifiers
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
-added automatically.
+added automatically and functions are generated wrapped in the `Fun` type and
+uncurried.
 
 [qcm]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Modifiers.html
 
-If QuickCheck (or hsExprTest's) modifiers should be used you have to wrap
-tested expression in wrapper provided in inject section. Note that currently
-this implies that types of wrappers are compared (as hsExprTest always
-typechecks same expression as it tests -- this restriction will be lifter
-in some future release).
+If QuickCheck (or hsExprTest's) modifiers should be used you should provide the
+patterns into which arguments are bound by hand, with the suitable type
+annotations.
 
 ```haskell
--- @ expr: wrap_numbers
--- @ limit: 2000000
--- @ inject
-
 -- @ INJECT BEGIN
 import Test.QuickCheck.Modifiers ( NonNegative ( NonNegative ) )
-
-wrap_numbers :: NonNegative Int -> NonNegative Int -> ( Int, Int, Bool )
-wrap_numbers (NonNegative x) (NonNegative y) = ( x, y, numbers x y )
-
 -- @ INJECT END
+
+expr = "numbers"
+pattern = [p| (NonNegative x, NonNegative y) |]
 
 numbers :: Int -> Int -> Bool
 /* ... */
 ```
 
+The patterns are provided by the optional `pattern` global declaration in the
+teacher's file. This variable should be set to a pattern using the
+TemplateHaskell pattern notation `[p| … |]`{.haskell}. The pattern in the
+parenthesis must define all the variables used as the arguments of the tested
+expression (in order), but uncurried, i.e. as a tuple, not as a separate arguments. You
+can optionally also specify types of the arguments: `[p| (NonNegative x ::
+NonNegative Int, NonNegative y :: NonNegative Integer) |]`{.hasell}.
+
 #### Range modifier
 
 To simplify commonly used pattern when parameters has to be from certain
-range module `Test.QuickCheck.Rang` (from `hsExprTest` package,
+range module `Test.QuickCheck.Range` (from `hsExprTest` package,
 [Haddock](https://paradise.fi.muni.cz/~xstill/doc/hsExprTest/Test-QuickCheck-Range.html))
 provides ranges with type-specified bounds (using GHC type literals
 `-XTypeLits`).  See documentation of this module for more details, simple
 example follows.
 
 ```haskell
--- @ expr: wrap_clock
--- @ limit: 2000000
--- @ inject
-
 -- @ INJECT BEGIN
 import Test.QuickCheck.Range
-
-wrap_clock :: Range Int 0 23 -> Range Int 0 59 -> String
-wrap_clock (Range hh) (Range mm) = clock hh mm
 -- @ INJECT END
+
+expr = "clock"
+pattern = [p| (Range hh :: Range Int 0 23, Range mm :: Range Int 0 59) |]
 
 clock :: Int -> Int -> String
 /* ... */
@@ -418,6 +384,10 @@ with probability proportional to first value in the tuple.
 
 ### Test options
 
+TODO: update
+
+<!--
+
 Test options are written in special comments starting with `-- @ ` (the space
 after `@` is required). These comments must be at the beginning of file, and
 there must not be anything else between them (not even empty lines).
@@ -452,7 +422,11 @@ Available options are:
   than 1000 seconds is interpreted as number of milliseconds and converted
   automatically.
 
+-->
+
 ## IS MU Integration
+
+TODO: update
 
 If you wish to integrate with the IS MU, you should setup your `hsExprTest` and
 its service on a server and make it accessible. See [backend][].
