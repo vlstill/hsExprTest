@@ -121,6 +121,9 @@ import Test.Expr
 import Test.Expr.Types ( TypeOrder ( TEqual ) )
 import Data.Tuple.TH.Curry
 import Language.Haskell.TH ( Exp ( ConE ) )
+import Data.Coerce ( coerce )
+import qualified Test.QuickCheck.Modifiers
+import qualified Test.QuickCheck.Range
 
 $(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
 """ )
