@@ -141,7 +141,7 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
         invocation.insert( 0, "runghc" )
 
     invocation.append( "Main.hs" )
-    r = subprocess.run( invocation, stdin = subprocess.DEVNULL, capture_output = True, encoding = "utf-8" )
+    r = subprocess.run( invocation, stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8" )
 
     print( r.stdout, end = '' )
     hide = False
