@@ -138,7 +138,7 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
     for l in r.stderr.splitlines():
         m = ERR_HEADER.match( l )
         if m:
-            if m[1] != "IS":
+            if hint and m[1] != "IS":
                 hide = 1
                 hidden += 1
         if hide:
