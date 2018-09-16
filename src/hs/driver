@@ -36,6 +36,7 @@ MAIN_EXTS : List[str] = T_EXTS
 
 OPT_R : Pattern[str] = re.compile( "-- @ +([^:]*)(?:: +(.*))?" )
 LIST_SPLIT_R : Pattern[str] = re.compile(" *, *| +")
+ERR_HEADER : Pattern[str] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
 
 class TestConf:
     def __init__( self ) -> None:
@@ -121,19 +122,32 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
     mkMainFile( "Main.hs", conf )
 
     invocation : List[str] = list( map( lambda x: "-I" + x, include ) ) + [ "-dynamic" ]
-    stderr = sys.stderr
 
     if hint:
         invocation.insert( 0, "ghc" )
         invocation.extend( ["-e", "return ()"] )
     else:
         invocation.insert( 0, "runghc" )
-        stderr = sys.stdout
 
     invocation.append( "Main.hs" )
-    r = subprocess.run( invocation, stdin = subprocess.DEVNULL, stderr = stderr )
+    r = subprocess.run( invocation, stdin = subprocess.DEVNULL, capture_output = True, encoding = "utf-8" )
 
+    print( r.stdout, end = '' )
+    hide = False
+    hidden = 0
+    for l in r.stderr.splitlines():
+        m = ERR_HEADER.match( l )
+        if m:
+            if m[1] != "IS":
+                hide = 1
+                hidden += 1
+        if hide:
+            print( l, file = sys.stderr )
+        else:
+            print( l )
+    if hidden > 0:
+        print( "+ {} more errors hidden in syntax check mode, check that your function is correctly typed and named".format( hidden ) )
     if r.returncode != 0:
-        print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file=sys.stderr );
+        print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file = sys.stderr )
         sys.exit( 1 )
     sys.exit( 0 )
