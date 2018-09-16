@@ -41,6 +41,7 @@ ERR_HEADER : Pattern[str] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
 class TestConf:
     def __init__( self ) -> None:
         self.inject : str = ""
+        self.reqire_type : bool = False
         self.exts : List[str] = []
 
 def warn( msg : str ) -> None:
@@ -72,6 +73,8 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                         assert inject, "inject end without start"
                         inject = False
                         inject_end = True
+                    elif key == "require type" and ( val.lower() == "yes" or val.lower() == "true" ):
+                        conf.reqire_type = True
                     else:
                         warn( "unknown option '{}: {}'".format( key, val ) )
 
@@ -89,6 +92,8 @@ def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> 
     with open( dstFile, "w" ) as dst:
         with open( srcFile, "r" ) as src:
             dst.write( "{-# LANGUAGE " + ", ".join( ST_EXTS + conf.exts ) + " #-}\n\n" )
+            if conf.reqire_type:
+                dst.write( "{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n" )
             dst.write( "module Student where\n\n" )
 
             if conf.inject:
