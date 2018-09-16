@@ -42,6 +42,7 @@ class TestConf:
     def __init__( self ) -> None:
         self.inject : str = ""
         self.reqire_type : bool = False
+        self.allow_imports : bool = True
         self.exts : List[str] = []
 
 def warn( msg : str ) -> None:
@@ -73,8 +74,10 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                         assert inject, "inject end without start"
                         inject = False
                         inject_end = True
-                    elif key == "require type" and ( val.lower() == "yes" or val.lower() == "true" ):
-                        conf.reqire_type = True
+                    elif key == "require type":
+                        conf.reqire_type = val.lower() == "yes" or val.lower() == "true"
+                    elif key == "allow imports":
+                        conf.allow_imports = val.lower() == "yes" or val.lower() == "true"
                     else:
                         warn( "unknown option '{}: {}'".format( key, val ) )
 
@@ -98,6 +101,9 @@ def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> 
 
             if conf.inject:
                 dst.write( conf.inject )
+
+            if not conf.allow_imports:
+                dst.write( "no_imports_for_student_allowed :: ()\nno_imports_for_student_allowed = ()\n\n" )
 
             dst.write( '{-# LINE 1 "IS.hs" #-}\n' )
             for l in src:
