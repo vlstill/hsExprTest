@@ -19,6 +19,8 @@ import Language.Haskell.TH.ExpandSyns ( expandSyns )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
 import Data.PartialOrder ( gte )
+import Data.Maybe ( fromJust )
+import Control.Arrow ( second )
 import Data.Coerce ( coerce )
 
 import Text.Printf.Mauke.TH ( sprintf )
@@ -84,7 +86,7 @@ testFun Prop {..} ttype0 stype0 = do
                       args <- zipWithM mkvar targs xs
                       pure (pats, args)
         Just pats0 -> do let xs = extractVars pats0
-                             pats = untupP pats0
+                             pats = untupP $ pushTypes (zip xs targs) pats0
                          unless (length xs == length targs) $(pfail "teacher-provided patter does not match arity of the expression's type")
                          args <- zipWithM mkvar targs xs
                          pure (pats, args)
@@ -166,6 +168,27 @@ testFun Prop {..} ttype0 stype0 = do
     extractVars (ListP ps)          = concatMap extractVars ps
     extractVars (SigP p _)          = extractVars p
     extractVars (ViewP _ p)         = extractVars p
+
+    look x = fromJust . lookup x
+
+    pushTypes :: [(Name, Type)] -> Pat -> Pat
+    pushTypes _ l@(LitP _)          = l
+    pushTypes d v@(VarP x)          = SigP v (look x d)
+    pushTypes d (TupP ps)           = TupP $ map (pushTypes d) ps
+    pushTypes d (UnboxedTupP ps)    = UnboxedTupP $ map (pushTypes d) ps
+    pushTypes d (UnboxedSumP p a b) = UnboxedSumP (pushTypes d p) a b
+    pushTypes d (ConP c ps)         = ConP c $ map (pushTypes d) ps
+    pushTypes d (InfixP p1 i p2)    = InfixP (pushTypes d p1) i (pushTypes d p2)
+    pushTypes d (UInfixP p1 i p2)   = UInfixP (pushTypes d p1) i (pushTypes d p2)
+    pushTypes d (ParensP p)         = ParensP $ pushTypes d p
+    pushTypes d (TildeP p)          = TildeP $ pushTypes d p
+    pushTypes d (BangP p)           = BangP $ pushTypes d p
+    pushTypes d (AsP n p)           = AsP n $ pushTypes d p
+    pushTypes _ WildP               = WildP
+    pushTypes d (RecP n fp)         = RecP n $ map (second (pushTypes d)) fp
+    pushTypes d (ListP ps)          = ListP $ map (pushTypes d) ps
+    pushTypes _ (SigP p t)          = SigP p t -- allow overriding type (so that newtype over the original can be used)
+    pushTypes d (ViewP e p)         = ViewP e $ pushTypes d p
 
 
     untupP :: Pat -> [Pat]
