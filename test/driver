@@ -39,7 +39,7 @@ function check() {
 
 function runtest() {
     local FILE=$1
-    local BASE=$(echo $FILE | sed 's/\.q.*$//')
+    local BASE=$(echo $FILE | sed 's/\.q.*$/./')
     local INPUTS_=${BASE}*
     local INPUTS=$(echo $INPUTS_ | sed "s|$FILE||")
 
