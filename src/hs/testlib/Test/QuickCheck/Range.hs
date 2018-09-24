@@ -38,7 +38,7 @@ type Range (i :: *) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
 --
 -- For example, @Ranges Int [(0,0), (10, 19)]@ will with probability @1/2@
 -- generate @0@, and with probability @1/20@ one of (10, 19) inclusive.
-data Ranges :: * -> [ (Nat, Nat) ] -> * where
+newtype Ranges :: * -> [ (Nat, Nat) ] -> * where
     Range :: { unRange :: i } -> Ranges i ranges
 
 -- | Show instance is transparent.
