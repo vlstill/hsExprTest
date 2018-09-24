@@ -111,4 +111,4 @@ instance forall a from to. (Arbitrary a, KnownNat from, KnownNat to) => Arbitrar
 
     shrink (BoundedList xs) = map BoundedList . filter ((>= intNatVal (Proxy :: Proxy from)) . length) $ shrink xs
 
-type AsciiPrintableRange = CharRange 48 126
+type AsciiPrintableRange = CharRange 32 126
