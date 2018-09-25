@@ -34,6 +34,7 @@ Library
                       Test.Expr.Property
                       Test.Expr.Utils
                       Test.QuickCheck.Range
+                      Test.QuickCheck.Convertible
                       Test.Testable.IO
                       Test.Testable.IO.Base
                       Test.Testable.IO.NoMonad
@@ -43,6 +44,7 @@ Library
 
   other-modules:
                       Data.Tuple.TH.GenCurry
+                      Test.QuickCheck.GenConvertible
 
   default-language:   Haskell2010
   ghc-options:        -O1 -Wall -Wcompat -Wmissing-monadfail-instances -Wsemigroup -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances -Wno-simplifiable-class-constraints
