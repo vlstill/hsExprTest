@@ -10,18 +10,18 @@
 module Test.Expr.Property ( prop, Prop (..) ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
-import Test.QuickCheck.Function ( Fun ( Fun ) )
+import Test.QuickCheck.Function ( Fun )
 import Control.Monad ( unless, replicateM, filterM, zipWithM )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
-                           , reportWarning, pprint, reify, newName, mkName )
+                           , reportWarning, pprint, reify, newName )
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
 import Data.PartialOrder ( gte )
 import Data.Maybe ( fromJust )
 import Control.Arrow ( second )
-import Data.Coerce ( coerce )
+import Test.QuickCheck.Convertible ( convert )
 
 import Text.Printf.Mauke.TH ( sprintf )
 
@@ -122,33 +122,26 @@ testFun Prop {..} ttype0 stype0 = do
     -- * otherwise, it constructs @x@
     mkpat :: Type -> Name -> Q Pat
     mkpat t x = do
-        arb <- hasArbitrary baseT
-        sh <- hasShow baseT
+        let bt = baseT t
+        arb <- hasArbitrary bt
+        sh <- hasShow bt
         unless arb . $(pfail "testFun: no instance of arbitrary for %s") $ pprint t
-        let typed = SigP base baseT
+        let typed = SigP (VarP x) bt
         if sh
         then pure typed
         else do
             reportWarning . $(sprintf "testFun: no instance of Show for %s, using Blind") $ pprint t
             pure $ ConP 'Blind [typed]
       where
-        base | isFunctionType t = ConP 'Fun [WildP, VarP x]
-             | otherwise        = VarP x
-
-        baseT | isFunctionType t = ConT ''Fun `AppT` foldl AppT (TupleT arrt) ct `AppT` rt
-              | otherwise        = t
-
-        (ct, rt) = uncurryType t
-        arrt = length ct
+        baseT (AppT ListT tt) = ListT `AppT` baseT tt
+        baseT tt | isFunctionType tt = ConT ''Fun `AppT` foldl AppT (TupleT arrt) ct `AppT` rt
+                 | otherwise         = tt
+          where
+            (ct, rt) = uncurryType tt
+            arrt = length ct
 
     mkvar :: Type -> Name -> Q Exp
-    mkvar t x = pure $ (VarE 'coerce `AppE` base) `SigE` t
-      where
-        base | isFunctionType t = VarE uc `AppE` VarE x
-             | otherwise = VarE x
-
-        (ta, _) = uncurryType t
-        uc = mkName ("curry" ++ show (length ta))
+    mkvar t x = pure $ (VarE 'convert `AppE` VarE x) `SigE` t
 
     extractVars :: Pat -> [Name]
     extractVars (LitP _)            = []
