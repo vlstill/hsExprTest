@@ -7,7 +7,7 @@
 --
 -- (c) 2018 Vladimír Štill
 
-module Test.Expr.Property ( prop, Prop (..) ) where
+module Test.Expr.Property ( prop, Prop (..), compareTypes ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun )
@@ -69,7 +69,7 @@ testFun Prop {..} ttype0 stype0 = do
     ttype <- expandSyns $ stripAnnotations nttype
     stype <- expandSyns $ normalizeContext stype0
 
-    (ord, cmpty) <- unifyOrFail ttype stype
+    (ord, cmpty) <- unifyOrFail ttype stype ttype0 stype0
     unless (ord `gte` typeOrder) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
             (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
 
@@ -95,26 +95,6 @@ testFun Prop {..} ttype0 stype0 = do
 
   where
     stripAnnotations = id
-
-    unifyOrFail tty sty = unify tty sty >>= \case
-        Left err -> uncurry typeFail err
-        Right (ord, cmpty) -> pure (ord, cmpty)
-
-    typeFail LeftType err = $(pfail "error in teacher type: %s\n\t%s") err (ppty ttype0)
-    typeFail RightType err = $(pfail "error in student type: %s\n\t%s") err (ppty stype0)
-    typeFail BothTypes err = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (ppty ttype0) (ppty stype0)
-
-    typeOrdExpected :: TypeOrder -> String
-    typeOrdExpected TEqual = "types to be equal"
-    typeOrdExpected TLessGeneral = "student's type to be more general"
-    typeOrdExpected TMoreGeneral = "student's type to be less general"
-    typeOrdExpected TUnifiable = "types to be unifiable"
-
-    typeOrdErr :: TypeOrder -> String
-    typeOrdErr TEqual = "they are equal"
-    typeOrdErr TLessGeneral = "the student's type is more general then the teacher's type"
-    typeOrdErr TMoreGeneral = "the student's type is less general then the teacher's type"
-    typeOrdErr TUnifiable = "they are unifiable, but neither of them is more general then the other"
 
     -- | construct a pattern from its type and variable name (@x@)
     -- * for function types, it constructs @Fun _ x@
@@ -187,6 +167,38 @@ testFun Prop {..} ttype0 stype0 = do
     untupP :: Pat -> [Pat]
     untupP (TupP ps) = ps
     untupP p         = [p]
+
+unifyOrFail :: Type -> Type -> Type -> Type -> Q (TypeOrder, Type)
+unifyOrFail tty sty ttype0 stype0 = unify tty sty >>= \case
+    Left err -> uncurry typeFail err ttype0 stype0
+    Right (ord, cmpty) -> pure (ord, cmpty)
+
+typeFail :: UniTypeId -> String -> Type -> Type -> Q b
+typeFail LeftType err ttype0 _ = $(pfail "error in teacher type: %s\n\t%s") err (ppty ttype0)
+typeFail RightType err _ stype0 = $(pfail "error in student type: %s\n\t%s") err (ppty stype0)
+typeFail BothTypes err ttype0 stype0 = $(pfail "type mismatch: %s\n\tteacher: %s\n\tstudent: %s") err (ppty ttype0) (ppty stype0)
+
+typeOrdExpected :: TypeOrder -> String
+typeOrdExpected TEqual = "types to be equal"
+typeOrdExpected TLessGeneral = "student's type to be more general"
+typeOrdExpected TMoreGeneral = "student's type to be less general"
+typeOrdExpected TUnifiable = "types to be unifiable"
+
+typeOrdErr :: TypeOrder -> String
+typeOrdErr TEqual = "they are equal"
+typeOrdErr TLessGeneral = "the student's type is more general then the teacher's type"
+typeOrdErr TMoreGeneral = "the student's type is less general then the teacher's type"
+typeOrdErr TUnifiable = "they are unifiable, but neither of them is more general then the other"
+
+compareTypes :: Teacher Type -> Student Type -> Q Exp
+compareTypes tt st = do
+    ttype <- expandSyns $ normalizeContext tt
+    stype <- expandSyns $ normalizeContext st
+
+    ord <- fst <$> unifyOrFail ttype stype tt st
+    unless (ord == TEqual) $ $(pfail "The student's type is not valid: expecting types to be equal, but %s\n\tteacher: %s\n\tstudent: %s")
+            (typeOrdErr ord) (ppty ttype) (ppty stype)
+    [| pure () |] -- do nothing at runtime
 
 type ClassName = Name
 type TyVarName = Name

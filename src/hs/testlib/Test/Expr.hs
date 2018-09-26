@@ -8,7 +8,7 @@
 
 module Test.Expr (
                  -- * Test Entry
-                   testMain, extractOptionDef, extractOptionMaybe, extractOption
+                   testMain, testType, extractOptionDef, extractOptionMaybe, extractOption
                  -- * Test Expression Building Blocks
                  , (<==>), testArgs, runProperty, Args (..), scheduleAlarm
                  ) where
@@ -28,7 +28,8 @@ import Control.Applicative ( (<|>) )
 
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
-                             Lit (..), Pat, lookupValueName, mkName )
+                             Lit (..), Pat, lookupValueName, mkName, Info (..),
+                             reify )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -80,6 +81,18 @@ testMain name typeOrder pat = do
     tmout x = VarE 'fromIntegral `AppE` VarE x
     defcmp = VarE '(<==>)
     defargs = VarE 'testArgs
+    tn = "Teacher." ++ name
+    sn = "Student." ++ name
+
+testType :: ExprName -> Q Exp
+testType name = do
+    st <- getType "student" =<< sequence . fmap reify =<< lookupValueName sn
+    tt <- getType "teacher" =<< sequence . fmap reify =<< lookupValueName tn
+    compareTypes tt st
+  where
+    getType kind Nothing = $(pfail "could not find %s type %s") kind name
+    getType _ (Just (VarI _ t _)) = pure t
+    getType kind _ = $(pfail "internal error while getting %s type %s") kind name
     tn = "Teacher." ++ name
     sn = "Student." ++ name
 

@@ -9,7 +9,7 @@ import shutil
 import os.path
 import tempfile
 import subprocess
-from typing import List, Union, Optional, Pattern
+from typing import List, Union, Optional, Pattern, TextIO
 
 FilePath = str
 
@@ -37,16 +37,22 @@ MAIN_EXTS : List[str] = T_EXTS
 OPT_R : Pattern[str] = re.compile( "-- @ +([^:]*)(?:: +(.*))?" )
 LIST_SPLIT_R : Pattern[str] = re.compile(" *, *| +")
 ERR_HEADER : Pattern[str] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
+IGNORE : Pattern[str] = re.compile("^(-- .*)?\s*$")
 
 class TestConf:
     def __init__( self ) -> None:
         self.inject : str = ""
         self.reqire_type : bool = False
         self.allow_imports : bool = True
+        self.typecmp : bool = False
+        self.typecmp_num_types : int = 0
         self.exts : List[str] = []
 
 def warn( msg : str ) -> None:
     print( "W: " + msg, file=sys.stderr )
+
+def write_type( dst : TextIO, t : str, i : int ) -> None:
+    dst.write( "t{} :: {}\nt{} = undefined\n".format( i, t, i ) )
 
 def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
     with open( dstFile, "w" ) as dst:
@@ -78,6 +84,8 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                         conf.reqire_type = val.lower() == "yes" or val.lower() == "true"
                     elif key == "allow imports":
                         conf.allow_imports = val.lower() == "yes" or val.lower() == "true"
+                    elif key == "typecmp":
+                        conf.typecmp = True
                     else:
                         warn( "unknown option '{}: {}'".format( key, val ) )
 
@@ -87,9 +95,15 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                     conf.inject += l
                     inject_end = False
 
-                dst.write( l )
+                if not conf.typecmp:
+                    dst.write( l )
+                else:
+                    if not IGNORE.match( l ):
+                        write_type( dst, l, conf.typecmp_num_types )
+                        conf.typecmp_num_types += 1
 
             return conf
+
 
 def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> None:
     with open( dstFile, "w" ) as dst:
@@ -106,8 +120,16 @@ def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> 
                 dst.write( "no_imports_for_student_allowed :: ()\nno_imports_for_student_allowed = ()\n\n" )
 
             dst.write( '{-# LINE 1 "IS.hs" #-}\n' )
-            for l in src:
-                dst.write( l )
+            type_idx = 0
+            if not conf.typecmp:
+                for l in src:
+                    dst.write( l )
+            else:
+                for l in src:
+                    if not IGNORE.match( l ):
+                        write_type( dst, l, type_idx )
+                        type_idx += 1
+
 
 def mkMainFile( filename : FilePath, conf : TestConf ) -> None:
     with open( filename, "w" ) as dst:
@@ -124,9 +146,15 @@ import Language.Haskell.TH ( Exp ( ConE ) )
 import Test.QuickCheck.Convertible ( convert )
 import qualified Test.QuickCheck.Modifiers
 import qualified Test.QuickCheck.Range
-
+""" )
+        if not conf.typecmp:
+            dst.write( """
 $(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
 """ )
+        else:
+            dst.write( "main :: IO ()\nmain = do\n" );
+            for i in range( conf.typecmp_num_types ):
+                dst.write( "    $(testType \"t{}\")\n".format( i ) )
 
 with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
     conf = mkTeacherFile( teacher, os.path.join( wd, "Teacher.hs" ) )
@@ -137,13 +165,22 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
 
     invocation : List[str] = list( map( lambda x: "-I" + x, include ) ) + [ "-dynamic" ]
 
-    if hint:
+    if conf.typecmp:
+        # just compile, does not need to run
         invocation.insert( 0, "ghc" )
         invocation.extend( ["-e", "return ()"] )
-    else:
-        invocation.insert( 0, "runghc" )
+        if hint:
+            invocation.append( "Student.hs" ) # just parse student's file
+        else:
+            invocation.append( "Main.hs" ) # acutally do the comparison
+    else: # expression comparison
+        if hint:
+            invocation.insert( 0, "ghc" )
+            invocation.extend( ["-e", "return ()"] )
+        else:
+            invocation.insert( 0, "runghc" )
 
-    invocation.append( "Main.hs" )
+        invocation.append( "Main.hs" )
     r = subprocess.run( invocation, stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8" )
 
     print( r.stdout, end = '' )
