@@ -15,3 +15,5 @@ _build
 *~
 .*.swp
 .*.swo
+.mypy_cache
+.stack_work
