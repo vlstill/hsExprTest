@@ -49,12 +49,15 @@ function runtest() {
 
     for T in $INPUTS; do
         match $T || continue
+        local HINT=
+        echo $T | fgrep -q .hint. && HINT="--hint"
+
         D=$(dirname $OUTDIR/$T)
         mkdir -p $D
         local OUT=$OUTDIR/$T.out
         local LOG=$OUTDIR/$T.log
         echo -n "${T}… "
-        if $EXPR_TEST $FILE $T > $OUT 2> $LOG; then
+        if $EXPR_TEST $FILE $T $HINT > $OUT 2> $LOG; then
             check "ok" $T $OUT $LOG
         else
             check "nok" $T $OUT $LOG
