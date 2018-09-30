@@ -7,5 +7,5 @@ module Data.Tuple.TH.Curry where
 
 import Data.Tuple.TH.GenCurry
 
-$(genCurries 62)
-$(genUncurries 62)
+$(genCurries 16)
+$(genUncurries 16)

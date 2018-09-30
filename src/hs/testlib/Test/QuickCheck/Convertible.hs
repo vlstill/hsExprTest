@@ -34,4 +34,4 @@ instance {-# OVERLAPS #-} (Convertible a a', Convertible b b') => Convertible (F
     convert (Fun _ f) x = convert (f (convert x))
 
 -- | Instances with automatic uncurring for higher arity functions
-$(mapM convertibleN [2..62])
+$(mapM convertibleN [2..16])
