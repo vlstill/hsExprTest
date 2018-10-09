@@ -163,7 +163,7 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
 
     mkMainFile( "Main.hs", conf )
 
-    invocation : List[str] = list( map( lambda x: "-I" + x, include ) ) + [ "-dynamic" ]
+    invocation : List[str] = list( map( lambda x: "-i" + x, include ) ) + [ "-dynamic" ]
 
     if conf.typecmp:
         # just compile, does not need to run
