@@ -55,6 +55,11 @@ work with small code snippets.
 *   a service which connects the tester to a socket for use with testing
     frontend
 
+### Haddock Documentation
+
+Haddock documentation of the Haskell testing library is available at [github
+pages](https://vlstill.github.io/hsExprTest/).
+
 ## Building and Installation
 
 You will need GHC at least 8.2 (and cabal at least 1.22) and Python at least
@@ -273,7 +278,7 @@ NonNegative Int, NonNegative y :: NonNegative Integer) |]`{.hasell}.
 
 To simplify commonly used pattern when parameters has to be from certain
 range module `Test.QuickCheck.Range` (from `hsExprTest` package,
-[Haddock](https://paradise.fi.muni.cz/~xstill/doc/hsExprTest/Test-QuickCheck-Range.html))
+[Haddock](https://vlstill.github.io/hsExprTest/Test-QuickCheck-Range.html))
 provides ranges with type-specified bounds (using GHC type literals
 `-XTypeLits`).  See documentation of this module for more details, simple
 example follows.
