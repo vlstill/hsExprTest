@@ -59,4 +59,4 @@ deploy:
   local-dir: _build/doc/html/hsExprTest/
   on:
     branch: master
-    condition: "$STACK:$GHC" = ":ghc-8.4"
+    condition: "$STACK:$GHC = :ghc-8.4"
