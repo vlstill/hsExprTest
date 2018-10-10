@@ -28,6 +28,7 @@ before_install:
 script:
     - make build$TARGET_SUFF
     - make test$TARGET_SUFF
+    - make doc
 
 notifications:
   email:
@@ -49,3 +50,13 @@ addons:
       - libgmp-dev # for the sake of Haskell stack
       - acl
       - libacl1-dev
+
+deploy:
+  provider: pages
+  skip-cleanup: true
+  keep-history: true
+  github-token: $GITHUB_TOKEN
+  local-dir: _build/doc/html/hsExprTest/
+  on:
+    branch: master
+    condition: "$STACK:$GHC" = ":ghc-8.4"
