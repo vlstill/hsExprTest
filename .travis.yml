@@ -28,7 +28,7 @@ before_install:
 script:
     - make build$TARGET_SUFF
     - make test$TARGET_SUFF
-    - if [[ "$STACK:$GHC = :ghc-8.4" ]]; then make doc; fi
+    - if [[ "$STACK:$GHC" = ":ghc-8.4" ]]; then make doc; fi
 
 notifications:
   email:
