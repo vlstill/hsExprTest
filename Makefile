@@ -43,6 +43,9 @@ build : configure service pycheck
 	cd ${HS_ROOT} && cabal build ${CABAL_OPTS_BUILD}
 	cabal install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
 
+doc :
+	cd ${HS_ROOT} && cabal haddock --builddir=${BUILD_DIR}
+
 build-stack : builddir service pycheck
 	stack --compiler $(GHC) build
 
