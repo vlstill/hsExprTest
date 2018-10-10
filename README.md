@@ -49,9 +49,9 @@ work with small code snippets.
 -   support for custom comparators of output
 *   a small library for mocking basic IO operations (with standard input and
     output): modules
-    [`Testable.IO`](https://github.com/vlstill/hsExprTest/blob/master/src/hs/testlib/Testable/IO.hs)
+    [`Testable.IO`](https://vlstill.github.io/hsExprTest/Test-Testable-IO.html)
     and
-    [`Testable.IO.NoMonad`](https://github.com/vlstill/hsExprTest/blob/master/src/hs/testlib/Testable/IO/NoMonad.hs).
+    [`Testable.IO.NoMonad`](https://vlstill.github.io/hsExprTest/Test-Testable-IO-NoMonad.html).
 *   a service which connects the tester to a socket for use with testing
     frontend
 
