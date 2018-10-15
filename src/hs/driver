@@ -31,7 +31,7 @@ for i in range( 3, len( sys.argv ) ):
 
 ALL_EXTS : List[str] = [ "NoMonomorphismRestriction" ]
 ST_EXTS : List[str] = [ "Safe" ] + ALL_EXTS
-T_EXTS : List[str] = [ "TemplateHaskell", "Unsafe", "ExplicitForAll", "ScopedTypeVariables", "DataKinds" ] + ALL_EXTS
+T_EXTS : List[str] = [ "TemplateHaskell", "Unsafe", "ExplicitForAll", "ScopedTypeVariables", "DataKinds", "StandaloneDeriving" ] + ALL_EXTS
 MAIN_EXTS : List[str] = T_EXTS
 
 OPT_R : Pattern[str] = re.compile( "-- @ +([^:]*)(?:: +(.*))?" )
