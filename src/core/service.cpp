@@ -297,7 +297,18 @@ struct Eval
             auto r = spawnAndWait( _config[course].isolation, course, wd.path, args );
 
             std::stringstream reply;
-            reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C" << r.out() << std::endl;
+            reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C";
+            for ( auto c : r.out() ) {
+                switch( c ) {
+                    case '&':  reply << "&amp;";    break;
+                    case '\"': reply << "&quot;";   break;
+                    case '\'': reply << "&apos;";   break;
+                    case '<':  reply << "&lt;";     break;
+                    case '>':  reply << "&gt;";     break;
+                    default:   reply << c;          break;
+                }
+            }
+            reply << std::endl;
             return reply.str();
         } catch ( std::exception &ex ) {
             return replyError( xid, "EXCEPTION: "s + ex.what() );
