@@ -297,7 +297,8 @@ struct Eval
             auto r = spawnAndWait( _config[course].isolation, course, wd.path, args );
 
             std::stringstream reply;
-            reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C";
+            reply << "I" << xid << "P" << (r ? "ok" : "nok") << "C"
+                  << "<span style=\"font-family: monospace\">";
             for ( auto c : r.out() ) {
                 switch( c ) {
                     case '&':  reply << "&amp;";    break;
@@ -308,7 +309,7 @@ struct Eval
                     default:   reply << c;          break;
                 }
             }
-            reply << std::endl;
+            reply << "</span>" << std::endl;
             return reply.str();
         } catch ( std::exception &ex ) {
             return replyError( xid, "EXCEPTION: "s + ex.what() );
