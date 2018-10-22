@@ -20,7 +20,7 @@ Library
   hs-source-dirs:   testlib
 
   build-depends:    base >= 4.10,
-                    template-haskell >= 2.12 && < 2.14,
+                    template-haskell >= 2.12 && < 2.15,
                     th-expand-syns >= 0.4,
                     QuickCheck >= 2.7,
                     deepseq >= 1.2,
