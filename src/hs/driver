@@ -47,6 +47,7 @@ class TestConf:
         self.typecmp : bool = False
         self.typecmp_num_types : int = 0
         self.exts : List[str] = []
+        self.imports : List[str] = []
 
 def warn( msg : str ) -> None:
     print( "W: " + msg, file=sys.stderr )
@@ -86,6 +87,8 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                         conf.allow_imports = val.lower() == "yes" or val.lower() == "true"
                     elif key == "typecmp":
                         conf.typecmp = True
+                    elif key == "import":
+                        conf.imports += LIST_SPLIT_R.split( val )
                     else:
                         warn( "unknown option '{}: {}'".format( key, val ) )
 
@@ -147,6 +150,9 @@ import Test.QuickCheck.Convertible ( convert )
 import qualified Test.QuickCheck.Modifiers
 import qualified Test.QuickCheck.Range
 """ )
+        for imp in conf.imports:
+            dst.write( "import qualified {}\n".format( imp ) )
+
         if not conf.typecmp:
             dst.write( """
 $(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
