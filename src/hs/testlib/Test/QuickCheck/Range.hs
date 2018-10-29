@@ -22,6 +22,7 @@ module Test.QuickCheck.Range
 import GHC.TypeLits
 import Data.Proxy
 import Data.Char ( chr, ord )
+import Data.Function ( on )
 import Control.Arrow
 import System.Random
 
@@ -44,6 +45,12 @@ newtype Ranges :: * -> [ (Nat, Nat) ] -> * where
 -- | Show instance is transparent.
 instance Show i => Show (Ranges i ranges) where
     show = unRange >>> show
+
+instance Eq i => Eq (Ranges i ranges) where
+    (==) = (==) `on` unRange
+
+instance Ord i => Ord (Ranges i ranges) where
+    compare = compare `on` unRange
 
 -- | Convert compile time type ranges to runtime values.
 class CRange (a :: k) where
@@ -90,6 +97,12 @@ unCharRange (CharRange r) = unRange r
 
 instance Show (CharRanges ranges) where
     show = unCharRange >>> show
+
+instance Eq (CharRanges ranges) where
+    (==) = (==) `on` (unRange . charRangeToRange)
+
+instance Ord (CharRanges ranges) where
+    compare = compare `on` (unRange . charRangeToRange)
 
 instance forall ranges. CRange ranges => Arbitrary (CharRanges ranges) where
     arbitrary = fmap (CharRange . unsafeRMap chr) (arbitrary :: Gen (Ranges Int ranges))
