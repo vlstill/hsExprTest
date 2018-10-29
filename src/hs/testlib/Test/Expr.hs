@@ -29,7 +29,7 @@ import Control.Applicative ( (<|>) )
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
                              Lit (..), Pat, lookupValueName, mkName, Info (..),
-                             reify )
+                             Type, reify )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -51,8 +51,8 @@ testArgs = stdArgs { chatty = False
 
 type ExprName = String
 
-testMain :: ExprName -> TypeOrder -> Maybe (Q Pat) -> Q [Dec]
-testMain name typeOrder pat = do
+testMain :: ExprName -> TypeOrder -> Maybe (Q Pat) -> Maybe (Q Type) -> Q [Dec]
+testMain name typeOrder pat degen = do
     sname' <- lookupValueName sn
     $(pfail "Could not find student expression %s") name & when (isNothing sname')
     tname <- lookupValueName tn
@@ -68,6 +68,7 @@ testMain name typeOrder pat = do
     let mainName = mkName "main"
     mainType <- [t| IO () |]
     pattern <- sequence pat
+    degenType <- sequence degen
     body <- case (eval, tname) of
               (Just ev, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE ev `AppE` VarE studentName) |]

@@ -155,7 +155,7 @@ import qualified Test.QuickCheck.Range
 
         if not conf.typecmp:
             dst.write( """
-$(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern"))
+$(testMain $(extractOption "expr") $(extractOptionDef "typeOrder" (ConE 'TEqual)) $(extractOptionMaybe "pattern") $(extractOptionMaybe "degenType"))
 """ )
         else:
             dst.write( "main :: IO ()\nmain = do\n" );

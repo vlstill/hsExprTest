@@ -36,6 +36,7 @@ data Prop = Prop { comparer :: Exp
                  , typeOrder :: TypeOrder
                  , teacherName :: Teacher Name
                  , studentName :: Student Name
+                 , degenType :: Maybe Type
                  } deriving ( Eq, Show )
 
 -- | $(prop 'cmp 'a 'b) :: Property
@@ -73,7 +74,9 @@ testFun Prop {..} ttype0 stype0 = do
     unless (ord `gte` typeOrder) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
             (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
 
-    dcmpty <- degeneralize cmpty
+    dcmpty <- case degenType of
+                Nothing -> degeneralize cmpty
+                Just t -> pure t
 
     let (targs, rty) = uncurryType dcmpty
     let ar = length targs
