@@ -546,12 +546,10 @@ inline void mkFilePath( std::string file ) {
         mkpath( dir );
 }
 
-#if 0
 struct Fd {
-    template< typename... Args >
-    Fd( Args... args ) : _fd( ::open( args... ) ) {
+    explicit Fd( int fd ) : _fd( fd ) {
         if ( _fd < 0 )
-            throw SystemException( "while opening file" );
+            throw SystemException( "invalid file descriptor" );
     }
     ~Fd() { close(); }
 
@@ -562,13 +560,12 @@ struct Fd {
         }
     }
 
-    operator int() const { return _fd; }
+    explicit operator int() const { return _fd; }
     int fd() const { return _fd; }
 
   private:
     int _fd;
 };
-#endif
 
 inline void writeFile( std::string file, std::string data ) {
     std::ofstream out( file.c_str(), std::ios::binary );
