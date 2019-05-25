@@ -419,7 +419,7 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
 
         bool timeout = false;
         while ( polling_cnt > 0 &&
-                ( !end_timeout || (timeout = (ch::steady_clock::now() >= *end_timeout)) ) )
+                ( !end_timeout || !(timeout = (ch::steady_clock::now() >= *end_timeout)) ) )
         {
             struct epoll_event ev;
             int r = ::epoll_wait( epoll.fd(), &ev, 1, end_timeout
@@ -722,6 +722,35 @@ struct TestSpawn {
         ::alarm( 0 );
         ASSERT( !r );
         ASSERT( r.timeout() );
+    }
+    TEST( timeout_threads ) {
+        using namespace std::literals;
+        auto loop = R".(
+            $| = 1; # force flushing
+            while ( true ) {
+                print "x";
+                select( undef, undef, undef, 0.1 );
+            }).";
+        ::alarm( 10 );
+        auto other = std::async( std::launch::async, [&] {
+            return proc::spawnAndWait( proc::CaptureStdout | proc::Timeout( 3s ), "perl", "-e", loop ); } );
+        auto r1 = proc::spawnAndWait( proc::CaptureStdout | proc::Timeout( 1s ), "perl", "-e", loop );
+        auto r2 = other.get();
+        ::alarm( 0 );
+        ASSERT( !r1 );
+        ASSERT( !r2 );
+        ASSERT( r1.timeout() );
+        ASSERT( r2.timeout() );
+        // assume 500ms for delays & perl
+        ASSERT( 500ms <= r1.time() );
+        ASSERT( r1.time() <= 1500ms );
+        ASSERT( 2500ms <= r2.time() );
+        ASSERT( r2.time() <= 3500ms );
+
+        ASSERT_LEQ( 5, r1.out().size() );
+        ASSERT_LEQ( r1.out().size(), 15 );
+        ASSERT_LEQ( 25, r2.out().size() );
+        ASSERT_LEQ( r2.out().size(), 35 );
     }
 };
 
