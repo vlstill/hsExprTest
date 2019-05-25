@@ -1,7 +1,7 @@
 // -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 
 /*
- * (c) 2016 Vladimír Štill <xstill@fi.muni.cz>
+ * (c) 2016-2019 Vladimír Štill <xstill@fi.muni.cz>
  */
 
 /* Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 #include <future>
 #include <memory>
 #include <optional>
+#include <variant>
 
 #if defined( __unix__ ) || defined( __divine__ )
 #include <termios.h>
@@ -46,6 +47,7 @@
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <sys/epoll.h>
 #endif
 
 #ifndef BRICK_PROC
@@ -75,6 +77,7 @@ struct SpawnOpts {
 
     std::optional< std::string > in;
     std::optional< std::string > work_dir;
+    int extraFDs = 0;
     SpawnOptsEnum flags = None;
 };
 
@@ -90,6 +93,14 @@ inline SpawnOpts WorkDir( std::string wd ) {
     return so;
 }
 
+inline SpawnOpts ExtraFDs( int num ) {
+    SpawnOpts so;
+    so.extraFDs = num;
+    ASSERT_LEQ( 0, so.extraFDs );
+    return so;
+
+}
+
 inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b ) {
     a.flags = SpawnOptsEnum( a.flags | b.flags );
     ASSERT( !(a.in && b.in) );
@@ -98,14 +109,19 @@ inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b ) {
     ASSERT( !(a.work_dir && b.work_dir ) );
     if ( b.work_dir )
         a.work_dir = std::move( b.work_dir );
+    ASSERT( a.extraFDs == 0 || b.extraFDs == 0 );
+    a.extraFDs = std::max( a.extraFDs, b.extraFDs );
     return a;
 }
 
 struct SystemOutput {
 
-    SystemOutput( int exitcode, int signal, std::string out, std::string err ) :
-        _exitcode( exitcode ), _signal( signal ), _out( out ), _err( err )
-    { }
+    SystemOutput( int exitcode, int signal, std::vector< std::string > outs ) :
+        _exitcode( exitcode ), _signal( signal ), _outFDs{ outs }
+    {
+        if ( _outFDs.size() < 2 )
+            _outFDs.resize( 2 );
+    }
 
     bool ok() const { return _exitcode == 0 && _signal == 0; }
     explicit operator bool() const { return ok(); }
@@ -113,14 +129,18 @@ struct SystemOutput {
     int exitcode() const { return _exitcode; }
     int signal() const { return _signal; }
 
-    const std::string &out() const { return _out; }
-    const std::string &err() const { return _err; }
+    const std::string &out() const { return _outFDs[0]; }
+    const std::string &err() const { return _outFDs[1]; }
+
+    const std::string &out_fd( int fd ) const {
+        ASSERT_LT( fd - 1, _outFDs.size() );
+        return _outFDs[ fd - 1 ];
+    }
 
   private:
     int _exitcode;
     int _signal;
-    std::string _out;
-    std::string _err;
+    std::vector< std::string > _outFDs; // starts with FD 1
 };
 
 inline namespace {
@@ -156,19 +176,14 @@ struct Pipe {
         closeWrite();
     }
 
-    void closeRead() {
-        int r = _fds[0];
-        _fds[0] = -1;
+    void _close( bool wr ) {
+        int r = _fds[wr];
+        _fds[wr] = -1;
         if ( r >= 0 )
             ::close( r );
     }
-
-    void closeWrite() {
-        int w = _fds[1];
-        _fds[1] = -1;
-        if ( w >= 0 )
-            ::close( w );
-    }
+    void closeRead() { _close( false ); }
+    void closeWrite() { _close( true ); }
 
     std::string drain() {
         std::string str;
@@ -196,15 +211,79 @@ struct Pipe {
     int write() const { return _fds[1]; }
 
 #ifdef __unix__
-    void attachStdout() { ::dup2( write(), STDOUT_FILENO ); }
-    void attachStderr() { ::dup2( write(), STDERR_FILENO ); }
-    void attachStdin() { ::dup2( read(), STDIN_FILENO ); }
+    Pipe &attach( bool wr, int to, bool close = false ) {
+        if ( close )
+            _close( !wr );
+        int r = ::dup2( wr ? write() : read(), to );
+        if ( r != _fds[ wr ] ) {
+            if ( close )
+                _close( wr );
+        } else {
+            int fgs = ::fcntl( r, F_GETFD );
+            ASSERT_LEQ( 0, fgs );
+            ::fcntl( r, F_SETFD, fgs & (~FD_CLOEXEC) );
+        }
+        return *this;
+    }
+
+    Pipe &attachWrite( int tofd, bool close = false ) { return attach( true, tofd, close ); }
+    Pipe &attachRead( int tofd, bool close = false ) { return attach( false, tofd, close ); }
+
+    Pipe &attachStdout( bool close = false ) { return attach( true, STDOUT_FILENO, close ); }
+    Pipe &attachStderr( bool close = false ) { return attach( true, STDERR_FILENO, close ); }
+    Pipe &attachStdin( bool close = false ) { return attach( false, STDIN_FILENO, close ); }
 #else
 #error attach* fuctions are not supporrted on this platfrom
 #endif
 
   private:
     int _fds[2];
+};
+
+struct PollJob {
+    static PollJob &get( void *pj ) { return *reinterpret_cast< PollJob * >( pj ); }
+
+    PollJob( std::string &in ) : inout( std::in_place_type< std::string_view >, in ) { }
+    PollJob() : inout( std::in_place_type< std::string > ) { }
+
+    std::string &out() { return std::get< std::string >( inout ); }
+    bool is_out() const { return std::holds_alternative< std::string >( inout ); }
+    int fd() const { return is_out() ? pipe.read() : pipe.write(); }
+
+    bool operator()( struct epoll_event &ev ) {
+        return std::visit( [this, &ev]( auto &v ) { return handle( v, ev ); }, inout );
+    }
+
+    Pipe pipe;
+  private:
+    std::variant< std::string_view, std::string > inout;
+
+    bool handle( std::string_view &in, struct epoll_event &ev ) {
+        if ( in.empty() || (ev.events & (EPOLLERR | EPOLLHUP)) )
+            return false;
+        ASSERT( ev.events & EPOLLOUT );
+        int size = ::write( pipe.write(), in.data(), in.size() );
+        if ( size < 0 && errno != EINTR )
+            throw ProcError( "write to stdin failed" );
+        in.remove_prefix( size );
+        return !in.empty();
+    }
+
+    bool handle( std::string &out, struct epoll_event &ev ) {
+        ASSERT( ev.events & (EPOLLIN | EPOLLHUP) );
+        int to_read = out.capacity() - out.size();
+        if ( to_read == 0 ) {
+            out.reserve( std::max( size_t( 16 ), 2 * out.capacity() ) );
+            to_read = out.capacity() - out.size();
+        }
+        char *read_to = &*out.end();
+        out.resize( out.capacity() );
+        int size = ::read( pipe.read(), read_to, to_read );
+        if ( size < 0 && errno != EINTR )
+            throw ProcError( "read failed" );
+        out.resize( out.size() - to_read + size );
+        return size != 0;
+    }
 };
 
 inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > args )
@@ -215,67 +294,107 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
         std::cerr << std::endl;
     }
     std::vector< const char * > cargs;
+    cargs.reserve( args.size() + 1 );
     std::transform( args.begin(), args.end(), std::back_inserter( cargs ),
                     []( const std::string &s ) { return s.c_str(); } );
     cargs.push_back( nullptr );
     std::string out, err;
 
 #ifdef __unix__
-    std::future< void > inf;
-    std::future< std::string > outf, errf;
-    std::unique_ptr< Pipe > inp, outp, errp;
+    std::optional< PollJob > inp, outp, errp;
+    std::vector< PollJob > extrap( opts.extraFDs );
     if ( opts.in )
-        inp = std::make_unique< Pipe >();
+        inp.emplace( opts.in.value() );
     if ( opts.hasFlag( CaptureStdout ) )
-        outp = std::make_unique< Pipe >();
+        outp.emplace();
     if ( opts.hasFlag( CaptureStderr ) )
-        errp = std::make_unique< Pipe >();
+        errp.emplace();
 
     pid_t pid;
     if ( (pid = ::fork()) == 0 ) {
-        if ( inp ) {
-            inp->attachStdin();
-            inp->close();
-        }
-        if ( outp ) {
-            outp->attachStdout();
-            outp->close();
-        }
-        if ( errp ) {
-            errp->attachStderr();
-            errp->close();
-        }
+        if ( inp )
+            inp->pipe.attachStdin( true );
+        if ( outp )
+            outp->pipe.attachStdout( true );
+        if ( errp )
+            errp->pipe.attachStderr( true );
+        for ( auto &extra : extrap )
+            extra.pipe.attachWrite( 3 + (&*extrap.begin() - &extra), true );
 
         if ( opts.work_dir )
             brick::fs::chdir( opts.work_dir.value() );
         ::execvp( cargs[ 0 ], const_cast< char *const * >( cargs.data() ) );
         std::terminate();
     } else if ( pid > 0 ) {
+        fs::Fd epoll{ ::epoll_create1( EPOLL_CLOEXEC ) };
+        int polling_cnt = 0;
+
         if ( inp ) {
-            inp->closeRead();
-            inf = std::async( std::launch::async, [&] { inp->push( opts.in.value() ); inp->close(); } );
+            inp->pipe.closeRead();
+            struct epoll_event ev;
+            ev.events = EPOLLOUT;
+            ev.data.ptr = &*inp;
+            int r = ::epoll_ctl( epoll.fd(), EPOLL_CTL_ADD, inp->fd(), &ev );
+            if ( r != 0 )
+                throw ProcError( "epoll failed for stdin" );
+            ++polling_cnt;
         }
-        if ( outp ) {
-            outp->closeWrite();
-            outf = std::async( std::launch::async, [&] { return outp->drain(); } );
+        auto epoll_reg_out = [&]( PollJob &p ) {
+            p.pipe.closeWrite();
+            struct epoll_event ev;
+            ev.events = EPOLLIN;
+            ev.data.ptr = &p;
+            int r = ::epoll_ctl( epoll.fd(), EPOLL_CTL_ADD, p.fd(), &ev );
+            if ( r != 0 )
+                throw ProcError( "epoll failed for an output" );
+            ++polling_cnt;
+        };
+
+        if ( outp )
+            epoll_reg_out( *outp );
+        if ( errp )
+            epoll_reg_out( *errp );
+        for ( auto &extra : extrap )
+            epoll_reg_out( extra );
+
+        while ( polling_cnt > 0 ) {
+            struct epoll_event ev;
+            int r = ::epoll_wait( epoll.fd(), &ev, 1, -1 );
+            if ( r == 0 || (r < 0 && errno == EINTR) )
+                continue;
+            if ( r < 0 )
+                throw ProcError( "epoll failed" );
+            ASSERT_EQ( r, 1 );
+
+            auto &job = PollJob::get( ev.data.ptr );
+            if ( !job( ev ) ) {
+                ::epoll_ctl( epoll.fd(), EPOLL_CTL_DEL, job.fd(), nullptr );
+                job.pipe.close();
+                --polling_cnt;
+            }
         }
-        if ( errp ) {
-            errp->closeWrite();
-            errf = std::async( std::launch::async, [&] { return errp->drain(); } );
-        }
+
+        std::vector< std::string > outs;
+        if ( opts.hasFlag( CaptureStdout ) )
+            outs.emplace_back( std::move( outp->out() ) );
+        else
+            outs.emplace_back();
+
+        if ( opts.hasFlag( CaptureStderr ) )
+            outs.emplace_back( std::move( errp->out() ) );
+        else if ( opts.extraFDs > 0 )
+            outs.emplace_back();
+
+        for ( auto &p : extrap )
+            outs.emplace_back( std::move( p.out() ) );
+
         int status;
         int r = ::waitpid( pid, &status, 0 );
-
-        if ( inf.valid() )
-            inf.get();
-        out = outf.valid() ? outf.get() : "";
-        err = errf.valid() ? errf.get() : "";
-
         if ( r < 0 )
             throw ProcError( "waitpid error" );
         return SystemOutput( WIFEXITED( status ) ? WEXITSTATUS( status ) : 0,
                              WIFSIGNALED( status ) ? WTERMSIG( status ) : 0,
-                             out, err );
+                             outs );
     } else
         throw ProcError( "fork failed" );
 #else
@@ -479,6 +598,22 @@ struct TestSpawn {
         ASSERT( r );
         ASSERT_EQ( r.out(), "axcxd\nexfg\n" );
         ASSERT_EQ( r.err(), "" );
+    }
+    TEST( extra_out ) {
+        auto r = proc::spawnAndWait( proc::CaptureStdout | proc::ExtraFDs( 1 ),
+                                     "perl", "-e", R".(open(my $h, '>&=3') or die "$!"; print $h 'xay'; print "a")." );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "a" );
+        ASSERT_EQ( r.err(), "" );
+        ASSERT_EQ( r.out_fd( 3 ), "xay" );
+    }
+    TEST( extra_out_shell ) {
+        auto r = proc::shellSpawnAndWait( proc::CaptureStdout | proc::ExtraFDs( 1 ) | proc::StdinString( "abcdefg" ),
+                                          "sed 's/cd/xz/' >&3" );
+        ASSERT( r );
+        ASSERT_EQ( r.out(), "" );
+        ASSERT_EQ( r.err(), "" );
+        ASSERT_EQ( r.out_fd( 3 ), "abxzefg" );
     }
 };
 
