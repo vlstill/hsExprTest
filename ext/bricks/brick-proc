@@ -40,6 +40,7 @@
 #include <memory>
 #include <optional>
 #include <variant>
+#include <chrono>
 
 #if defined( __unix__ ) || defined( __divine__ )
 #include <termios.h>
@@ -55,6 +56,38 @@
 
 namespace brick {
 namespace proc {
+
+// like waitpid, but with timeout, using sigtimewait, option should not be WNOHANG
+// returns 0 & errno = EAGAIN if timeout passed
+// returns output of sigtimewait it if fails (except if it EINTR's, then it repeats)
+// otherwise returns return value of waitpid with additional WNOHANG
+template< typename Rep, typename Period >
+int timewaitpid( pid_t pid, int *stat_loc, int options, std::chrono::duration< Rep, Period > timeout )
+{
+    namespace ch = std::chrono;
+    auto start = ch::steady_clock::now();
+    auto end = start + timeout;
+    siginfo_t info;
+    struct timespec tout;
+    sigset_t chldset;
+    ::sigemptyset( &chldset );
+    ::sigaddset( &chldset, SIGCHLD );
+    int swr;
+
+    do {
+        auto timeout = end - ch::steady_clock::now();
+        tout.tv_sec = ch::duration_cast< ch::seconds >( timeout ).count();
+        tout.tv_nsec = ch::duration_cast< ch::nanoseconds >( timeout ).count()
+                       % 1000'000'000;
+        int swr = ::sigtimedwait( &chldset, &info, &tout );
+        if ( swr < 0 && errno != EINTR )
+            return errno == EAGAIN ? 0 : 1;
+        if ( info.si_pid == pid )
+            return ::waitpid( pid, stat_loc, options | WNOHANG );
+    } while ( timeout > ch::nanoseconds( 0 ) );
+    errno = EAGAIN;
+    return 0;
+}
 
 struct ProcError : brick::except::Error
 {
@@ -77,6 +110,7 @@ struct SpawnOpts {
 
     std::optional< std::string > in;
     std::optional< std::string > work_dir;
+    std::optional< std::chrono::milliseconds > timeout;
     int extraFDs = 0;
     SpawnOptsEnum flags = None;
 };
@@ -101,33 +135,44 @@ inline SpawnOpts ExtraFDs( int num ) {
 
 }
 
-inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b ) {
+template< typename Rep, typename Period >
+inline SpawnOpts Timeout( std::chrono::duration< Rep, Period > timeout ) {
+    SpawnOpts so;
+    so.timeout.emplace( std::chrono::duration_cast< std::chrono::milliseconds >( timeout ) );
+    return so;
+}
+
+inline SpawnOpts operator|( SpawnOpts a, SpawnOpts b )
+{
+    auto merge = []( auto &a, auto &&b ) {
+        ASSERT( !(a && b ) );
+        if ( b )
+            a = std::move( b );
+    };
     a.flags = SpawnOptsEnum( a.flags | b.flags );
-    ASSERT( !(a.in && b.in) );
-    if ( b.in )
-        a.in = std::move( b.in );
-    ASSERT( !(a.work_dir && b.work_dir ) );
-    if ( b.work_dir )
-        a.work_dir = std::move( b.work_dir );
-    ASSERT( a.extraFDs == 0 || b.extraFDs == 0 );
-    a.extraFDs = std::max( a.extraFDs, b.extraFDs );
+    merge( a.in, std::move( b.in ) );
+    merge( a.work_dir, std::move( b.work_dir ) );
+    merge( a.timeout, std::move( b.timeout ) );
+    merge( a.extraFDs, std::move( b.extraFDs ) );
     return a;
 }
 
 struct SystemOutput {
 
-    SystemOutput( int exitcode, int signal, std::vector< std::string > outs ) :
-        _exitcode( exitcode ), _signal( signal ), _outFDs{ outs }
+    SystemOutput( int exitcode, int signal, std::chrono::milliseconds time, bool timeout,
+                  std::vector< std::string > outs ) :
+        _exitcode( exitcode ), _signal( signal ), _time( time ), _timeout( timeout ), _outFDs{ outs }
     {
         if ( _outFDs.size() < 2 )
             _outFDs.resize( 2 );
     }
 
-    bool ok() const { return _exitcode == 0 && _signal == 0; }
+    bool ok() const { return _exitcode == 0 && _signal == 0 && !_timeout; }
     explicit operator bool() const { return ok(); }
 
     int exitcode() const { return _exitcode; }
     int signal() const { return _signal; }
+    bool timeout() const { return _timeout; }
 
     const std::string &out() const { return _outFDs[0]; }
     const std::string &err() const { return _outFDs[1]; }
@@ -137,9 +182,13 @@ struct SystemOutput {
         return _outFDs[ fd - 1 ];
     }
 
+    std::chrono::milliseconds time() const { return _time; }
+
   private:
     int _exitcode;
     int _signal;
+    std::chrono::milliseconds _time;
+    bool _timeout;
     std::vector< std::string > _outFDs; // starts with FD 1
 };
 
@@ -147,7 +196,9 @@ inline namespace {
 
 std::string to_string( const SystemOutput &o ) {
     std::stringstream ss;
-    ss << "exitcode = " << o.exitcode() << ", signal = " << o.signal() << std::endl;
+    ss << "exitcode = " << o.exitcode() << ", signal = " << o.signal()
+       << (o.timeout() ? ", timeout" : "")
+       << ", took " << o.time().count() << "ms" << std::endl;
     for ( auto x : { std::make_pair( "stdout", &o.out() ), std::make_pair( "stderr", &o.err() ) } ) {
         if ( !x.second->empty() ) {
             ss << x.first << ":" << std::endl;
@@ -329,6 +380,15 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
         fs::Fd epoll{ ::epoll_create1( EPOLL_CLOEXEC ) };
         int polling_cnt = 0;
 
+        namespace ch = std::chrono;
+        using namespace std::literals;
+
+        auto start = ch::steady_clock::now();
+        std::optional< ch::steady_clock::time_point > end_timeout;
+        if ( opts.timeout )
+            end_timeout.emplace( start + *opts.timeout );
+        auto ms = []( auto t ) { return ch::duration_cast< ch::milliseconds >( t ); };
+
         if ( inp ) {
             inp->pipe.closeRead();
             struct epoll_event ev;
@@ -357,9 +417,15 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
         for ( auto &extra : extrap )
             epoll_reg_out( extra );
 
-        while ( polling_cnt > 0 ) {
+        bool timeout = false;
+        while ( polling_cnt > 0 &&
+                ( !end_timeout || (timeout = (ch::steady_clock::now() >= *end_timeout)) ) )
+        {
             struct epoll_event ev;
-            int r = ::epoll_wait( epoll.fd(), &ev, 1, -1 );
+            int r = ::epoll_wait( epoll.fd(), &ev, 1, end_timeout
+                              ? std::max( 0, int( ms( *end_timeout
+                                                 - ch::steady_clock::now() ).count() ) )
+                              : -1 );
             if ( r == 0 || (r < 0 && errno == EINTR) )
                 continue;
             if ( r < 0 )
@@ -375,26 +441,45 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
         }
 
         std::vector< std::string > outs;
-        if ( opts.hasFlag( CaptureStdout ) )
+        if ( opts.hasFlag( CaptureStdout ) ) {
             outs.emplace_back( std::move( outp->out() ) );
+            outp->pipe.close();
+        }
         else
             outs.emplace_back();
 
-        if ( opts.hasFlag( CaptureStderr ) )
+        if ( opts.hasFlag( CaptureStderr ) ) {
             outs.emplace_back( std::move( errp->out() ) );
+            errp->pipe.close();
+        }
         else if ( opts.extraFDs > 0 )
             outs.emplace_back();
 
-        for ( auto &p : extrap )
+        for ( auto &p : extrap ) {
             outs.emplace_back( std::move( p.out() ) );
+            p.pipe.close();
+        }
 
-        int status;
-        int r = ::waitpid( pid, &status, 0 );
+        int status, r;
+        if ( !timeout && end_timeout ) {
+            r = timewaitpid( pid, &status, 0, *end_timeout - ch::steady_clock::now() );
+            timeout = r == 0 && errno == EAGAIN;
+        }
+        if ( timeout ) {
+            ::kill( pid, SIGALRM );
+            r = timewaitpid( pid, &status, 0, 100ms );
+            if ( r == 0 ) {
+                ::kill( pid, SIGKILL );
+                r = ::waitpid( pid, &status, 0 );
+            }
+        }
+        else
+            r = ::waitpid( pid, &status, 0 );
         if ( r < 0 )
             throw ProcError( "waitpid error" );
         return SystemOutput( WIFEXITED( status ) ? WEXITSTATUS( status ) : 0,
                              WIFSIGNALED( status ) ? WTERMSIG( status ) : 0,
-                             outs );
+                             ms( ch::steady_clock::now() - start ), timeout, outs );
     } else
         throw ProcError( "fork failed" );
 #else
@@ -601,7 +686,11 @@ struct TestSpawn {
     }
     TEST( extra_out ) {
         auto r = proc::spawnAndWait( proc::CaptureStdout | proc::ExtraFDs( 1 ),
-                                     "perl", "-e", R".(open(my $h, '>&=3') or die "$!"; print $h 'xay'; print "a")." );
+                                     "perl", "-e", R".(
+                open(my $h, '>&=3') or die "$!";
+                print $h 'xay';
+                print "a"
+            )." );
         ASSERT( r );
         ASSERT_EQ( r.out(), "a" );
         ASSERT_EQ( r.err(), "" );
@@ -614,6 +703,25 @@ struct TestSpawn {
         ASSERT_EQ( r.out(), "" );
         ASSERT_EQ( r.err(), "" );
         ASSERT_EQ( r.out_fd( 3 ), "abxzefg" );
+    }
+    TEST( timeout_bash ) {
+        using namespace std::literals;
+        ::alarm( 5 );
+        auto r = proc::shellSpawnAndWait( proc::Timeout( 500ms ), "while true; do :; done" );
+        ::alarm( 0 );
+        ASSERT( !r );
+        ASSERT( r.timeout() );
+    }
+    TEST( timeout_noalrm ) {
+        using namespace std::literals;
+        ::alarm( 5 );
+        auto r = proc::spawnAndWait( proc::Timeout( 500ms ), "perl", "-e", R".(
+                $SIG{ALRM} = "IGNORE";
+                while ( true ) { }
+            )." );
+        ::alarm( 0 );
+        ASSERT( !r );
+        ASSERT( r.timeout() );
     }
 };
 
