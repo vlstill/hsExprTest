@@ -742,11 +742,12 @@ namespace brick {
 namespace fs {
 #endif
 
+struct CloseDirDeleter { void operator()( DIR *dir ) { ::closedir( dir ); } };
+
 template< typename DirPre, typename DirPost, typename File >
 void traverseDirectoryTree( std::string root, DirPre pre, DirPost post, File file ) {
     if ( pre( root ) ) {
-        auto dir = std::unique_ptr< DIR, decltype( &::closedir ) >(
-                            ::opendir( root.c_str() ), &::closedir );
+        auto dir = std::unique_ptr< DIR, CloseDirDeleter >( ::opendir( root.c_str() ) );
         if ( dir == nullptr )
             throw SystemException( "opening directory " + root );
 
