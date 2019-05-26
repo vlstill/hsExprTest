@@ -374,9 +374,14 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
 
         if ( opts.work_dir )
             brick::fs::chdir( opts.work_dir.value() );
+        int r = ::setpgid( 0, 0 );
+        ASSERT_EQ( 0, r );
+        ASSERT_EQ( ::getpid(), getpgid( 0 ) );
         ::execvp( cargs[ 0 ], const_cast< char *const * >( cargs.data() ) );
         std::terminate();
     } else if ( pid > 0 ) {
+        ::setpgid( pid, pid ); // see man setpgid
+
         fs::Fd epoll{ ::epoll_create1( EPOLL_CLOEXEC ) };
         int polling_cnt = 0;
 
@@ -466,10 +471,10 @@ inline SystemOutput spawnAndWait( SpawnOpts opts, std::vector< std::string > arg
             timeout = r == 0 && errno == EAGAIN;
         }
         if ( timeout ) {
-            ::kill( pid, SIGALRM );
+            ::kill( -pid, SIGALRM );
             r = timewaitpid( pid, &status, 0, 100ms );
             if ( r == 0 ) {
-                ::kill( pid, SIGKILL );
+                ::kill( -pid, SIGKILL );
                 r = ::waitpid( pid, &status, 0 );
             }
         }
@@ -619,6 +624,7 @@ struct XTerm
 }
 
 namespace t_proc {
+using namespace std::literals;
 
 struct TestSpawn {
     TEST( basic_true ) {
@@ -684,6 +690,7 @@ struct TestSpawn {
         ASSERT_EQ( r.out(), "axcxd\nexfg\n" );
         ASSERT_EQ( r.err(), "" );
     }
+
     TEST( extra_out ) {
         auto r = proc::spawnAndWait( proc::CaptureStdout | proc::ExtraFDs( 1 ),
                                      "perl", "-e", R".(
@@ -704,8 +711,8 @@ struct TestSpawn {
         ASSERT_EQ( r.err(), "" );
         ASSERT_EQ( r.out_fd( 3 ), "abxzefg" );
     }
+
     TEST( timeout_bash ) {
-        using namespace std::literals;
         ::alarm( 5 );
         auto r = proc::shellSpawnAndWait( proc::Timeout( 500ms ), "while true; do :; done" );
         ::alarm( 0 );
@@ -713,7 +720,6 @@ struct TestSpawn {
         ASSERT( r.timeout() );
     }
     TEST( timeout_noalrm ) {
-        using namespace std::literals;
         ::alarm( 5 );
         auto r = proc::spawnAndWait( proc::Timeout( 500ms ), "perl", "-e", R".(
                 $SIG{ALRM} = "IGNORE";
@@ -724,7 +730,6 @@ struct TestSpawn {
         ASSERT( r.timeout() );
     }
     TEST( timeout_threads ) {
-        using namespace std::literals;
         auto loop = R".(
             $| = 1; # force flushing
             while ( true ) {
@@ -751,6 +756,16 @@ struct TestSpawn {
         ASSERT_LEQ( r1.out().size(), 15 );
         ASSERT_LEQ( 25, r2.out().size() );
         ASSERT_LEQ( r2.out().size(), 35 );
+    }
+
+    TEST( timeout_group ) {
+        ::alarm( 10 );
+        auto my_pid = ::getpid();
+        auto r = proc::shellSpawnAndWait( proc::Timeout( 1s ),
+                    "perl -e '$SIG{ALRM} = \"IGNORE\"; sleep 2; kill \"USR1\", "
+                          + std::to_string( my_pid ) + "' &" );
+        ::sleep( 2 ); // wait if we receive SIGUSR1 and it kills us
+        ::alarm( 0 );
     }
 };
 
