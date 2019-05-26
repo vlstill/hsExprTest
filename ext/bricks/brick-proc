@@ -41,6 +41,8 @@
 #include <optional>
 #include <variant>
 #include <chrono>
+#include <stdexcept>
+#include <initializer_list>
 
 #if defined( __unix__ ) || defined( __divine__ )
 #include <termios.h>
@@ -57,6 +59,50 @@
 namespace brick {
 namespace proc {
 
+struct SigSet {
+    struct InvalidSignal : std::invalid_argument { using std::invalid_argument::invalid_argument; };
+
+    SigSet() {
+        int r = ::sigemptyset( &_raw );
+        ASSERT_EQ( 0, r );
+    }
+
+    SigSet( std::initializer_list< int > set ) : SigSet() {
+        for ( auto sig : set )
+            add( sig );
+    }
+
+    void fill() {
+        int r = ::sigfillset( &_raw );
+        ASSERT_EQ( 0, r );
+    }
+
+    void add( int sig ) {
+        int r = ::sigaddset( &_raw, sig );
+        if ( r != 0 )
+            throw InvalidSignal( "sigaddset failed" );
+    }
+
+    void remove( int sig ) {
+        int r = ::sigdelset( &_raw, sig );
+        if ( r != 0 )
+            throw InvalidSignal( "sigdelset failed" );
+    }
+
+    bool has( int sig ) const {
+        int r = ::sigismember( &_raw, sig );
+        if ( r == -1 )
+            throw InvalidSignal( "sigismember failed" );
+        return r;
+    }
+
+    sigset_t *get() { return &_raw; }
+    const sigset_t *get() const { return &_raw; }
+
+  private:
+    sigset_t _raw;
+};
+
 // like waitpid, but with timeout, using sigtimewait, option should not be WNOHANG
 // returns 0 & errno = EAGAIN if timeout passed
 // returns output of sigtimewait it if fails (except if it EINTR's, then it repeats)
@@ -69,9 +115,7 @@ int timewaitpid( pid_t pid, int *stat_loc, int options, std::chrono::duration< R
     auto end = start + timeout;
     siginfo_t info;
     struct timespec tout;
-    sigset_t chldset;
-    ::sigemptyset( &chldset );
-    ::sigaddset( &chldset, SIGCHLD );
+    SigSet chldset = { SIGCHLD };
     int swr;
 
     do {
@@ -79,7 +123,7 @@ int timewaitpid( pid_t pid, int *stat_loc, int options, std::chrono::duration< R
         tout.tv_sec = ch::duration_cast< ch::seconds >( timeout ).count();
         tout.tv_nsec = ch::duration_cast< ch::nanoseconds >( timeout ).count()
                        % 1000'000'000;
-        int swr = ::sigtimedwait( &chldset, &info, &tout );
+        int swr = ::sigtimedwait( chldset.get(), &info, &tout );
         if ( swr < 0 && errno != EINTR )
             return errno == EAGAIN ? 0 : 1;
         if ( info.si_pid == pid )
