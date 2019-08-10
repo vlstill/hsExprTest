@@ -79,9 +79,16 @@ def main() -> None:
 
 
 def start_web(conf : config.Config) -> None:
+    async def shutdown():
+        for i in range(conf.max_workers):
+            print(f"Shutdown: Blocking slot {i}...")
+            await eval_sem.acquire()
+        print("Shutdown: done blocking, ready to shutdown")
+        await runner.cleanup()
+
     def sigusr1_handler() -> None:
-        print("Received SIGUSR1, shutting down")
-        loop.create_task(runner.cleanup())
+        print("Received SIGUSR1, shutting down...")
+        loop.create_task(shutdown())
 
     def sigusr2_handler() -> None:
         sigusr2_cnt += 1
