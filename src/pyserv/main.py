@@ -10,9 +10,6 @@ import config
 import sys
 
 
-routes = web.RouteTableDef()
-
-
 class PostOrGet:
     """
     A wrapper for accessing either POST or GET (query) arguments in an uniform
@@ -52,8 +49,6 @@ class PostOrGet:
         yield from self.query.items()
 
 
-@routes.get('/')
-@routes.post('/')
 async def hanlde_root(request : web.Request) -> web.Response:
     data = await PostOrGet.create(request)
     print(list(data.items()))
@@ -62,30 +57,28 @@ async def hanlde_root(request : web.Request) -> web.Response:
     return web.Response(text=f"Hello, {name}")
 
 
-demo_sem = asyncio.BoundedSemaphore(4)
+def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
+    async def handle_demo(request : web.Request) -> web.Response:
+        async with eval_sem:
+            start = time.asctime()
+            data = await PostOrGet.create(request)
+            print("start handling demo")
+            sleep = int(data.get("sleep", 10))
+            await asyncio.sleep(sleep)
+            end = time.asctime()
+            reqid = data.get("reqid")
+            print(f"ended waiting for {sleep} s, {start} -> {end} ({reqid})")
+            return web.Response(text=f"{start} -> {end} ({reqid})\n")
+
+    return handle_demo
 
 
-@routes.get('/demo')
-@routes.post('/demo')
-async def handle_demo(request : web.Request) -> web.Response:
-    async with demo_sem:
-        start = time.asctime()
-        data = await PostOrGet.create(request)
-        print("start handling demo")
-        sleep = int(data.get("sleep", 10))
-        await asyncio.sleep(sleep)
-        end = time.asctime()
-        reqid = data.get("reqid")
-        print(f"ended waiting for {sleep} s, {start} -> {end} ({reqid})")
-        return web.Response(text=f"{start} -> {end} ({reqid})\n")
-
-
-def main(routes : web.RouteTableDef) -> None:
+def main() -> None:
     conf = config.parse(sys.argv)
-    start_web(routes, conf)
+    start_web(conf)
 
 
-def start_web(routes : web.RouteTableDef, conf : config.Config) -> None:
+def start_web(conf : config.Config) -> None:
     def sigusr1_handler() -> None:
         print("Received SIGUSR1, shutting down")
         loop.create_task(runner.cleanup())
@@ -105,7 +98,13 @@ def start_web(routes : web.RouteTableDef, conf : config.Config) -> None:
     sigusr2_cnt = 0
 
     app = web.Application()
-    app.add_routes(routes)
+    app.router.add_get("/", hanlde_root)
+    app.router.add_post("/", hanlde_root)
+    eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
+    handle_demo = get_demo_handler(eval_sem)
+    app.router.add_get("/demo", handle_demo)
+    app.router.add_post("/demo", handle_demo)
+
     runner = web.AppRunner(app)
     app.on_cleanup.append(stop_loop)
 
@@ -123,6 +122,6 @@ def start_web(routes : web.RouteTableDef, conf : config.Config) -> None:
 
 
 if __name__ == "__main__":
-    main(routes)
+    main()
 
 # vim: colorcolumn=80 expandtab sw=4 ts=4
