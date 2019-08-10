@@ -60,17 +60,22 @@ async def hanlde_root(request : web.Request) -> web.Response:
     return web.Response(text=f"Hello, {name}")
 
 
+demo_sem = asyncio.BoundedSemaphore(4)
+
+
 @routes.get('/demo')
 @routes.post('/demo')
 async def handle_demo(request : web.Request) -> web.Response:
-    start = time.asctime()
-    data = await PostOrGet.create(request)
-    print("start handling demo")
-    sleep = int(data.get("sleep", 10))
-    await asyncio.sleep(sleep)
-    end = time.asctime()
-    print(f"ended waiting for {sleep} s, {start} -> {end}")
-    return web.Response(text=f"{start} -> {end}")
+    async with demo_sem:
+        start = time.asctime()
+        data = await PostOrGet.create(request)
+        print("start handling demo")
+        sleep = int(data.get("sleep", 10))
+        await asyncio.sleep(sleep)
+        end = time.asctime()
+        reqid = data.get("reqid")
+        print(f"ended waiting for {sleep} s, {start} -> {end} ({reqid})")
+        return web.Response(text=f"{start} -> {end} ({reqid})\n")
 
 
 def main(routes : web.RouteTableDef) -> None:
