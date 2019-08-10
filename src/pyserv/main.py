@@ -1,17 +1,58 @@
 #!/usr/bin/env python3
 
+from typing import Any, Optional, Iterator, Tuple
 from aiohttp import web
 import asyncio
 import signal
+import multidict
 
 
 routes = web.RouteTableDef()
 
 
+class PostOrGet:
+    """
+    A wrapper for accessing either POST or GET (query) arguments in an uniform
+    way. Please do not use the constructor, use coroutine 'create'.
+    Prefers POST.
+    """
+
+    def __init__(self):
+        """Creates an empty PostOrGet, do not use directly, use 'create'"""
+        self.post : Optional[multidict.MultiDictProxy] = None
+        self.query : Optional[multidict.MultiDictProxy] = None
+
+    @staticmethod
+    async def create(request : web.Request):
+        self = PostOrGet()
+        self.post = await request.post()
+        self.query = request.query
+        return self
+
+    def get(self, key : str, default : Any = None) -> Any:
+        """
+        Gets value for given key, prefering post parameters and falling back to
+        query if needed.
+        """
+        assert self.post is not None
+        assert self.query is not None
+        try:
+            return self.post[key]
+        except KeyError:
+            return self.query.get(key, default)
+
+    def items(self) -> Iterator[Tuple[str, Any]]:
+        """Iterates over all post and query parameters"""
+        assert self.post is not None
+        assert self.query is not None
+        yield from self.post.items()
+        yield from self.query.items()
+
+
 @routes.get('/')
 @routes.post('/')
 async def hanlde_root(request : web.Request) -> web.Response:
-    data = await request.post()
+    data = await PostOrGet.create(request)
     print(list(data.items()))
     # name = request.match_info.get('name', "X")
     name = data.get('name', "X")
