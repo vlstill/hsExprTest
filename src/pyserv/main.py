@@ -5,6 +5,7 @@ from aiohttp import web
 import asyncio
 import signal
 import multidict
+import time
 
 
 routes = web.RouteTableDef()
@@ -59,8 +60,24 @@ async def hanlde_root(request : web.Request) -> web.Response:
     return web.Response(text=f"Hello, {name}")
 
 
-def main(routes : web.RouteTableDef) -> None:
+@routes.get('/demo')
+@routes.post('/demo')
+async def handle_demo(request : web.Request) -> web.Response:
+    start = time.asctime()
+    data = await PostOrGet.create(request)
+    print("start handling demo")
+    sleep = int(data.get("sleep", 10))
+    await asyncio.sleep(sleep)
+    end = time.asctime()
+    print(f"ended waiting for {sleep} s, {start} -> {end}")
+    return web.Response(text=f"{start} -> {end}")
 
+
+def main(routes : web.RouteTableDef) -> None:
+    start_web(routes)
+
+
+def start_web(routes : web.RouteTableDef) -> None:
     def sigusr1_handler() -> None:
         print("Received SIGUSR1, shutting down")
         loop.create_task(runner.cleanup())
