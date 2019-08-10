@@ -6,6 +6,8 @@ import asyncio
 import signal
 import multidict
 import time
+import config
+import sys
 
 
 routes = web.RouteTableDef()
@@ -79,10 +81,11 @@ async def handle_demo(request : web.Request) -> web.Response:
 
 
 def main(routes : web.RouteTableDef) -> None:
-    start_web(routes)
+    conf = config.parse(sys.argv)
+    start_web(routes, conf)
 
 
-def start_web(routes : web.RouteTableDef) -> None:
+def start_web(routes : web.RouteTableDef, conf : config.Config) -> None:
     def sigusr1_handler() -> None:
         print("Received SIGUSR1, shutting down")
         loop.create_task(runner.cleanup())
@@ -111,7 +114,8 @@ def start_web(routes : web.RouteTableDef) -> None:
     loop.add_signal_handler(signal.SIGUSR2, sigusr2_handler)
     loop.create_task(start_web(runner))
 
-    print("starting")
+    print("starting, loaded following configuration:")
+    conf.dump(sys.stdout)
     try:
         loop.run_forever()
     finally:
@@ -120,3 +124,5 @@ def start_web(routes : web.RouteTableDef) -> None:
 
 if __name__ == "__main__":
     main(routes)
+
+# vim: colorcolumn=80 expandtab sw=4 ts=4
