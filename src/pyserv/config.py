@@ -2,6 +2,7 @@ import argparse
 import yaml
 import sys
 from typing import List, Optional, Dict, Any, Union
+import os.path
 
 
 class ConfigException(Exception):
@@ -38,7 +39,7 @@ class Config:
         self.socket_fd : Optional[int] = None
         self.socket : Optional[str] = None
         self.qdir_root : Optional[str] = None
-        self.courses : List[Course] = []
+        self.courses : Dict[str, Course] = {}
         self.max_workers = 4
         self._load_from_argv()
         self._load_from_file()
@@ -78,7 +79,8 @@ class Config:
         if not isinstance(courses, list):
             raise ConfigException("courses must be an array of course objects")
         for c in courses:
-            self.courses.append(Course(c))
+            cc = Course(c)
+            self.courses[cc.name] = cc
 
         if (self.socket is None and self.socket_fd is None):
             raise ConfigException("One of 'socket' or '--socket-fd' must be used")
@@ -95,7 +97,12 @@ class Config:
                 "socket": self.socket,
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
-                "courses": list(map(Course.to_dict, self.courses))}
+                "courses": list(map(Course.to_dict, self.courses.values()))}
+
+    def get_qdir(self, course : str) -> str:
+        assert self.qdir_root is not None
+        return os.path.join(self.qdir_root, self.courses[course].qdir)
+
 
 
 def parse(argv : List[str]) -> Config:

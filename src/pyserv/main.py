@@ -8,6 +8,10 @@ import multidict
 import time
 import config
 import sys
+from glob import glob
+import os.path
+import testenv
+import traceback
 
 
 class PostOrGet:
@@ -73,6 +77,72 @@ def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
     return handle_demo
 
 
+async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str, str]:
+    def error(msg : str) -> Tuple[str, str]:
+        return ("nok", msg)
+    def missing(name : str, key : str) -> Tuple[str, str]:
+        return error(f"Evaluator error: Missing mandatory parameter `{key}' ({name})")
+    def parse_qid(qid : Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        if qid is None:
+            return (None, None)
+        s = qid.split("?", 1)
+        if len(s) == 1:
+            return (s[0], None)
+        return (s[0], s[1])
+    try:
+        course_id = data.get("kod")
+        question_id, option = parse_qid(data.get("id"))
+        answer = data.get("odp")
+        if course_id is None:
+            return missing("course ID", "kod")
+        if question_id is None:
+            return missing("question ID", "id")
+        if answer is None:
+            return missing("answer", "odp")
+
+        course = conf.courses.get(course_id)
+        if course is None:
+            return error(f"Course {course_id} not defined")
+        qdir = conf.get_qdir(course_id)
+        question_candidates = list(filter(os.path.isfile,
+                                glob(os.path.join(qdir, f"{question_id}.q*"))))
+
+        if len(question_candidates) == 0:
+            return error(f"No questions found for ID {question_id}")
+        if len(question_candidates) > 1:
+            return error(f"Too many questions found fo ID {question_id} ({question_candidates})")
+        question = question_candidates[0]
+
+        async with testenv.TestEnvironment(question, answer, course) as env:
+            res, comment = await env.run(option)
+
+            return (res, f"""{comment}
+                          course_id = {course_id},
+                          question_id = {question_id},
+                          option = {option},
+                          qdir = {qdir},
+                          question_candidates = {question_candidates},
+                          answer = {answer}
+                          """)
+    except Exception as ex:
+        traceback.print_exc()
+        return ("nok", f"Error while evaluating: {ex}")
+
+
+def get_is_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config):
+    async def handle_is(request : web.Request) -> web.Response:
+        async with eval_sem:
+            start = time.asctime()
+            data = await PostOrGet.create(request)
+            print("start handling IS")
+            (points, response) = await handle_evaluation(conf, data)
+            end = time.asctime()
+            reqid = data.get("reqid")
+            return web.Response(text=f"{points}~~{response}\nSTAT: {start} -> {end} ({reqid})\n")
+
+    return handle_is
+
+
 def main() -> None:
     conf = config.parse(sys.argv)
     start_web(conf)
@@ -111,6 +181,9 @@ def start_web(conf : config.Config) -> None:
     handle_demo = get_demo_handler(eval_sem)
     app.router.add_get("/demo", handle_demo)
     app.router.add_post("/demo", handle_demo)
+    handle_is = get_is_handler(eval_sem, conf)
+    app.router.add_get("/is", handle_is)
+    app.router.add_post("/is", handle_is)
 
     runner = web.AppRunner(app)
     app.on_cleanup.append(stop_loop)
