@@ -10,13 +10,14 @@ class ConfigException(Exception):
 
 
 class Course:
-    def __init__(self, raw : Dict[str, Any]):
+    def __init__(self, raw : Dict[str, Any], qdir_root : str):
         if not isinstance(raw, dict):
             raise ConfigException("Course must be an object")
         try:
             self.name = str(raw["name"])
             self.checker = str(raw["checker"])
-            self.qdir = str(raw["qdir"])
+            self._qdir = str(raw["qdir"])
+            self.qdir = os.path.join(qdir_root, self._qdir)
             self.isolation = bool(raw.get("isolation", False))
             self.hint = bool(raw.get("hint", False))
             self.extended = bool(raw.get("extended", False))
@@ -26,7 +27,7 @@ class Course:
     def to_dict(self) -> Dict[str, Union[str, bool]]:
         return {"name": self.name,
                 "checker": self.checker,
-                "qdir": self.qdir,
+                "qdir": self._qdir,
                 "isolation": self.isolation,
                 "hint": self.hint,
                 "extended": self.extended}
@@ -72,20 +73,20 @@ class Config:
             raise ConfigException("Config must be a YAML object")
 
         self.socket = conf.get("socket")
-        self.qdir_root = conf.get("qdir_root", ".")
+        self.qdir_root = conf.get("qdir_root")
         self.max_workers = conf.get("max_workers", self.max_workers)
 
+        if self.qdir_root is None:
+            raise ConfigException("'qdir_root' must be set")
         courses = conf.get("courses", [])
         if not isinstance(courses, list):
             raise ConfigException("courses must be an array of course objects")
         for c in courses:
-            cc = Course(c)
+            cc = Course(c, self.qdir_root)
             self.courses[cc.name] = cc
 
         if (self.socket is None and self.socket_fd is None):
             raise ConfigException("One of 'socket' or '--socket-fd' must be used")
-        if self.qdir_root is None:
-            raise ConfigException("'qdir_root' must be set")
         if len(self.courses) == 0:
             raise ConfigException("At least one course must be set")
 
@@ -98,10 +99,6 @@ class Config:
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
                 "courses": list(map(Course.to_dict, self.courses.values()))}
-
-    def get_qdir(self, course : str) -> str:
-        assert self.qdir_root is not None
-        return os.path.join(self.qdir_root, self.courses[course].qdir)
 
 
 

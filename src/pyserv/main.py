@@ -103,9 +103,8 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str
         course = conf.courses.get(course_id)
         if course is None:
             return error(f"Course {course_id} not defined")
-        qdir = conf.get_qdir(course_id)
         question_candidates = list(filter(os.path.isfile,
-                                glob(os.path.join(qdir, f"{question_id}.q*"))))
+                                glob(os.path.join(course.qdir, f"{question_id}.q*"))))
 
         if len(question_candidates) == 0:
             return error(f"No questions found for ID {question_id}")
@@ -120,7 +119,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str
                           course_id = {course_id},
                           question_id = {question_id},
                           option = {option},
-                          qdir = {qdir},
+                          qdir = {course.qdir},
                           question_candidates = {question_candidates},
                           answer = {answer}
                           """)
