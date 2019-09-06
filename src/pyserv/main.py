@@ -12,6 +12,7 @@ from glob import glob
 import os.path
 import testenv
 import traceback
+import functor
 
 
 class PostOrGet:
@@ -104,6 +105,9 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) \
             return missing("question ID", "id")
         if answer is None:
             return missing("answer", "odp")
+        student_id = functor.fmapO(functor.rint, data.get("uco"))
+        qset = data.get("sada")
+        view_only = data.get("zobrazeni") == "p"
 
         course = conf.courses.get(course_id)
         if course is None:
@@ -127,6 +131,9 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) \
                           option = {option},
                           qdir = {course.qdir},
                           question_candidates = {question_candidates},
+                          student_id = {student_id},
+                          qset = {qset},
+                          view_only = {view_only},
                           answer = {answer}
                           """)
     except Exception as ex:
