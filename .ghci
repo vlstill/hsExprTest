@@ -1,4 +1,0 @@
-:set -isrc/hs/testlib
-:set -isrc/hs/tests
-:set -Wall
-:set -XTemplateHaskell -XExplicitForAll -XScopedTypeVariables
