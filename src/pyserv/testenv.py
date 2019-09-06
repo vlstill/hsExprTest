@@ -1,8 +1,8 @@
 import tempfile
 import config
 import os.path
-import aiofiles # type: ignore
-import posix1e # type: ignore
+import aiofiles  # type: ignore
+import posix1e   # type: ignore
 import pwd
 import os
 import sys
@@ -30,20 +30,24 @@ class TestEnvironment(object):
             e.tag_type = posix1e.ACL_USER
             e.qualifier = uid
             e.permset.clear()
-            e.permset.read, e.permset.write, e.permset.execute = True, True, True
+            e.permset.read = True
+            e.permset.write = True
+            e.permset.execute = True
             acl.calc_mask()
             acl.applyto(self.tmpdir)
 
-            # add another default entry for checker to ensure we can delete everythibng
+            # add another default entry for checker to ensure we can delete
+            # everythibng
             ec = acl.append()
             ec.tag_type = posix1e.ACL_USER
             ec.qualifier = os.geteuid()
             ec.permset.clear()
-            ec.permset.read, ec.permset.write, ec.permset.execute = True, True, True
+            ec.permset.read = True
+            ec.permset.write = True
+            ec.permset.execute = True
             acl.calc_mask()
             acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
 
-            
         ext = os.path.splitext(self.question)[1]
         self.qfile = os.path.join(self.tmpdir, f"question{ext}")
         self.afile = os.path.join(self.tmpdir, f"answer{ext}")
@@ -59,27 +63,26 @@ class TestEnvironment(object):
     async def run(self, *options):
         args = []
         if self.course.isolation:
-            args.extend(["sudo",  "-n", "-u", f"rc-{self.course.name}"])
+            args.extend(["sudo", "-n", "-u", f"rc-{self.course.name}"])
         args.extend(self.course.checker.split(' '))
         args.extend([self.qfile, self.afile, f"-I{self.course.qdir}"])
         args.extend([f"-o{opt}" for opt in options])
         # TODO: hint
         print("+ " + " ".join(args))
-        proc = await asyncio.create_subprocess_exec(*args,
-                          stdin=subprocess.DEVNULL,
-                          stdout=subprocess.PIPE,
-                          stderr=sys.stderr,
-                          cwd=self.tmpdir,
-                          start_new_session=True,
-                          pass_fds=[])
+        proc = await asyncio.create_subprocess_exec(
+                              *args,
+                              stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE,
+                              stderr=sys.stderr,
+                              cwd=self.tmpdir,
+                              start_new_session=True,
+                              pass_fds=[])
         stdout = (await proc.communicate())[0].decode("utf8")
         if proc.returncode == 0:
             return ("ok", stdout)
         else:
             return ("nok", stdout)
 
-
-        
     async def __aexit__(self, type, value, traceback):
         self.tmpdirHandle.__exit__(type, value, traceback)
 

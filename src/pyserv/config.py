@@ -22,7 +22,8 @@ class Course:
             self.hint = bool(raw.get("hint", False))
             self.extended = bool(raw.get("extended", False))
         except KeyError as ex:
-            raise ConfigException(f"Course must set at least 'name', 'checker', and 'qdir': missing {ex}")
+            raise ConfigException(
+                    f"Course must set at least 'name', 'checker', and 'qdir': missing {ex}")
 
     def to_dict(self) -> Dict[str, Union[str, bool]]:
         return {"name": self.name,
@@ -64,10 +65,11 @@ class Config:
             with open(self.config_file, 'r') as fh:
                 conf = yaml.safe_load(fh)
         except FileNotFoundError as ex:
-            raise ConfigException(f"config file {self.config_file} not found: {ex}")
+            raise ConfigException(
+                    f"config file {self.config_file} not found: {ex}")
         except yaml.YAMLError as ex:
-            raise ConfigException(f"Failed to load config from {self.config_file}: {ex}")
-            return
+            raise ConfigException(
+                    f"Failed to load config from {self.config_file}: {ex}")
 
         if not isinstance(conf, dict):
             raise ConfigException("Config must be a YAML object")
@@ -80,13 +82,15 @@ class Config:
             raise ConfigException("'qdir_root' must be set")
         courses = conf.get("courses", [])
         if not isinstance(courses, list):
-            raise ConfigException("courses must be an array of course objects")
+            raise ConfigException(
+                    "courses must be an array of course objects")
         for c in courses:
             cc = Course(c, self.qdir_root)
             self.courses[cc.name] = cc
 
         if (self.socket is None and self.socket_fd is None):
-            raise ConfigException("One of 'socket' or '--socket-fd' must be used")
+            raise ConfigException(
+                    "One of 'socket' or '--socket-fd' must be used")
         if len(self.courses) == 0:
             raise ConfigException("At least one course must be set")
 
@@ -99,7 +103,6 @@ class Config:
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
                 "courses": list(map(Course.to_dict, self.courses.values()))}
-
 
 
 def parse(argv : List[str]) -> Config:

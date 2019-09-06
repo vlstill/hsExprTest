@@ -77,11 +77,15 @@ def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
     return handle_demo
 
 
-async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str, str]:
+async def handle_evaluation(conf : config.Config, data : PostOrGet) \
+        -> Tuple[str, str]:
     def error(msg : str) -> Tuple[str, str]:
         return ("nok", msg)
+
     def missing(name : str, key : str) -> Tuple[str, str]:
-        return error(f"Evaluator error: Missing mandatory parameter `{key}' ({name})")
+        return error("Evaluator error: "
+                     f"Missing mandatory parameter `{key}' ({name})")
+
     def parse_qid(qid : Optional[str]) -> Tuple[Optional[str], Optional[str]]:
         if qid is None:
             return (None, None)
@@ -89,6 +93,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str
         if len(s) == 1:
             return (s[0], None)
         return (s[0], s[1])
+
     try:
         course_id = data.get("kod")
         question_id, option = parse_qid(data.get("id"))
@@ -103,13 +108,14 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) -> Tuple[str
         course = conf.courses.get(course_id)
         if course is None:
             return error(f"Course {course_id} not defined")
-        question_candidates = list(filter(os.path.isfile,
-                                glob(os.path.join(course.qdir, f"{question_id}.q*"))))
+        qglobs = glob(os.path.join(course.qdir, f"{question_id}.q*"))
+        question_candidates = list(filter(os.path.isfile, qglobs))
 
         if len(question_candidates) == 0:
             return error(f"No questions found for ID {question_id}")
         if len(question_candidates) > 1:
-            return error(f"Too many questions found fo ID {question_id} ({question_candidates})")
+            return error(f"Too many questions found for ID {question_id} "
+                         f"({question_candidates})")
         question = question_candidates[0]
 
         async with testenv.TestEnvironment(question, answer, course) as env:
@@ -137,7 +143,8 @@ def get_is_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config):
             (points, response) = await handle_evaluation(conf, data)
             end = time.asctime()
             reqid = data.get("reqid")
-            return web.Response(text=f"{points}~~{response}\nSTAT: {start} -> {end} ({reqid})\n")
+            return web.Response(text=f"{points}~~{response}\n"
+                                     f"STAT: {start} -> {end} ({reqid})\n")
 
     return handle_is
 
