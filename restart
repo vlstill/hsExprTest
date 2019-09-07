@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+usage() { echo "please set PORT & CONFIG in restartenv" >&2; false; }
+
+set -ex
+. restartenv || usage
+[[ "$PORT" -ge 1000 ]] || usage
+[[ -f $CONFIG ]] || usage
+
+python3 ./src/pyserv/main.py --port $PORT --config $CONFIG &
+SECONDARY=$!
+echo "waiting 30s for the new server to load"
+sleep 30
+ps $SECONDARY || { echo "Secondary server died, exiting" >&2; false; }
+
+sudo systemctl restart exprtest.service
+echo "letting NGINX reset availability for primary server"
+sleep 30
+systemctl status exprtest.service  | grep 'Active: active (running)' || \
+    { echo "Primary failed, leaving secondary (PID $SECONDARY), you must recover manually\n"; false; }
+kill $SECONDARY
