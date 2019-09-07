@@ -1,15 +1,16 @@
 [Unit]
-Description=hsExprTest IS frontend socket
+Description=ExprTest IS frontend
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "cd /home/checker/hsExprTest/_build/; PATH=$PWD:/opt/ghc-8.2.1/bin:$PATH ./hsExprTest-service /home/checker/hsExprTest/hesperia.yaml"
+ExecStart=/bin/bash -c "cd /home/checker/hsExprTest/; python3 ./src/pyserv/main.py --config /home/checker/hsExprTest/hesperia.yaml --socket-fd 0"
 User=checker
 Group=checker
 Restart=always
-RestartSec=5
-
-[Install]
+RestartSec=2
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=ExprTest IS frontend socket
+
+[Socket]
+ListenStream=/run/www/exprtest.sock
+Accept=false
+SocketUser=nginx
+SocketGroup=nginx
+
+[Install]
+WantedBy=sockets.target
