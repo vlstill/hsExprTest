@@ -3,6 +3,7 @@
 usage() { echo "please set PORT & CONFIG in restartenv" >&2; false; }
 
 set -ex
+make pycheck
 . restartenv || usage
 [[ "$PORT" -ge 1000 ]] || usage
 [[ -f $CONFIG ]] || usage
