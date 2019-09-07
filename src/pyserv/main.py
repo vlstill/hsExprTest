@@ -139,6 +139,7 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
     if hint and conf.hint_origin is not None:
         headers["Access-Control-Allow-Methods"] = "POST"
         headers["Access-Control-Allow-Origin"] = conf.hint_origin
+
     async def handle_eval(request : web.Request) -> web.Response:
         async with eval_sem:
             start = time.perf_counter()
