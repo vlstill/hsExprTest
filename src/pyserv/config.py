@@ -40,6 +40,7 @@ class Config:
         self.config_file = "exprtest.yaml"
         self.socket_fd : Optional[int] = None
         self.socket : Optional[str] = None
+        self.port : Optional[int] = None
         self.qdir_root : Optional[str] = None
         self.courses : Dict[str, Course] = {}
         self.max_workers = 4
@@ -53,10 +54,18 @@ class Config:
                   '--socket-fd', metavar='FD', dest='socket_fd', type=int,
                   help="socket file descriptor to be used for UNIX socket server")
         parser.add_argument(
+                  '--socket', metavar='FILE', dest='socket', type=str,
+                  help="named socket to be used for UNIX socket server")
+        parser.add_argument(
+                  '--port', metavar='TPC_PORT', dest='port', type=int,
+                  help="TCP port to be used for HTTP server on localhost")
+        parser.add_argument(
                   '--config', metavar='FILE',
                   help="YAML config file with description of evaluation environment")
         args = parser.parse_args(self.argv[1:])
         self.socket_fd = args.socket_fd
+        self.socket = args.socket
+        self.port = args.port
         if args.config is not None:
             self.config_file = args.config
 
@@ -74,7 +83,6 @@ class Config:
         if not isinstance(conf, dict):
             raise ConfigException("Config must be a YAML object")
 
-        self.socket = conf.get("socket")
         self.qdir_root = conf.get("qdir_root")
         self.max_workers = conf.get("max_workers", self.max_workers)
 
@@ -88,9 +96,13 @@ class Config:
             cc = Course(c, self.qdir_root)
             self.courses[cc.name] = cc
 
-        if (self.socket is None and self.socket_fd is None):
-            raise ConfigException(
-                    "One of 'socket' or '--socket-fd' must be used")
+        out = len([x for x in [self.socket, self.socket_fd, self.port]
+                     if x is not None])
+        if out == 0:
+            self.port = 8080
+        if out > 1:
+            raise ConfigException("At most one of '--socket', '--socket-fd' "
+                                  "or '--port' must be used")
         if len(self.courses) == 0:
             raise ConfigException("At least one course must be set")
 
@@ -100,6 +112,7 @@ class Config:
     def to_dict(self) -> Dict[str, Any]:
         return {"socket_fd": self.socket_fd,
                 "socket": self.socket,
+                "port": self.port,
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
                 "courses": list(map(Course.to_dict, self.courses.values()))}

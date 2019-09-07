@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Any, Optional, Iterator, Tuple
+from typing import Any, Optional, Iterator, Tuple, Union
 from aiohttp import web
 import asyncio
 import signal
@@ -13,6 +13,7 @@ import os.path
 import testenv
 import traceback
 import functor
+import socket
 
 
 class PostOrGet:
@@ -145,7 +146,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
 
 def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
-                   hint : bool):
+                     hint : bool):
     async def handle_eval(request : web.Request) -> web.Response:
         async with eval_sem:
             start = time.asctime()
@@ -184,10 +185,21 @@ def start_web(conf : config.Config) -> None:
     async def stop_loop(app) -> None:
         loop.stop()
 
-    async def start_web(runner):
+    async def start_runner(runner, conf : config.Config):
         await runner.setup()
-        site = web.TCPSite(runner, 'localhost', 8080)
-        await site.start()
+        site : Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
+        if conf.port is not None:
+            print(f"Starting HTTP on localhost:{conf.port}")
+            site = web.TCPSite(runner, 'localhost', conf.port)
+        elif conf.socket is not None:
+            print(f"Starting UNIX on {conf.socket}")
+            site = web.UnixSite(runner, conf.socket)
+        elif conf.socket_fd is not None:
+            print(f"Starting UNIX of FD {conf.socket_fd}")
+            sock = socket.socket(fileno=conf.socket_fd)
+            site = web.SockSite(runner, sock)
+        assert site is not None, "Invalid config, not listening address"
+        return await site.start()
 
     sigusr2_cnt = 0
 
@@ -216,9 +228,14 @@ def start_web(conf : config.Config) -> None:
     loop = asyncio.get_event_loop()
     loop.add_signal_handler(signal.SIGUSR1, sigusr1_handler)
     loop.add_signal_handler(signal.SIGUSR2, sigusr2_handler)
-    loop.create_task(start_web(runner))
+    try:
+        loop.run_until_complete(start_runner(runner, conf))
+    except Exception as ex:
+        print("ERROR starting server", file=sys.stderr)
+        traceback.print_exc()
+        sys.exit(1)
 
-    print("starting, loaded following configuration:")
+    print("started, loaded following configuration:")
     conf.dump(sys.stdout)
     try:
         loop.run_forever()
