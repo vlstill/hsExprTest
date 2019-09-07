@@ -1,5 +1,5 @@
 // (c) 2015 Juraj Major
-// (c) 2017 Vladimír Štill
+// (c) 2017-2019 Vladimír Štill
 
 // vim: set noexpandtab
 
@@ -15,7 +15,7 @@
 var syntax_check, upload;
 
 if (typeof syntax_check !== 'function') {
-	var url = 'https://hesperia.fi.muni.cz/is', otazky = {};
+	var url = 'https://hesperia.fi.muni.cz/hint', otazky = {};
 
 	var onl = window.onload || function() {};
 	window.onload = function() {
