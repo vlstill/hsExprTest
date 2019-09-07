@@ -1,9 +1,11 @@
 socket: socket
 qdir_root: /home/xstill/repo/ib015_questions
+max_workers: 2
+hint_origin: https://is.muni.cz
 courses:
   - name: ib015
     isolation: false
-    checker: ./hsExprTest
+    checker: /home/xstill/repo/hsExprTest/src/hs/driver
     qdir: .
     hint: true
   - name: ib002
