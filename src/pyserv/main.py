@@ -14,6 +14,7 @@ import testenv
 import traceback
 import functor
 import socket
+import textwrap
 
 
 class PostOrGet:
@@ -129,17 +130,27 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
         async with testenv.TestEnvironment(question, answer, course) as env:
             res, comment = await env.run(option, hint=hint)
 
-            return (res, f"""{comment}
-                          course_id = {course_id},
-                          question_id = {question_id},
-                          option = {option},
-                          qdir = {course.qdir},
-                          question_candidates = {question_candidates},
-                          student_id = {student_id},
-                          qset = {qset},
-                          view_only = {view_only},
-                          answer = {answer}
+            log = 80 * "="
+            log += textwrap.dedent(f"""
+                          date: {time.asctime()}
+                          course_id: {course_id}
+                          question_id: {question_id}
+                          option: {option}
+                          qdir: {course.qdir}
+                          question_candidates: {question_candidates}
+                          student_id: {student_id}
+                          qset: {qset}
+                          view_only: {view_only}
+                          hint: {hint}
+                          answer:
                           """)
+            log += textwrap.indent(answer, "    ")
+            log += f"\nresult: {res}\nreply:\n"
+            log += textwrap.indent(comment, "    ")
+            print(log, file=sys.stderr)
+
+            return (res, comment)
+
     except Exception as ex:
         traceback.print_exc()
         return error(f"Error while evaluating: {ex}")
@@ -149,14 +160,13 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
                      hint : bool):
     async def handle_eval(request : web.Request) -> web.Response:
         async with eval_sem:
-            start = time.asctime()
+            start = time.perf_counter()
             data = await PostOrGet.create(request)
             print("start handling IS")
             (points, response) = await handle_evaluation(conf, data, hint=hint)
-            end = time.asctime()
-            reqid = data.get("reqid")
+            end = time.perf_counter()
             return web.Response(text=f"{points}~~{response}\n"
-                                     f"STAT: {start} -> {end} ({reqid})\n")
+                                     f"Handled in {end - start:0.1f} s\n")
 
     return handle_eval
 
