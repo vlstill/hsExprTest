@@ -78,8 +78,8 @@ def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
     return handle_demo
 
 
-async def handle_evaluation(conf : config.Config, data : PostOrGet) \
-        -> Tuple[str, str]:
+async def handle_evaluation(conf : config.Config, data : PostOrGet,
+                            hint : bool) -> Tuple[str, str]:
     def error(msg : str) -> Tuple[str, str]:
         return ("nok", msg)
 
@@ -112,6 +112,9 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) \
         course = conf.courses.get(course_id)
         if course is None:
             return error(f"Course {course_id} not defined")
+        if hint and not course.hint:
+            return error(
+                "This course does not allow unathorized (hint) access")
         qglobs = glob(os.path.join(course.qdir, f"{question_id}.q*"))
         question_candidates = list(filter(os.path.isfile, qglobs))
 
@@ -123,7 +126,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) \
         question = question_candidates[0]
 
         async with testenv.TestEnvironment(question, answer, course) as env:
-            res, comment = await env.run(option)
+            res, comment = await env.run(option, hint=hint)
 
             return (res, f"""{comment}
                           course_id = {course_id},
@@ -138,22 +141,23 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet) \
                           """)
     except Exception as ex:
         traceback.print_exc()
-        return ("nok", f"Error while evaluating: {ex}")
+        return error(f"Error while evaluating: {ex}")
 
 
-def get_is_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config):
-    async def handle_is(request : web.Request) -> web.Response:
+def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
+                   hint : bool):
+    async def handle_eval(request : web.Request) -> web.Response:
         async with eval_sem:
             start = time.asctime()
             data = await PostOrGet.create(request)
             print("start handling IS")
-            (points, response) = await handle_evaluation(conf, data)
+            (points, response) = await handle_evaluation(conf, data, hint=hint)
             end = time.asctime()
             reqid = data.get("reqid")
             return web.Response(text=f"{points}~~{response}\n"
                                      f"STAT: {start} -> {end} ({reqid})\n")
 
-    return handle_is
+    return handle_eval
 
 
 def main() -> None:
@@ -188,15 +192,23 @@ def start_web(conf : config.Config) -> None:
     sigusr2_cnt = 0
 
     app = web.Application()
+
     app.router.add_get("/", hanlde_root)
     app.router.add_post("/", hanlde_root)
+
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
+
     handle_demo = get_demo_handler(eval_sem)
     app.router.add_get("/demo", handle_demo)
     app.router.add_post("/demo", handle_demo)
-    handle_is = get_is_handler(eval_sem, conf)
+
+    handle_is = get_eval_handler(eval_sem, conf, hint=False)
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
+
+    handle_hint = get_eval_handler(eval_sem, conf, hint=True)
+    app.router.add_get("/hint", handle_hint)
+    app.router.add_post("/hint", handle_hint)
 
     runner = web.AppRunner(app)
     app.on_cleanup.append(stop_loop)

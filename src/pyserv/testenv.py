@@ -60,14 +60,15 @@ class TestEnvironment(object):
 
         return self
 
-    async def run(self, *options):
+    async def run(self, *options, hint : bool):
         args = []
         if self.course.isolation:
             args.extend(["sudo", "-n", "-u", f"rc-{self.course.name}"])
         args.extend(self.course.checker.split(' '))
         args.extend([self.qfile, self.afile, f"-I{self.course.qdir}"])
         args.extend([f"-o{opt}" for opt in options])
-        # TODO: hint
+        if hint:
+            args.append("--hint")
         print("+ " + " ".join(args))
         proc = await asyncio.create_subprocess_exec(
                               *args,
