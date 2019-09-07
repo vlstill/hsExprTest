@@ -1,5 +1,7 @@
-language: generic
-sudo: false
+language: python
+python: 3.7
+sudo: true
+dist: bionic
 
 cache:
   directories:
@@ -7,28 +9,25 @@ cache:
 
 matrix:
   include:
-    - env: GHC=ghc-8.4 CC=gcc-7 CXX=g++-7
-    - env: GHC=ghc-8.2 CC=gcc-7 CXX=g++-7
-    - env: GHC=ghc-8.4 STACK=1 CC=gcc-7 CXX=g++-7
-    - env: GHC=ghc-8.2 STACK=1 CC=gcc-7 CXX=g++-7
+    - env: GHC=ghc-8.6.5
+    - env: GHC=ghc-8.4.4
+    - env: GHC=ghc-8.2.2
 
 before_install:
-    - mkdir -p ~/.local/bin
-    - export PATH=$HOME/.local/bin:$PATH
-    - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-    - travis_retry curl -L https://www.haskell.org/cabal/release/cabal-install-2.2.0.0/cabal-install-2.2.0.0-x86_64-unknown-linux.tar.gz | tar xz  -C ~/.local/bin
-    - eval export $(stack --compiler ${GHC} exec -- env | grep ^PATH=)
-    - export TARGET_SUFF=$(if test -z "$STACK"; then printf ""; else printf -- "-stack"; fi)
-    - env
-    - ghc --version
-    - $CXX --version
-    - python3.6 --version
+    - sudo add-apt-repository -y ppa:hvr/ghc
+    - sudo apt-get update -q
+    - sudo apt-get install $GHC cabal-install-3.0 -y
+    - PATH=$PATH:/opt/ghc/bin/
+    - $GHC --version
+    - cabal --version
+    - python3.7 --version
+    - pip3.7 install aiohttp aiofiles pylibacl pyaml mypy
     - cabal update
 
 script:
-    - make build$TARGET_SUFF
-    - make test$TARGET_SUFF
-    - if [[ "$STACK:$GHC" = ":ghc-8.4" ]]; then make doc; fi
+    - make build
+    - make test
+    - if [[ "$GHC" = "ghc-8.6.5" ]]; then make doc; fi
 
 notifications:
   email:
@@ -39,14 +38,10 @@ notifications:
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
-      - deadsnakes
     packages:
-      - python3.6
       - socat
+      - curl
       - time
-      - g++-7
       - libgmp-dev # for the sake of Haskell stack
       - acl
       - libacl1-dev
@@ -59,4 +54,6 @@ deploy:
   local-dir: _build/doc/html/hsExprTest/
   on:
     branch: master
-    condition: "$STACK:$GHC = :ghc-8.4"
+    condition: "$GHC = ghc-8.6.5"
+
+# vim: expandtab

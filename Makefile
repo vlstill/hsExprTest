@@ -7,7 +7,7 @@ HS_ROOT=${SRC}/hs
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
 CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
-GHC ?= ghc-8.4
+GHC ?= ghc
 
 PYSRC_PY != find src -type f -name '*.py'
 PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
@@ -69,7 +69,7 @@ test-stack : builddir pycheck
 pycheck : $(PYSRC:%=%-mypy)
 
 $(PYSRC:%=%-mypy) :
-	$(MYPY) $(@:%-mypy=%)
+	$(MYPY) --check-untyped-defs --warn-redundant-casts --warn-unused-ignores --warn-return-any $(@:%-mypy=%)
 
 clean :
 	rm -rf ${BUILD_DIR}
