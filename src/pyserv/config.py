@@ -94,7 +94,7 @@ class Config:
                     "courses must be an array of course objects")
         for c in courses:
             cc = Course(c, self.qdir_root)
-            self.courses[cc.name] = cc
+            self.courses[cc.name.lower()] = cc
 
         out = len([x for x in [self.socket, self.socket_fd, self.port]
                      if x is not None])

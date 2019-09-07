@@ -98,7 +98,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
         return (s[0], s[1])
 
     try:
-        course_id = data.get("kod")
+        course_id = functor.fmapO(str.lower, data.get("kod"))
         question_id, option = parse_qid(data.get("id"))
         answer = data.get("odp")
         if course_id is None:
