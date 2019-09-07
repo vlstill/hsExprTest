@@ -36,7 +36,9 @@ if (typeof syntax_check !== 'function') {
                 (function(n, txa, btn, res) {
                     btn.onclick = function() {
                         var xhr = new XMLHttpRequest(),
-                            data = 'id=' + otazky[n] + '&odp=' + encodeURIComponent(txa.value);
+                            data = 'id=' + otazky[n] +
+                                   '&kod=' + predmet +
+                                   '&odp=' + encodeURIComponent(txa.value);
                         if ('withCredentials' in xhr) {
                             xhr.open('POST', url, true);
                             xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
