@@ -44,6 +44,7 @@ class Config:
         self.qdir_root : Optional[str] = None
         self.courses : Dict[str, Course] = {}
         self.max_workers = 4
+        self.hint_origin : Optional[str] = None
         self._load_from_argv()
         self._load_from_file()
 
@@ -85,6 +86,7 @@ class Config:
 
         self.qdir_root = conf.get("qdir_root")
         self.max_workers = conf.get("max_workers", self.max_workers)
+        self.hint_origin = conf.get("hint_origin")
 
         if self.qdir_root is None:
             raise ConfigException("'qdir_root' must be set")
@@ -115,6 +117,7 @@ class Config:
                 "port": self.port,
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
+                "hint_origin": self.hint_origin,
                 "courses": list(map(Course.to_dict, self.courses.values()))}
 
 

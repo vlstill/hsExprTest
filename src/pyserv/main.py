@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Any, Optional, Iterator, Tuple, Union
+from typing import Any, Optional, Iterator, Tuple, Union, Dict
 from aiohttp import web
 import asyncio
 import signal
@@ -159,6 +159,10 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
 def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
                      hint : bool):
+    headers : Dict[str, str] = {}
+    if hint and conf.hint_origin is not None:
+        headers["Access-Control-Allow-Methods"] = "POST"
+        headers["Access-Control-Allow-Origin"] = conf.hint_origin
     async def handle_eval(request : web.Request) -> web.Response:
         async with eval_sem:
             start = time.perf_counter()
@@ -167,7 +171,8 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
             (points, response) = await handle_evaluation(conf, data, hint=hint)
             end = time.perf_counter()
             return web.Response(text=f"{points}~~{response}\n"
-                                     f"Handled in {end - start:0.1f} s\n")
+                                     f"Handled in {end - start:0.1f} s\n",
+                                headers=headers)
 
     return handle_eval
 
