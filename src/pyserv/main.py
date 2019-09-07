@@ -153,6 +153,14 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
     return handle_eval
 
 
+async def handle_admin(req : web.Request) -> web.Response:
+    auth_user = req.headers.get("X-Auth-User") # assuming we run behind a proxy which sets this
+    if auth_user is None:
+        return web.Response(status=401, text="no user info\n")
+    print(f"HTTP auth user {auth_user}")
+    return web.Response(text=f"Authenticated as {auth_user}\n")
+
+
 def main() -> None:
     conf = config.parse(sys.argv)
     start_web(conf)
@@ -206,6 +214,9 @@ def start_web(conf : config.Config) -> None:
     handle_hint = get_eval_handler(eval_sem, conf, hint=True)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
+
+    app.router.add_get("/admin", handle_admin)
+    app.router.add_post("/admin", handle_admin)
 
     runner = web.AppRunner(app)
     app.on_cleanup.append(stop_loop)
