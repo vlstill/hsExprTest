@@ -16,14 +16,14 @@ class Course:
         try:
             self.name = str(raw["name"])
             self.checker = str(raw["checker"])
-            self._qdir = str(raw["qdir"])
+            self._qdir = raw.get("qdir", self.name)
             self.qdir = os.path.join(qdir_root, self._qdir)
             self.isolation = bool(raw.get("isolation", False))
             self.hint = bool(raw.get("hint", False))
             self.extended = bool(raw.get("extended", False))
         except KeyError as ex:
             raise ConfigException(
-                    f"Course must set at least 'name', 'checker', and 'qdir': missing {ex}")
+                    f"Course must set at least 'name' and 'checker': missing {ex}")
 
     def to_dict(self) -> Dict[str, Union[str, bool]]:
         return {"name": self.name,
