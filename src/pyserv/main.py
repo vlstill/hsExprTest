@@ -56,30 +56,6 @@ class PostOrGet:
         yield from self.query.items()
 
 
-async def hanlde_root(request : web.Request) -> web.Response:
-    data = await PostOrGet.create(request)
-    print(list(data.items()))
-    # name = request.match_info.get('name', "X")
-    name = data.get('name', "X")
-    return web.Response(text=f"Hello, {name}")
-
-
-def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
-    async def handle_demo(request : web.Request) -> web.Response:
-        async with eval_sem:
-            start = time.asctime()
-            data = await PostOrGet.create(request)
-            print("start handling demo")
-            sleep = int(data.get("sleep", 10))
-            await asyncio.sleep(sleep)
-            end = time.asctime()
-            reqid = data.get("reqid")
-            print(f"ended waiting for {sleep} s, {start} -> {end} ({reqid})")
-            return web.Response(text=f"{start} -> {end} ({reqid})\n")
-
-    return handle_demo
-
-
 async def handle_evaluation(conf : config.Config, data : PostOrGet,
                             hint : bool) -> Tuple[str, str]:
     def error(msg : str, extra="") -> Tuple[str, str]:
@@ -221,14 +197,7 @@ def start_web(conf : config.Config) -> None:
 
     app = web.Application()
 
-    app.router.add_get("/", hanlde_root)
-    app.router.add_post("/", hanlde_root)
-
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
-
-    handle_demo = get_demo_handler(eval_sem)
-    app.router.add_get("/demo", handle_demo)
-    app.router.add_post("/demo", handle_demo)
 
     handle_is = get_eval_handler(eval_sem, conf, hint=False)
     app.router.add_get("/is", handle_is)
