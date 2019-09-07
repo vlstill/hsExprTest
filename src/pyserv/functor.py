@@ -6,11 +6,18 @@ tb = TypeVar("tb")
 
 
 def fmapO(fun : Callable[[ta], tb], val : Optional[ta]) -> Optional[tb]:
+    """
+    Fmap on Optional[T] i.e., if a value is not None, apply a function to it
+    and return result, otherwise return None.
+    """
     if val is None:
         return None
     return fun(val)
 
-def rint(val : str) -> Optional[int]:
+def read_int(val : str) -> Optional[int]:
+    """
+    Get an int from a string, or None it the string does not reprsent a number.
+    """
     try:
         return int(val)
     except:

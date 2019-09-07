@@ -76,7 +76,7 @@ class Config:
                 conf = yaml.safe_load(fh)
         except FileNotFoundError as ex:
             raise ConfigException(
-                    f"config file {self.config_file} not found: {ex}")
+                    f"Config file {self.config_file} not found: {ex}")
         except yaml.YAMLError as ex:
             raise ConfigException(
                     f"Failed to load config from {self.config_file}: {ex}")
@@ -89,11 +89,11 @@ class Config:
         self.hint_origin = conf.get("hint_origin")
 
         if self.qdir_root is None:
-            raise ConfigException("'qdir_root' must be set")
+            raise ConfigException("Field 'qdir_root' must be set")
         courses = conf.get("courses", [])
         if not isinstance(courses, list):
             raise ConfigException(
-                    "courses must be an array of course objects")
+                    "Courses must be an array of course objects")
         for c in courses:
             cc = Course(c, self.qdir_root)
             self.courses[cc.name.lower()] = cc

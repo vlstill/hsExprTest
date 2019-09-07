@@ -84,7 +84,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
             return missing("question ID", "id")
         if answer is None:
             return missing("answer", "odp")
-        student_id = functor.fmapO(functor.rint, data.get("uco"))
+        student_id = functor.fmapO(functor.read_int, data.get("uco"))
         qset = data.get("sada")
         view_only = data.get("zobrazeni") == "p"
 
@@ -144,7 +144,6 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
         async with eval_sem:
             start = time.perf_counter()
             data = await PostOrGet.create(request)
-            print("start handling IS")
             (points, response) = await handle_evaluation(conf, data, hint=hint)
             end = time.perf_counter()
             return web.Response(text=f"{points}~~{response}\n"
@@ -190,16 +189,16 @@ def start_web(conf : config.Config) -> None:
         await runner.setup()
         site : Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
         if conf.port is not None:
-            print(f"Starting HTTP on localhost:{conf.port}")
+            print(f"Starting HTTP server on localhost:{conf.port}")
             site = web.TCPSite(runner, 'localhost', conf.port)
         elif conf.socket is not None:
-            print(f"Starting UNIX on {conf.socket}")
+            print(f"Starting UNIX socket server on {conf.socket}")
             site = web.UnixSite(runner, conf.socket)
         elif conf.socket_fd is not None:
-            print(f"Starting UNIX of FD {conf.socket_fd}")
+            print(f"Starting UNIX socket server on FD {conf.socket_fd}")
             sock = socket.socket(fileno=conf.socket_fd)
             site = web.SockSite(runner, sock)
-        assert site is not None, "Invalid config, not listening address"
+        assert site is not None, "Invalid config, no listening address"
         return await site.start()
 
     sigusr2_cnt = 0
