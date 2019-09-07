@@ -82,7 +82,8 @@ def get_demo_handler(eval_sem : asyncio.BoundedSemaphore):
 
 async def handle_evaluation(conf : config.Config, data : PostOrGet,
                             hint : bool) -> Tuple[str, str]:
-    def error(msg : str) -> Tuple[str, str]:
+    def error(msg : str, extra="") -> Tuple[str, str]:
+        print(f"ERROR: {msg}\n    {extra}", file=sys.stderr)
         return ("nok", msg)
 
     def missing(name : str, key : str) -> Tuple[str, str]:
@@ -121,7 +122,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
         question_candidates = list(filter(os.path.isfile, qglobs))
 
         if len(question_candidates) == 0:
-            return error(f"No questions found for ID {question_id}")
+            return error(f"No questions found for ID {question_id}", qglobs)
         if len(question_candidates) > 1:
             return error(f"Too many questions found for ID {question_id} "
                          f"({question_candidates})")
