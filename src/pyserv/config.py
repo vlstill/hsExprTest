@@ -17,7 +17,7 @@ class Course:
             self.name = str(raw["name"])
             self.checker = str(raw["checker"])
             self._qdir = raw.get("qdir", self.name)
-            self.qdir = os.path.join(qdir_root, self._qdir)
+            self.qdir = os.path.abspath(os.path.join(qdir_root, self._qdir))
             self.isolation = bool(raw.get("isolation", False))
             self.hint = bool(raw.get("hint", False))
             self.extended = bool(raw.get("extended", False))
