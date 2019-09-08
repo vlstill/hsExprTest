@@ -20,18 +20,29 @@ class Course:
             self.qdir = os.path.abspath(os.path.join(qdir_root, self._qdir))
             self.isolation = bool(raw.get("isolation", False))
             self.hint = bool(raw.get("hint", False))
+            self.authorized : List[str] = raw.get("authorized", [])
             self.extended = bool(raw.get("extended", False))
         except KeyError as ex:
             raise ConfigException(
                     f"Course must set at least 'name' and 'checker': missing {ex}")
 
-    def to_dict(self) -> Dict[str, Union[str, bool]]:
-        return {"name": self.name,
-                "checker": self.checker,
-                "qdir": self._qdir,
-                "isolation": self.isolation,
-                "hint": self.hint,
-                "extended": self.extended}
+    def to_dict(self, expand = False) -> Dict[str, Union[str, bool, List[str]]]:
+        res : Dict[str, Union[str, bool, List[str]]] = \
+              {"name": self.name,
+               "checker": self.checker,
+               "isolation": self.isolation,
+               "hint": self.hint,
+               "authorized": self.authorized,
+               "extended": self.extended}
+        if expand:
+            res["qdir"] = self.qdir
+        else:
+            res["qdir"] = self._qdir
+        return res
+
+    def dump(self, stream : Any = None, **kvargs) -> Any:
+        return yaml.safe_dump(self.to_dict(**kvargs), stream,
+                              default_flow_style=False)
 
 
 class Config:

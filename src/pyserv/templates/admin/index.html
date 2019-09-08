@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang=en>
+  <head>
+	<title>${course} logs</title>
+	<link rel="stylesheet" href="stylesheet.css" type="text/css">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="Author" content="Vladimír Štill">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+
+  <body>
+	<h1>${course} logs</h1>
+	% for link in links:
+	  <a href="${link.replace(' ', '_')}.html">${link}</a>
+	% endfor
+	<h2>configuration</h2>
+	<pre>
+${config}
+	</pre>
+  </body>
+</html>
+<!-- vim: expandtab tabstop=2
+-->

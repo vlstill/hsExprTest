@@ -2,19 +2,22 @@
 
 from typing import Any, Optional, Iterator, Tuple, Union, Dict
 from aiohttp import web
+from glob import glob
 import asyncio
 import signal
 import multidict
 import time
-import config
 import sys
-from glob import glob
 import os.path
 import testenv
 import traceback
-import functor
 import socket
 import textwrap
+import aiohttp_mako  # type: ignore
+
+import config
+import functor
+import admin
 
 
 class PostOrGet:
@@ -153,12 +156,34 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
     return handle_eval
 
 
-async def handle_admin(req : web.Request) -> web.Response:
-    auth_user = req.headers.get("X-Auth-User") # assuming we run behind a proxy which sets this
-    if auth_user is None:
-        return web.Response(status=401, text="no user info\n")
-    print(f"HTTP auth user {auth_user}")
-    return web.Response(text=f"Authenticated as {auth_user}\n")
+def get_handle_admin(conf : config.Config):
+    async def handle_admin(req : web.Request) -> web.Response:
+        # assuming we run behind a proxy which sets this
+        auth_user = req.match_info.get("user")
+        if auth_user is None:
+            return web.Response(status=401, text="No user info\n")
+
+        course_name = req.match_info.get("course_id")
+        if course_name is None:
+            return web.Response(status=404,
+                                text=f"No course given for {auth_user}\n")
+        course = conf.courses.get(course_name.lower())
+        print(f"ADMIN attempt HTTP auth user {auth_user} for {course_name}")
+
+        if course is None:
+            return web.Response(status=404,
+                                text=f"Course {course_name} not found\n")
+        if auth_user not in course.authorized:
+            return web.Response(
+                  status=401,
+                  text=f"User {auth_user} not authorized for {course_name}\n")
+        print(f"ADMIN authorized for {auth_user}/{course_name} at "
+              f"{time.asctime()}")
+
+        page = req.match_info.get("page")
+        return await admin.get(req, course, auth_user, page)
+
+    return handle_admin
 
 
 def main() -> None:
@@ -204,6 +229,12 @@ def start_web(conf : config.Config) -> None:
     sigusr2_cnt = 0
 
     app = web.Application()
+    templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "templates")
+    lookup = aiohttp_mako.setup(app, input_encoding='utf-8',
+                                     output_encoding='utf-8',
+                                     default_filters=['decode.utf8'],
+                                     directories=[templates_dir])
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
@@ -215,8 +246,11 @@ def start_web(conf : config.Config) -> None:
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
 
-    app.router.add_get("/admin", handle_admin)
-    app.router.add_post("/admin", handle_admin)
+    handle_admin = get_handle_admin(conf)
+    app.router.add_get("/admin/{user}/{course_id}/", handle_admin)
+    app.router.add_post("/admin/{user}/{course_id}/", handle_admin)
+    app.router.add_get("/admin/{user}/{course_id}/{page}", handle_admin)
+    app.router.add_post("/admin/{user}{course_id}/{page}", handle_admin)
 
     runner = web.AppRunner(app)
     app.on_cleanup.append(stop_loop)
