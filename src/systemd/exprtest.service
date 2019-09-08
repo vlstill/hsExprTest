@@ -11,6 +11,9 @@ RestartSec=2
 StandardInput=socket
 StandardOutput=journal
 StandardError=journal
+KillMode=process
+KillSignal=USR1
+TimeoutStopSec=300
 
 [Install]
 WantedBy=multi-user.target
