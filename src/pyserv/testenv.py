@@ -66,7 +66,7 @@ class TestEnvironment(object):
             args.extend(["sudo", "-n", "-u", f"rc-{self.course.name}"])
         args.extend(self.course.checker.split(' '))
         args.extend([self.qfile, self.afile, f"-I{self.course.qdir}"])
-        args.extend([f"-o{opt}" for opt in options])
+        args.extend([f"-o{opt}" for opt in options if opt is not None])
         if hint:
             args.append("--hint")
         print("+ " + " ".join(args))
