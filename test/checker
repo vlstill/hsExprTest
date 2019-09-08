@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -ex
+
+fail() {
+	echo "Check failed: $1" >&2
+	echo "Check failed: $1"
+	false
+}
+	
+
+QUESTION=$1; shift
+ANSWER=$1; shift
+INC=$(echo $1 | sed 's/-I//'); shift
+ARG=$(echo $1 | sed 's/-o//')
+
+[[ "$2" = "" ]] || fail "too many args"
+[[ -f "$QUESTION" ]] || fail "fist argument must be a file"
+[[ -r "$QUESTION" ]] || fail "first argument must be readable"
+[[ -f "$ANSWER" ]] || fail "second argument must be a file"
+[[ -r $ANSWER ]] || fail "second argument must be readable"
+[[ -d "$INC" ]] || fail "third argument must be -IDIR"
+ls $INC >&2
+
+source $QUESTION $ANSWER $INC $ARG

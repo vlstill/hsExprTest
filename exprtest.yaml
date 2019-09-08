@@ -1,14 +1,26 @@
 socket: socket
-qdir_root: /home/xstill/repo/ib015_questions
+qdir_root: test/qdir
 max_workers: 2
 hint_origin: https://is.muni.cz
 courses:
   - name: ib015
     isolation: false
     checker: /home/xstill/repo/hsExprTest/src/hs/driver
-    qdir: .
+    qdir: /home/xstill/repo/ib015_questions
     hint: true
+    authorized: [ "xstill" ]
   - name: ib002
     isolation: false
     checker: ./pycheck
     qdir: /tmp
+  - name: test
+    authorized: [ "xstill" ]
+    checker: bash /home/xstill/repo/hsExprTest/test/checker
+    isolation: false
+    qdir: bash
+  - name: testi
+    authorized: [ "xstill" ]
+    checker: bash /home/xstill/repo/hsExprTest/test/checker
+    isolation: true
+    hint: true
+    qdir: bash

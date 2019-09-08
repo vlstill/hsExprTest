@@ -1,0 +1,15 @@
+reqev() {
+	ARG=""
+	if [[ ! -z "$2" ]]; then
+		ARG="?$2"
+	fi
+	curl -s --data-urlencode "odp=$1" \
+			--data-urlencode "id=eval$ARG" \
+			--data-urlencode "kod=test" "http://127.0.0.1:8080/is"
+}
+
+check() {
+	tee /dev/stderr | perl -e "\$/ = undef; my \$c = <>; \$c =~ /^$1~~$2/s or die"
+}
+
+# vim: ft=sh
