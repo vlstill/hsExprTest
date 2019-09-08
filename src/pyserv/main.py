@@ -193,21 +193,15 @@ def main() -> None:
 
 def start_web(conf : config.Config) -> None:
     async def shutdown():
-        for i in range(conf.max_workers):
-            print(f"Shutdown: Blocking slot {i}...")
-            await eval_sem.acquire()
-        print("Shutdown: done blocking, ready to shutdown")
+        print("letting runner do cleanup")
         await runner.cleanup()
 
     def sigusr1_handler() -> None:
         print("Received SIGUSR1, shutting down...")
         loop.create_task(shutdown())
 
-    def sigusr2_handler() -> None:
-        sigusr2_cnt += 1
-        print(f"SIGUSR2 {sigusr2_cnt}")
-
     async def stop_loop(app) -> None:
+        print("shutdown")
         loop.stop()
 
     async def start_runner(runner, conf : config.Config):
@@ -225,8 +219,6 @@ def start_web(conf : config.Config) -> None:
             site = web.SockSite(runner, sock)
         assert site is not None, "Invalid config, no listening address"
         return await site.start()
-
-    sigusr2_cnt = 0
 
     app = web.Application()
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -252,12 +244,11 @@ def start_web(conf : config.Config) -> None:
     app.router.add_get("/admin/{user}/{course_id}/{page}", handle_admin)
     app.router.add_post("/admin/{user}{course_id}/{page}", handle_admin)
 
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(app, handle_signals=True)
     app.on_cleanup.append(stop_loop)
 
     loop = asyncio.get_event_loop()
     loop.add_signal_handler(signal.SIGUSR1, sigusr1_handler)
-    loop.add_signal_handler(signal.SIGUSR2, sigusr2_handler)
     try:
         loop.run_until_complete(start_runner(runner, conf))
     except Exception as ex:
