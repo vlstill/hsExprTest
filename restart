@@ -19,4 +19,4 @@ echo "letting NGINX reset availability for primary server"
 sleep 30
 systemctl status exprtest.service  | grep 'Active: active (running)' || \
     { echo "Primary failed, leaving secondary (PID $SECONDARY), you must recover manually\n"; false; }
-kill $SECONDARY
+kill -USR1 $SECONDARY
