@@ -100,7 +100,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
         question_id = os.path.normpath(question_id)
         if os.path.isabs(question_id) or question_id[0:1] == '.':
-            return error("Invalid question ID {question_id}")
+            return error(f"Invalid question ID {question_id}")
         qglobs = glob(os.path.join(course.qdir, f"{question_id}.q*"))
         question_candidates = list(filter(os.path.isfile, qglobs))
 
