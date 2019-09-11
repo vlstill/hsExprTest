@@ -39,7 +39,9 @@ ${BUILD_DIR}/_confstamp :
 	cabal v1-install ${HS_CABAL} --only-dependencies --enable-tests
 	cd ${HS_ROOT} && cabal v1-configure --enable-tests ${CABAL_OPTS}
 
-build : configure pycheck
+build : build-hs pycheck
+
+build-hs : configure
 	cd ${HS_ROOT} && cabal v1-build ${CABAL_OPTS_BUILD}
 	cabal v1-install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
 
