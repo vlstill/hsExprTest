@@ -153,8 +153,8 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
             data = await PostOrGet.create(request)
             (points, response) = await handle_evaluation(conf, data, hint=hint)
             end = time.perf_counter()
-            return web.Response(text=f"{points}~~{response}\n"
-                                     f"Handled in {end - start:0.1f} s\n",
+            print(f"Handled in {end - start}", file=sys.stderr)
+            return web.Response(text=f"{points}~~{response}\n",
                                 headers=headers)
 
     return handle_eval
