@@ -131,7 +131,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
             log += textwrap.indent(answer, "    ")
             log += f"\nresult: {res}\nreply:\n"
             log += textwrap.indent(comment, "    ")
-            print(log, file=sys.stderr)
+            print(log, file=sys.stderr, flush=True)
 
             return (res, comment)
 
