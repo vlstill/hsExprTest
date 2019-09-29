@@ -1,0 +1,3 @@
+[submodule "src/ispol/isapi"]
+	path = src/ispol/isapi
+	url = https://gitlab.fi.muni.cz/xstill/isapi.py
