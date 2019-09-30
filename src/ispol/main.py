@@ -18,7 +18,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
                  upstream : str, forced = False) -> None:
     fprint(f"Processing {filemeta.ispath}…")
     qid = conf["id"]
-    attempts = conf["attempts"]
+    attempts = conf.get("attempts")
     note = conf["notebook"]["short"]
     note_name = conf["notebook"]["name"]
     notebook = notebooks.get_or_create(shortcut=note, name=note_name,
