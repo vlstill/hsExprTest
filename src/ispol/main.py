@@ -5,8 +5,13 @@ import sys
 import yaml
 import time
 import requests
+import re
 
 overrides = set(sys.argv[2:])
+RE_STARNUM = re.compile(r'[*]([.]?[0-9])')
+
+def escape_points(txt : str) -> str:
+    return RE_STARNUM.sub(r'* \1', txt)
 
 def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
@@ -43,7 +48,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
                                        "zobrazeni": "u", "sada": "ext"})
         assert req.status_code == 200
         raw_points, response = req.text.split("~~", 1)
-        response = response.rstrip()
+        response = escape_points(response.rstrip())
         if raw_points.endswith("ok"):
             points = 1 if raw_points == "ok" else 0
         else:
