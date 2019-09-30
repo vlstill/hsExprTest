@@ -6,6 +6,7 @@ import yaml
 import time
 import requests
 
+overrides = set(sys.argv[2:])
 
 def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
@@ -14,7 +15,7 @@ def fprint(what, **kvargs):
 def process_file(course : str, notebooks : isapi.notebooks.Connection,
                  files : isapi.files.Connection,
                  filemeta : isapi.files.FileMeta, conf : dict,
-                 upstream : str) -> None:
+                 upstream : str, forced = False) -> None:
     fprint(f"Processing {filemeta.ispath}…")
     qid = conf["id"]
     attempts = conf["attempts"]
@@ -34,7 +35,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         entry["attempts"] = [base_entry]
     else:
         entry["attempts"].insert(0, base_entry)
-    if attempts is not None and len(entry.get("attempts", [])) > attempts:
+    if not forced and attempts is not None and len(entry.get("attempts", [])) > attempts:
         entry["attempts"][0]["error"] = "Too many attempts"
     else:
         req = requests.post(upstream, {"kod": course, "id": qid, "odp": data,
@@ -65,17 +66,20 @@ def poll():
             path = d["path"]
             try:
                 for f in files.list_directory(path).entries:
-                    if f.read:
+                    forced = f.ispath in overrides
+                    if not forced and len(overrides):
+                        continue
+                    if not forced and f.read:
                         fprint(f"Skipping read {f.ispath}")
                         continue
                     process_file(course, notebooks, files, f, d,
-                                 config["upstream"])
+                                 config["upstream"], forced)
             except isapi.files.FileAPIException as ex:
                 fprint(f"ERROR while lising {path}: {ex}")
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         fprint(f"Usage {sys.argv[0]} config.yml")
         sys.exit(1)
     with open(sys.argv[1]) as conf_file:
@@ -86,14 +90,16 @@ def main():
     stop_signal = False
 
     def poller():
-        while not stop_signal:
+        while True:
             start = time.perf_counter()
             poll()
             sleep_for = int((max(1, interval - (time.perf_counter() - start))))
             for _ in range(sleep_for):
                 if stop_signal:
-                    break
+                    return
                 time.sleep(1)
+            if stop_signal:
+                return
 
     def stop(sig, stack):
         nonlocal stop_signal
@@ -102,8 +108,11 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
 
+    if len(sys.argv) > 2:
+        stop_signal = True
+        fprint("Will only handle forced files")
     poller()
-    fprint("Cancelled, exiting…")
+    fprint("exiting…")
 
 
 if __name__ == "__main__":
