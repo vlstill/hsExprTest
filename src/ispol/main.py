@@ -68,9 +68,17 @@ def poll():
     for course, dirs in config["courses"].items():
         notebooks = isapi.notebooks.Connection(course=course)
         for d in dirs:
-            path = d["path"]
-            try:
-                for f in files.list_directory(path).entries:
+            paths = d.get("paths", [])
+            if "path" in d:
+                paths.append(d["path"])
+            for path in paths:
+                try:
+                    entries = files.list_directory(path).entries
+                except isapi.files.FileAPIException as ex:
+                    fprint(f"ERROR while lising {path}: {ex}")
+                    continue
+
+                for f in entries:
                     forced = f.ispath in overrides
                     if not forced and len(overrides):
                         continue
@@ -79,8 +87,6 @@ def poll():
                         continue
                     process_file(course, notebooks, files, f, d,
                                  config["upstream"], forced)
-            except isapi.files.FileAPIException as ex:
-                fprint(f"ERROR while lising {path}: {ex}")
 
 
 def main():
