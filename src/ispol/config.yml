@@ -1,0 +1,22 @@
+upstream: http://127.0.0.1:8080/is
+interval: 10
+courses:
+    iv074:
+        - path: /el/fi/podzim2019/IV074/ode/test/
+          id: test
+          notebook:
+              name: "Test API odevzdáváren"
+              short: test
+              visible: True
+              statistics: True
+          attempts: null
+        - paths:
+            - /el/fi/podzim2019/IV074/ode/ode_tests_1
+            - /el/fi/podzim2019/IV074/ode/ode_tests_2
+          id: test
+          notebook:
+              name: "Test API odevzdáváren 2"
+              short: test2
+              visible: True
+              statistics: True
+          attempts: null
