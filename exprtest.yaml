@@ -18,6 +18,12 @@ courses:
     checker: bash /home/xstill/repo/hsExprTest/test/checker
     isolation: false
     qdir: bash
+  - name: teste
+    authorized: [ "xstill" ]
+    checker: bash /home/xstill/repo/hsExprTest/test/checker
+    isolation: false
+    qdir: bash
+    extended: true
   - name: testi
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
