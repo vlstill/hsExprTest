@@ -3,6 +3,7 @@ import isapi.notebooks
 import signal
 import sys
 import yaml
+import json
 import time
 import requests
 import re
@@ -10,8 +11,10 @@ import re
 overrides = set(sys.argv[2:])
 RE_STARNUM = re.compile(r'[*]([.]?[0-9])')
 
+
 def escape_points(txt : str) -> str:
     return RE_STARNUM.sub(r'* \1', txt)
+
 
 def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
@@ -20,7 +23,7 @@ def fprint(what, **kvargs):
 def process_file(course : str, notebooks : isapi.notebooks.Connection,
                  files : isapi.files.Connection,
                  filemeta : isapi.files.FileMeta, conf : dict,
-                 upstream : str, forced = False) -> None:
+                 upstream : str, forced : bool = False) -> None:
     fprint(f"Processing {filemeta.ispath}…")
     qid = conf["id"]
     attempts = conf.get("attempts")
@@ -35,7 +38,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
 
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
     data = files.get_file(filemeta).data.decode("utf8")
-    points = None
+    total_points = None
     if "attempts" not in entry:
         entry["attempts"] = [base_entry]
     else:
@@ -45,20 +48,18 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     else:
         req = requests.post(upstream, {"kod": course, "id": qid, "odp": data,
                                        "uco": filemeta.author,
-                                       "zobrazeni": "u", "sada": "ext"})
+                                       "mode": "json"})
         assert req.status_code == 200
-        raw_points, response = req.text.split("~~", 1)
-        response = escape_points(response.rstrip())
-        if raw_points.endswith("ok"):
-            points = 1 if raw_points == "ok" else 0
-        else:
-            points = int(raw_points)
-        entry["total_points"] = f"*{points}"
-        entry["attempts"][0].update({"points": points, "comment": response})
+        response = json.loads(req.text)
+        if "comment" in response:
+            response["comment"] = response["comment"].rstrip()
+        total_points = sum(p["points"] for p in response["points"])
+        entry["total_points"] = f"*{total_points}"
+        entry["attempts"][0].update(response)
 
-    is_entry.text = yaml.dump(entry)
+    is_entry.text = yaml.dump(entry, default_flow_style=False)
     notebooks.store(note, filemeta.author, is_entry)
-    fprint(f"done, {points} points")
+    fprint(f"done, {total_points} points")
 
 
 def poll():
