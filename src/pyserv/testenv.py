@@ -8,6 +8,25 @@ import os
 import sys
 import asyncio
 import subprocess
+import contextlib
+import json
+from typing import Tuple, List, Optional
+
+
+class PointEntry:
+    def __init__(self, points : int, out_of : int, comment : str, **kvargs):
+        self.points = points
+        self.out_of = out_of
+        self.comment = comment
+
+
+class RunResult:
+    def __init__(self, res : bool, stdout : str, stderr : str,
+                 points : List[PointEntry]):
+        self.result = res
+        self.stdout = stdout
+        self.stderr = stderr
+        self.points = points
 
 
 class TestEnvironment(object):
@@ -60,7 +79,20 @@ class TestEnvironment(object):
 
         return self
 
-    async def run(self, *options, hint : bool):
+    @staticmethod
+    async def get_points_pipe(estack : contextlib.ExitStack)\
+                              -> Tuple[asyncio.StreamReader, int]:
+        rfd, wfd = os.pipe()
+        ro = open(rfd, 'rb', buffering=0)
+        loop = asyncio.get_running_loop()
+        reader = asyncio.StreamReader(loop=loop)
+        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+        transport, _ = await loop.connect_read_pipe(lambda: protocol, ro)
+        estack.callback(lambda t: t.close(), transport)
+        return reader, wfd
+
+    async def run(self, *options, hint : bool)\
+                  -> RunResult:
         args = []
         if self.course.isolation:
             args.extend(["sudo", "-n", "-u", f"rc-{self.course.name}"])
@@ -69,20 +101,39 @@ class TestEnvironment(object):
         args.extend([f"-o{opt}" for opt in options if opt is not None])
         if hint:
             args.append("--hint")
-        print("+ " + " ".join(args))
-        proc = await asyncio.create_subprocess_exec(
-                              *args,
-                              stdin=subprocess.DEVNULL,
-                              stdout=subprocess.PIPE,
-                              stderr=sys.stderr,
-                              cwd=self.tmpdir,
-                              start_new_session=True,
-                              pass_fds=[])
-        stdout = (await proc.communicate())[0].decode("utf8")
-        if proc.returncode == 0:
-            return ("ok", stdout)
-        else:
-            return ("nok", stdout)
+        pass_fds : List[int] = []
+        points_read : Optional[asyncio.StreamReader] = None
+        points_wfd : Optional[int] = None
+        points : List[PointEntry] = []
+        with contextlib.ExitStack() as estack:
+            if self.course.extended:
+                points_read, points_wfd = await self.get_points_pipe(estack)
+                args.append(f"-p{points_wfd}")
+                pass_fds = [points_wfd]
+
+            print("+ " + " ".join(args))
+            proc = await asyncio.create_subprocess_exec(
+                                  *args,
+                                  stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  cwd=self.tmpdir,
+                                  start_new_session=True,
+                                  pass_fds=pass_fds)
+            if self.course.extended:
+                assert points_read is not None
+                assert points_wfd is not None
+                os.close(points_wfd)
+                (raw_stdout, raw_stderr), raw_points = await asyncio.gather(
+                                        proc.communicate(), points_read.read())
+                point_lines = raw_points.decode("utf8").splitlines()
+                points = [PointEntry(**json.loads(x))
+                                 for x in point_lines]
+            else:
+                raw_stdout, raw_stderr = await proc.communicate()
+            stdout = raw_stdout.decode("utf8")
+            stderr = raw_stderr.decode("utf8")
+            return RunResult(proc.returncode == 0, stdout, stderr, points)
 
     async def __aexit__(self, type, value, traceback):
         self.tmpdirHandle.__exit__(type, value, traceback)

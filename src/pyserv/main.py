@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Any, Optional, Iterator, Tuple, Union, Dict
+from typing import Any, Optional, Iterator, Tuple, Union, Dict, List
 from aiohttp import web
 from glob import glob
 import asyncio
@@ -14,6 +14,8 @@ import traceback
 import socket
 import textwrap
 import aiohttp_mako  # type: ignore
+import yaml
+import json
 
 import config
 import functor
@@ -60,12 +62,15 @@ class PostOrGet:
 
 
 async def handle_evaluation(conf : config.Config, data : PostOrGet,
-                            hint : bool) -> Tuple[str, str]:
-    def error(msg : str, extra="") -> Tuple[str, str]:
+                            hint : bool)\
+                            -> Tuple[str, str, List[testenv.PointEntry]]:
+    def error(msg : str, extra="")\
+              -> Tuple[str, str, List[testenv.PointEntry]]:
         print(f"ERROR: {msg}\n    {extra}", file=sys.stderr)
-        return ("nok", msg)
+        return ("nok", msg, [])
 
-    def missing(name : str, key : str) -> Tuple[str, str]:
+    def missing(name : str, key : str)\
+                -> Tuple[str, str, List[testenv.PointEntry]]:
         return error("Evaluator error: "
                      f"Missing mandatory parameter `{key}' ({name})")
 
@@ -112,7 +117,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
         question = question_candidates[0]
 
         async with testenv.TestEnvironment(question, answer, course) as env:
-            res, comment = await env.run(option, hint=hint)
+            run_res = await env.run(option, hint=hint)
 
             log = 80 * "="
             log += textwrap.dedent(f"""
@@ -126,14 +131,19 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
                           qset: {qset}
                           view_only: {view_only}
                           hint: {hint}
-                          answer:
+                          answer: |
                           """)
             log += textwrap.indent(answer, "    ")
-            log += f"\nresult: {res}\nreply:\n"
-            log += textwrap.indent(comment, "    ")
+            log += "\nlog: |\n"
+            log += textwrap.indent(run_res.stderr, "    ")
+            log += "\n"
+            log += yaml.safe_dump({"points":
+                                  [p.__dict__ for p in run_res.points]})
+            log += f"\nresult: {run_res.result}\nreply: |\n"
+            log += textwrap.indent(run_res.stdout, "    ")
             print(log, file=sys.stderr, flush=True)
 
-            return (res, comment)
+            return (run_res.result, run_res.stdout, run_res.points)
 
     except Exception as ex:
         traceback.print_exc()
@@ -151,11 +161,26 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
         async with eval_sem:
             start = time.perf_counter()
             data = await PostOrGet.create(request)
-            (points, response) = await handle_evaluation(conf, data, hint=hint)
+            json_mode = data.get("mode", "is") == "json"
+            (result, comment, points) = await handle_evaluation(conf, data,
+                                                                hint=hint)
             end = time.perf_counter()
             print(f"Handled in {end - start}", file=sys.stderr)
-            return web.Response(text=f"{points}~~{response}\n",
-                                headers=headers)
+
+            if json_mode:
+                dpoints = [p.__dict__ for p in points]
+                return web.Response(text=json.dumps({"result": result,
+                                                     "comment": comment,
+                                                     "points": dpoints}),
+                                    headers=headers)
+            else:
+                tpoints = '\n'.join([f"{p.comment}: {p.points}/{p.out_of}"
+                                     for p in points])
+                if points:
+                    comment = f"{tpoints}\n\n{comment}"
+
+                return web.Response(text=f"{result}~~{comment}\n",
+                                    headers=headers)
 
     return handle_eval
 
