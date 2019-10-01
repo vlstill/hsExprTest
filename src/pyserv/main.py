@@ -15,7 +15,6 @@ import socket
 import textwrap
 import aiohttp_mako  # type: ignore
 import yaml
-import json
 
 import config
 import functor
@@ -169,10 +168,10 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
 
             if json_mode:
                 dpoints = [p.__dict__ for p in points]
-                return web.Response(text=json.dumps({"result": result,
-                                                     "comment": comment,
-                                                     "points": dpoints}),
-                                    headers=headers)
+                return web.json_response({"result": result,
+                                          "comment": comment,
+                                          "points": dpoints},
+                                         headers=headers)
             else:
                 tpoints = '\n'.join([f"{p.comment}: {p.points}/{p.out_of}"
                                      for p in points])
