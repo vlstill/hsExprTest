@@ -178,7 +178,8 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
                 if points:
                     comment = f"{tpoints}\n\n{comment}"
 
-                return web.Response(text=f"{result}~~{comment}\n",
+                oknok = "ok" if result else "nok"
+                return web.Response(text=f"{oknok}~~{comment}\n",
                                     headers=headers)
 
     return handle_eval
