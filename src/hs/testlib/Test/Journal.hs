@@ -34,7 +34,7 @@ getJournalSinkFd fd = JournalSink <$> do
                         pure h
 
 -- | Used for assigning points.
-data Points = Points { points :: Integer, outOf :: Integer, comment :: String }
+data Points = Points { points :: Rational, outOf :: Rational, comment :: String }
               deriving (Show, Eq)
 
 class JournalMsg e where
@@ -48,7 +48,9 @@ class JournalMsg e where
 
 instance JournalMsg Points where
     getJS Points { points, outOf, comment } = toJSObject
-                                                [ ("points", showJSON points)
-                                                , ("out_of", showJSON outOf)
+                                                [ ("points", r2js points)
+                                                , ("out_of", r2js outOf)
                                                 , ("comment", showJSON comment)
                                                 ]
+      where
+        r2js = JSRational False
