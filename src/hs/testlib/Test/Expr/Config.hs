@@ -19,7 +19,7 @@ module Test.Expr.Config (
     ConfigValue,
     -- * Test Configuration Keys
     Expression (Expression), ExprName,
-    Journal (Journal),
+    JournalFd (JournalFd),
     TypeOrd (TypeOrd),
     TestPattern (TestPattern),
     DegenType (DegenType),
@@ -27,10 +27,10 @@ module Test.Expr.Config (
     ConfigEntry (ConfigEntry)
     ) where
 
-import Test.Journal ( JournalSink )
 import Data.Typeable ( Typeable, typeOf )
 import Data.Type.Equality ( (:~:) (Refl) )
 import Unsafe.Coerce ( unsafeCoerce )
+import System.Posix.Types ( Fd )
 
 import Test.Expr.Types ( TypeOrder )
 import Language.Haskell.TH ( Q, Pat, Type )
@@ -39,7 +39,7 @@ import Language.Haskell.TH ( Q, Pat, Type )
 data Expression = Expression deriving (Eq, Show, Typeable)
 
 -- | A key for getting journal, value will be of type 'JournalSink'
-data Journal = Journal deriving (Eq, Show, Typeable)
+data JournalFd = JournalFd deriving (Eq, Show, Typeable)
 
 -- | A key for getting TypeOrder, value will be of type 'TypeOrder'
 data TypeOrd = TypeOrd deriving (Eq, Show, Typeable)
@@ -55,7 +55,7 @@ type ExprName = String
 -- | A mapping from key types to corresponding types of values.
 type family ConfigValue ct where
     ConfigValue Expression  = ExprName
-    ConfigValue Journal     = JournalSink
+    ConfigValue JournalFd   = Fd
     ConfigValue TypeOrd     = TypeOrder
     ConfigValue TestPattern = Q Pat
     ConfigValue DegenType   = Q Type
@@ -74,7 +74,7 @@ newtype TestConfig = TestConfig [ConfigEntry]
 -- Just "foo"
 -- >>> tc `getConfig` DegenType
 -- Just TEqual
--- >>> tc `getConfig` Journal
+-- >>> tc `getConfig` JournalFd
 -- Nothing
 --
 -- Please note that the type of value depends on the value (and therefore a
