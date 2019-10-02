@@ -35,28 +35,24 @@ Documentation for writing evaluators will be added.
 ## IS MU Integration
 
 For integration with IS MU, you will need a server capable of running a
-web server, the `exprtest` service and your language backends of choice. For
-running the service, you can start with [the systemd unit
+web server, the [`exprtest` service](/src/pyserv/)
+([documentation](/src/pyserv/README.md)) and your language backends of choice.
+For running the service, you can start with [the systemd unit
 file](src/systemd/exprtest.service).
 
-The service does not, however communicate with the webserver directly, it uses [a
-small Perl frontend script which runs as CGI](src/frontend/is.pl).
+### Questionnaire Frontend
 
-The service is configured by [a YAML file](exprtest.yaml). This file designates
-the socket of the IS Perl wrapper, the root for test declaration directories and
-the courses provided by the service. For each course it is possible to enable
-user-based isolation (requires existence of user `rc-COUSE_NAME` which has to
-have reading access to the teacher files and the driver/checker) and a hint
-mode. If a hint mode is enabled, queries marked as unauthorized by the frontend
-are processed but with the additional --hint argument to the checker. The
-checker should then check for this argument and provide partial answer, e.g.
-typechecking result in the case of Haskell. If hint mode is disable unauthorized
-queries are refused.
+The original frontend is the questionnaire frontend which uses ability of IS to
+send questionnaire evaluation to an external server.
 
-The `exprtest` service has a hot restart feature to facilitate config reloads
-and service updates -- if it receives `SIGUSR1` signal, it will finish all
-running requests and the re-exec itself, reloading the config in process. The
-reload process should be robust enough to be performed under load.
+TODO: doc
+
+### Submission Folder Frontend
+
+The [`ispol`](/src/ispol) ([documentation](/src/ispol/README.md)) is an
+alternative frontend/glue for IS MU. It allows students to submit a file to
+submission folder which is checked by `ispol` and evaluated using ExprTest
+service. The results are written to student's notebooks.
 
 ### Writing questions for IS MUNI integration
 
