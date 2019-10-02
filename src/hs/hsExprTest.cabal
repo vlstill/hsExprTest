@@ -53,7 +53,7 @@ Library
 
   default-extensions: MonadFailDesugaring
 
-  if impl( ghc == 8.4.* )
+  if impl( ghc == 8.6.* )
     ghc-options:        -Werror
 
 Test-Suite unit-hsExprTest
