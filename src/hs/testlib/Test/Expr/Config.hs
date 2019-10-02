@@ -28,7 +28,7 @@ module Test.Expr.Config (
     ) where
 
 import Test.Journal ( JournalSink )
-import Data.Typeable ( Typeable, Proxy (Proxy), typeOf )
+import Data.Typeable ( Typeable, typeOf )
 import Data.Type.Equality ( (:~:) (Refl) )
 import Unsafe.Coerce ( unsafeCoerce )
 
@@ -64,7 +64,7 @@ data ConfigEntry where
     ConfigEntry :: forall ct. (Typeable ct, Eq ct) => ct -> ConfigValue ct -> ConfigEntry
 
 -- | Test configration, should be accessed only using the 'getConfig' function.
-newtype TestConfig = TestConfig { getTestConfig :: [ConfigEntry] }
+newtype TestConfig = TestConfig [ConfigEntry]
 
 -- | Access to test configuration using test configuration keys. Suppose we
 -- have a test configuration @tc@ which contains 'DegenType' and 'Expression'
