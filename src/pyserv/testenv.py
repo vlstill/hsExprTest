@@ -133,7 +133,7 @@ class TestEnvironment(object):
                 raw_stdout, raw_stderr = await proc.communicate()
             stdout = raw_stdout.decode("utf8")
             stderr = raw_stderr.decode("utf8")
-            return RunResult(proc.returncode == 0, stdout, stderr, points)
+        return RunResult(proc.returncode == 0, stdout, stderr, points)
 
     async def __aexit__(self, type, value, traceback):
         self.tmpdirHandle.__exit__(type, value, traceback)
