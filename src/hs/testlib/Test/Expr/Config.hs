@@ -1,6 +1,4 @@
-{-# LANGUAGE TypeFamilies, DataKinds, GADTs, ExplicitForAll, TypeOperators,
-             StandaloneDeriving, DeriveDataTypeable
-             #-}
+{-# LANGUAGE TypeFamilies, GADTs, ExplicitForAll, TypeOperators, DeriveDataTypeable #-}
 
 {- | Type safe extensible test configuration. See 'getConfig' for the access of
 configuration values. This is bassically a heterogeneous map type which is
@@ -38,19 +36,19 @@ import Test.Expr.Types ( TypeOrder )
 import Language.Haskell.TH ( Q, Pat, Type )
 
 -- | A key for getting expression, value will be of type 'ExprName'
-data Expression = Expression deriving (Eq, Show)
+data Expression = Expression deriving (Eq, Show, Typeable)
 
 -- | A key for getting journal, value will be of type 'JournalSink'
-data Journal = Journal deriving (Eq, Show)
+data Journal = Journal deriving (Eq, Show, Typeable)
 
 -- | A key for getting TypeOrder, value will be of type 'TypeOrder'
-data TypeOrd = TypeOrd deriving (Eq, Show)
+data TypeOrd = TypeOrd deriving (Eq, Show, Typeable)
 
 -- | A key for getting test value pattern, value will be of type @'Q' 'Pat'@
-data TestPattern = TestPattern deriving (Eq, Show)
+data TestPattern = TestPattern deriving (Eq, Show, Typeable)
 
 -- | A key for getting test degeneration type, value will be of type @'Q' 'Type'@
-data DegenType = DegenType deriving (Eq, Show)
+data DegenType = DegenType deriving (Eq, Show, Typeable)
 
 type ExprName = String
 
