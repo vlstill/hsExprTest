@@ -14,18 +14,21 @@ from typing import List, Union, Optional, Pattern, TextIO
 FilePath = str
 
 if len( sys.argv ) < 3:
-    print( "usage: {} TEACHER_FILE STUDENT_FILE [-IDIR ...] [--hint]".format( sys.argv[0] ), file=sys.stderr )
+    print( "usage: {} TEACHER_FILE STUDENT_FILE [-IDIR ...] [-pFD] [--hint]".format( sys.argv[0] ), file=sys.stderr )
     sys.exit( 1 )
 
 teacher : str = sys.argv[1]
 student : str = sys.argv[2]
 hint : bool = False
 include : List[str] = []
+journal_fd : int = 2
 
 for i in range( 3, len( sys.argv ) ):
     v = sys.argv[i]
     if v == "--hint":
         hint = True
+    if v.startswith("-p"):
+        journal_fd = int( v[2:] )
     elif v.startswith( "-I" ) or v.startswith( "-i" ):
         include.append( v[2:] )
 
@@ -137,7 +140,7 @@ def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> 
 def mkMainFile( filename : FilePath, conf : TestConf ) -> None:
     with open( filename, "w" ) as dst:
         dst.write( "{-# LANGUAGE " + ", ".join( MAIN_EXTS ) + "#-}\n" )
-        dst.write( """
+        dst.write( f"""
 module Main ( main ) where
 
 import Teacher
@@ -156,10 +159,11 @@ import qualified Test.QuickCheck.Range
             dst.write( "import qualified {}\n".format( imp ) )
 
         if not conf.typecmp:
-            dst.write( """
+            dst.write( f"""
 $(testMainEx (TestConfig
               (ConfigEntry Expression $(extractOption "expr")
               : ConfigEntry TypeOrd $(extractOptionDef "typeOrder" (ConE 'TEqual))
+              : ConfigEntry JournalFd {journal_fd}
               : catMaybes [ConfigEntry TestPattern <$> $(extractOptionMaybe "pattern"),
                            ConfigEntry DegenType <$> $(extractOptionMaybe "degenType")
                           ])))
