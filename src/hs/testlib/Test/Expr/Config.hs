@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeFamilies, GADTs, ExplicitForAll, TypeOperators, DeriveDataTypeable #-}
+{-# LANGUAGE TypeFamilies, GADTs, ExplicitForAll, TypeOperators,
+             DeriveDataTypeable, TemplateHaskellQuotes #-}
 
 {- | Type safe extensible test configuration. See 'getConfig' for the access of
 configuration values. This is bassically a heterogeneous map type which is
@@ -24,16 +25,18 @@ module Test.Expr.Config (
     TestPattern (TestPattern),
     DegenType (DegenType),
     -- * Low-Level Interface
-    ConfigEntry (ConfigEntry)
+    ConfigEntry (ConfigEntry),
+    liftSafeTH
     ) where
 
 import Data.Typeable ( Typeable, typeOf )
 import Data.Type.Equality ( (:~:) (Refl) )
 import Unsafe.Coerce ( unsafeCoerce )
 import System.Posix.Types ( Fd )
+import Data.Maybe ( mapMaybe )
+import Language.Haskell.TH ( Q, Pat, Type, Exp(..), Lit(..) )
 
 import Test.Expr.Types ( TypeOrder )
-import Language.Haskell.TH ( Q, Pat, Type )
 
 -- | A key for getting expression, value will be of type 'ExprName'
 data Expression = Expression deriving (Eq, Show, Typeable)
@@ -61,7 +64,7 @@ type family ConfigValue ct where
     ConfigValue DegenType   = Q Type
 
 data ConfigEntry where
-    ConfigEntry :: forall ct. (Typeable ct, Eq ct) => ct -> ConfigValue ct -> ConfigEntry
+    ConfigEntry :: forall ct. Typeable ct => ct -> ConfigValue ct -> ConfigEntry
 
 -- | Test configration, should be accessed only using the 'getConfig' function.
 newtype TestConfig = TestConfig [ConfigEntry]
@@ -84,7 +87,19 @@ getConfig (TestConfig []) _ = Nothing
 getConfig (TestConfig (ConfigEntry ek ev:tcs)) k
     | Just Refl <- ek `eqT` k = Just ev
     | otherwise               = getConfig (TestConfig tcs) k
+
+eqT :: forall a b. (Typeable a, Typeable b) => a -> b -> Maybe (a :~: b)
+eqT a b | typeOf a == typeOf b = Just $ unsafeCoerce Refl
+        | otherwise            = Nothing
+
+-- | This will lift options safe for use in evalutors to a TemplateHaskell
+-- expression which can be passed to the evaluator.
+liftSafeTH :: TestConfig -> Exp
+liftSafeTH (TestConfig tcs) = ConE 'TestConfig `AppE` ListE (mapMaybe ltc tcs)
   where
-    eqT :: forall a b. (Typeable a, Typeable b) => a -> b -> Maybe (a :~: b)
-    eqT a b | typeOf a == typeOf b = Just $ unsafeCoerce Refl
-            | otherwise            = Nothing
+    ltc :: ConfigEntry -> Maybe Exp
+    ltc (ConfigEntry ct v)
+        | Just Refl <- ct `eqT` JournalFd = l 'JournalFd (LitE (IntegerL (fromIntegral v)))
+        | otherwise                       = Nothing
+
+    l key val = Just $ ConE 'ConfigEntry `AppE` ConE key `AppE` val

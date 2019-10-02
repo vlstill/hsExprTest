@@ -79,7 +79,7 @@ testMainEx config = do
     degenType <- sequence degen
     body <- case (eval, tname) of
               (Just ev, _) -> [| scheduleAlarm $(timeout) >>
-                                 $(pure $ VarE ev `AppE` VarE studentName) |]
+                                 $(pure $ VarE ev `AppE` liftSafeTH config `AppE` VarE studentName) |]
               (_, Just teacherName) -> [| scheduleAlarm $(timeout) >>
                                           runProperty $(args) $(prop Prop {..}) |]
               _ -> fail "impossible"
