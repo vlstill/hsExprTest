@@ -63,10 +63,11 @@ testMainEx :: TestConfig -> Q [Dec]
 testMainEx config = do
     sname' <- lookupValueName sn
     $(pfail "Could not find student expression %s") name & when (isNothing sname')
-    tname <- lookupValueName tn
-    eval  <- lookupValueName "Teacher.evaluator"
+    tname   <- lookupValueName tn
+    eval    <- lookupValueName "Teacher.evaluator"
+    evalEx  <- lookupValueName "Teacher.evaluatorEx"
     $(pfail "Either teacher expression or evaluator has to be given for %s") name
-         & when (isNothing (tname <|> eval))
+         & when (isNothing (tname <|> eval <|> evalEx))
     let Just studentName = sname'
 
     let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
@@ -77,10 +78,12 @@ testMainEx config = do
     mainType <- [t| IO () |]
     pattern <- sequence pat
     degenType <- sequence degen
-    body <- case (eval, tname) of
-              (Just ev, _) -> [| scheduleAlarm $(timeout) >>
-                                 $(pure $ VarE ev `AppE` liftSafeTH config `AppE` VarE studentName) |]
-              (_, Just teacherName) -> [| scheduleAlarm $(timeout) >>
+    body <- case (evalEx, eval, tname) of
+              (Just evx, _, _) -> [| scheduleAlarm $(timeout) >>
+                                 $(pure $ VarE evx `AppE` liftSafeTH config `AppE` VarE studentName) |]
+              (_, Just ev, _) -> [| scheduleAlarm $(timeout) >>
+                                 $(pure $ VarE ev `AppE` VarE studentName) |]
+              (_, _, Just teacherName) -> [| scheduleAlarm $(timeout) >>
                                           runProperty $(args) $(prop Prop {..}) |]
               _ -> fail "impossible"
     pure [ SigD mainName mainType
