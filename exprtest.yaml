@@ -8,6 +8,7 @@ courses:
     checker: /home/xstill/repo/hsExprTest/src/hs/driver
     qdir: /home/xstill/repo/ib015_questions
     hint: true
+    extended: true
     authorized: [ "xstill" ]
   - name: ib002
     isolation: false

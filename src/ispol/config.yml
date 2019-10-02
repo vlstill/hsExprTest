@@ -9,7 +9,7 @@ courses:
               short: test
               visible: True
               statistics: True
-          attempts: null
+          attempts: 5
         - paths:
             - /el/fi/podzim2019/IV074/ode/ode_tests_1
             - /el/fi/podzim2019/IV074/ode/ode_tests_2
