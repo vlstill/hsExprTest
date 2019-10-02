@@ -1,5 +1,5 @@
 name:                hsExprTest
-version:             3.0.0.0
+version:             3.1.0.0
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
@@ -33,12 +33,14 @@ Library
                       Test.Expr.Types
                       Test.Expr.Property
                       Test.Expr.Utils
+                      Test.Expr.Config
                       Test.QuickCheck.Range
                       Test.QuickCheck.Convertible
                       Test.Testable.IO
                       Test.Testable.IO.Base
                       Test.Testable.IO.NoMonad
                       Test.Testable.Data
+                      Test.Journal
                       Data.PartialOrder
                       Data.Tuple.TH.Curry
 

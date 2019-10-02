@@ -8,9 +8,10 @@
 
 module Test.Expr (
                  -- * Test Entry
-                   testMain, testType, extractOptionDef, extractOptionMaybe, extractOption
+                 testMain, testMainEx,
+                 testType, extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
-                 , (<==>), testArgs, runProperty, Args (..), scheduleAlarm
+                 (<==>), testArgs, runProperty, Args (..), scheduleAlarm
                  ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
@@ -19,7 +20,7 @@ import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Data.Function ( (&) )
-import Data.Maybe ( isNothing )
+import Data.Maybe ( isNothing, catMaybes )
 
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
@@ -39,6 +40,7 @@ import Text.Printf.Mauke.TH ( sprintf )
 import Test.Expr.Utils
 import Test.Expr.Types
 import Test.Expr.Property
+import Test.Expr.Config
 
 testArgs :: Args
 testArgs = stdArgs { chatty = False
@@ -49,10 +51,16 @@ testArgs = stdArgs { chatty = False
                    , replay = Just (mkQCGen 0, 0)
                    }
 
-type ExprName = String
-
 testMain :: ExprName -> TypeOrder -> Maybe (Q Pat) -> Maybe (Q Type) -> Q [Dec]
-testMain name typeOrder pat degen = do
+testMain name typeOrder pat degen = testMainEx $ TestConfig conf
+  where
+    conf = ConfigEntry Expression name : ConfigEntry TypeOrd typeOrder : conf'
+    conf' = catMaybes [ ConfigEntry DegenType <$> degen
+                      , ConfigEntry TestPattern <$> pat
+                      ]
+
+testMainEx :: TestConfig -> Q [Dec]
+testMainEx config = do
     sname' <- lookupValueName sn
     $(pfail "Could not find student expression %s") name & when (isNothing sname')
     tname <- lookupValueName tn
@@ -84,6 +92,11 @@ testMain name typeOrder pat degen = do
     defargs = VarE 'testArgs
     tn = "Teacher." ++ name
     sn = "Student." ++ name
+
+    Just name = config `getConfig` Expression
+    Just typeOrder = config `getConfig` TypeOrd
+    pat = config `getConfig` TestPattern
+    degen = config `getConfig` DegenType
 
 testType :: ExprName -> Q Exp
 testType name = do
