@@ -206,7 +206,7 @@ def main():
         while True:
             start = time.perf_counter()
             poll()
-            sleep_for = int((max(1, interval - (time.perf_counter() - start))))
+            sleep_for = int((max(0, interval - (time.perf_counter() - start))))
             for _ in range(sleep_for):
                 if stop_signal:
                     return
