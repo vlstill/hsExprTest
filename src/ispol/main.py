@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate  # type: ignore
 import enum
 import textwrap
-from typing import Union, List
+from typing import Union, List, cast
 import traceback
 
 
@@ -57,6 +57,19 @@ def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
 
 
+class LiteralUnicode(str): pass
+
+def literal_unicode_representer(dumper, data):
+    return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+
+yaml.add_representer(LiteralUnicode, literal_unicode_representer)
+
+
+def string_yaml(data : dict) -> str:
+    return cast(str, yaml.dump(data, default_flow_style=False, width=999,
+                               indent=2, allow_unicode=True))
+
+
 def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
               author : int, notebooks : isapi.notebooks.Connection,
               failure : bool = False) -> None:
@@ -74,8 +87,7 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
         return
 
     text = textwrap.dedent(f'Výsledky opravení {conf["notebook"]["name"]} pro '
-                           f'{author}:\n\n' + yaml.dump(result,
-                                                    default_flow_style=False))
+                           f'{author}:\n\n' + string_yaml(result))
     if failure:
         if mail_type is MailType.Teacher:
             text = "Došlo k chybě při zápisu do poznámkového bloku, prosím " \
@@ -141,7 +153,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         assert req.status_code == 200
         response = json.loads(req.text)
         if "comment" in response:
-            response["comment"] = response["comment"].rstrip()
+            response["comment"] = LiteralUnicode(response["comment"].rstrip())
         new_total_points = sum(p["points"] for p in response["points"])
         if conf.get("aggregate", "last") == "avg":
             total_points = max(filter(lambda x: x is not None,
@@ -151,7 +163,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         entry["total_points"] = f"*{total_points}"
         entry["attempts"][0].update(response)
 
-    is_entry.text = yaml.dump(entry, default_flow_style=False)
+    is_entry.text = string_yaml(entry)
     failure = False
     try:
         notebooks.store(note, filemeta.author, is_entry)
