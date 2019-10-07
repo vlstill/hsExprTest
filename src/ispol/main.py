@@ -74,7 +74,8 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
         return
 
     text = textwrap.dedent(f'Výsledky opravení {conf["notebook"]["name"]} pro '
-                           f'{author}:\n\n' + yaml.dump(result))
+                           f'{author}:\n\n' + yaml.dump(result,
+                                                    default_flow_style=False))
     if failure:
         if mail_type is MailType.Teacher:
             text = "Došlo k chybě při zápisu do poznámkového bloku, prosím " \
