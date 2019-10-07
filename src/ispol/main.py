@@ -126,7 +126,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
 
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
     data = files.get_file(filemeta).data.decode("utf8")
-    total_points = None
+    total_points = entry.get("total_points")
     if "attempts" not in entry:
         entry["attempts"] = [base_entry]
     else:
@@ -141,7 +141,12 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         response = json.loads(req.text)
         if "comment" in response:
             response["comment"] = response["comment"].rstrip()
-        total_points = sum(p["points"] for p in response["points"])
+        new_total_points = sum(p["points"] for p in response["points"])
+        if conf.get("aggregate", "last") == "avg":
+            total_points = max(filter(lambda x: x is not None,
+                                      [total_points, new_total_points]))
+        else:
+            total_points = new_total_points
         entry["total_points"] = f"*{total_points}"
         entry["attempts"][0].update(response)
 
