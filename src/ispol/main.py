@@ -154,7 +154,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         assert req.status_code == 200
         response = json.loads(req.text)
         if "comment" in response:
-            c = RE_STARNUM.sub('\n', response["comment"].rstrip()
+            c = RE_WHITENL.sub('\n', response["comment"].rstrip()
                                                         .replace('\t', "  "))
             response["comment"] = c
         new_total_points = sum(p["points"] for p in response["points"])
