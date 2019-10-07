@@ -7,6 +7,43 @@ import json
 import time
 import requests
 import re
+import smtplib
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate  # type: ignore
+import enum
+import textwrap
+from typing import Union, List
+import traceback
+
+
+@enum.unique
+class MailType (enum.Enum):
+    Student = 1
+    Teacher = 2
+
+
+@enum.unique
+class MailMode (enum.Flag):
+    Never = 0
+    OnSuccess = 0x1
+    OnFailure = 0x2
+    OnError   = 0x4
+    Always = OnSuccess | OnFailure | OnError
+
+    @staticmethod
+    def parse(value : Union[str, List[str]]):
+        if isinstance(value, str):
+            value = [value]
+        out = MailMode.Never
+        mapping = dict([(k.lower(), v)
+                        for k, v in MailMode.__members__.items()])
+        for v in value:
+            ev = mapping.get(v.lower().replace(' ', '').replace('_', ''))
+            if ev is None:
+                raise ValueError(f"Invalid value for MailMode: {v}")
+            out |= ev
+        return out
+
 
 overrides = set(sys.argv[2:])
 RE_STARNUM = re.compile(r'[*]([.]?[0-9])')
@@ -18,6 +55,57 @@ def escape_points(txt : str) -> str:
 
 def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
+
+
+def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
+              author : int, notebooks : isapi.notebooks.Connection,
+              failure : bool = False) -> None:
+    mode = MailMode.parse(conf.get(f"mail_{mail_type.name.lower()}", "never"))
+    if mail_type is MailType.Teacher:
+        mode |= MailMode.OnError
+
+    send = False
+    success = all([e.get("points", 0) >= e.get("out_of", 0)
+                  for e in result["attempts"][0]["points"]])
+    send |= failure and MailMode.OnError in mode
+    send |= success and MailMode.OnSuccess in mode
+    send |= not success and MailMode.OnFailure in mode
+    if not send:
+        return
+
+    text = textwrap.dedent(f'Výsledky opravení {conf["notebook"]["name"]} pro '
+                           f'{author}:\n\n' + yaml.dump(result))
+    if failure:
+        if mail_type is MailType.Teacher:
+            text = "Došlo k chybě při zápisu do poznámkového bloku, prosím " \
+                   "zadejte následující výsledek (bez průvodního textu) " \
+                   "studentvi do bloku ručně.\n\n" + text
+        else:
+            text = "Došlo k chybě při zápisu do poznámkového bloku, " \
+                   "vyučující byl notifikovanán a měl by zřídit nápravu" \
+                   "\n\n" + text
+    msg = MIMEText(text)
+    msg["Subject"] = f'[{course.upper()}][{mail_type.name.lower()}] ' \
+                     f'{conf["notebook"]["name"]}'
+    if "from" in conf:
+        msg["From"] = conf['from']
+    msg['Date'] = formatdate(localtime=True)
+
+    send_to = []
+    if mail_type is MailType.Student:
+        send_to.append(f"{author}@mail.muni.cz")
+    if mail_type is MailType.Teacher:
+        send_to = conf.get('teachers', [])
+        if conf.get('teachers_from_group', False):
+            send_to = [f"{p.uco}@mail.muni.cz"
+                       for p in notebooks.seminars().get_teachers(author)]
+    msg['To'] = COMMASPACE.join(send_to)
+
+    with smtplib.SMTP("localhost") as smtp:
+        bcc = conf.get('bcc', [])
+        if isinstance(bcc, str):
+            bcc = [bcc]
+        smtp.sendmail(conf['from'], send_to + bcc, msg.as_string())
 
 
 def process_file(course : str, notebooks : isapi.notebooks.Connection,
@@ -58,7 +146,20 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         entry["attempts"][0].update(response)
 
     is_entry.text = yaml.dump(entry, default_flow_style=False)
-    notebooks.store(note, filemeta.author, is_entry)
+    failure = False
+    try:
+        notebooks.store(note, filemeta.author, is_entry)
+    except isapi.notebooks.NotebookException as ex:
+        failure = True
+    for mail_type in [MailType.Student, MailType.Teacher]:
+        try:
+            send_mail(course=course, conf=conf, result=entry,
+                      author=filemeta.author, notebooks=notebooks, failure=failure,
+                      mail_type=mail_type)
+        except:
+            fprint(f"ERROR: Mail sending failed for {filemeta.author}:\n"
+                   + is_entry.text)
+            traceback.print_exc()
     fprint(f"done, {total_points} points")
 
 

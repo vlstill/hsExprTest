@@ -13,10 +13,23 @@ courses:
         - paths:
             - /el/fi/podzim2019/IV074/ode/ode_tests_1
             - /el/fi/podzim2019/IV074/ode/ode_tests_2
-          id: test
+          id: test # Question ID for exprtest
           notebook:
               name: "Test API odevzdáváren 2"
               short: test2
               visible: True
               statistics: True
-          attempts: null
+          attempts: null # null (for unlimited) or number of attempts
+          # mail values:
+          # - always
+          # - never
+          # - on_succes (all tests passed)
+          # - on_failure (not all test passed)
+          # - on_error (an error occured while evaluating)
+          # it can be a list, e.g.: [on_error, on_failure]
+          mail_student: never
+          mail_teacher: [on_success, on_error, always]
+          teachers: [xstill@fi.muni.cz]
+          bcc: ib074-log@vstill.eu
+          from: xstill@fi.muni.cz
+          teachers_from_group: False # send to student's teacher based on seminar group
