@@ -1,0 +1,19 @@
+[Unit]
+Description=ExprTest ispol frontend
+
+[Service]
+Type=simple
+WorkingDirectory=/home/%i/hsExprTest/src/ispol/
+ExecStart=/usr/bin/python3 main.py %i.yaml
+User=%i
+Group=checker
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+KillMode=process
+KillSignal=TERM
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
