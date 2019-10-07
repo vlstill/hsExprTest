@@ -47,6 +47,7 @@ class MailMode (enum.Flag):
 
 overrides = set(sys.argv[2:])
 RE_STARNUM = re.compile(r'[*]([.]?[0-9])')
+RE_WHITENL = re.compile(r' *\n')
 
 
 def escape_points(txt : str) -> str:
@@ -153,7 +154,9 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         assert req.status_code == 200
         response = json.loads(req.text)
         if "comment" in response:
-            response["comment"] = LiteralUnicode(response["comment"].rstrip())
+            c = RE_STARNUM.sub('\n', response["comment"].rstrip()
+                                                        .replace('\t', "  "))
+            response["comment"] = c
         new_total_points = sum(p["points"] for p in response["points"])
         if conf.get("aggregate", "last") == "avg":
             total_points = max(filter(lambda x: x is not None,
@@ -162,6 +165,10 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
             total_points = new_total_points
         entry["total_points"] = f"*{total_points}"
         entry["attempts"][0].update(response)
+
+    for i in range(len(entry["attempts"])):
+        if "comment" in entry["attempts"][i]:
+            entry["attempts"][i]["comment"] = LiteralUnicode(entry["attempts"][i]["comment"])
 
     is_entry.text = string_yaml(entry)
     failure = False
