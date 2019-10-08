@@ -96,7 +96,7 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
                    "studentvi do bloku ručně.\n\n" + text
         else:
             text = "Došlo k chybě při zápisu do poznámkového bloku, " \
-                   "vyučující byl notifikovanán a měl by zřídit nápravu" \
+                   "vyučující byl notifikován a měl by zřídit nápravu" \
                    "\n\n" + text
     msg = MIMEText(text)
     msg["Subject"] = f'[{course.upper()}][{mail_type.name.lower()}] ' \
