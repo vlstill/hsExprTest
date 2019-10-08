@@ -80,7 +80,7 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
 
     send = False
     success = all([e.get("points", 0) >= e.get("out_of", 0)
-                  for e in result["attempts"][0]["points"]])
+                  for e in result["attempts"][0].get("points", {})])
     send |= failure and MailMode.OnError in mode
     send |= success and MailMode.OnSuccess in mode
     send |= not success and MailMode.OnFailure in mode
@@ -141,6 +141,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
     data = files.get_file(filemeta).data.decode("utf8")
     total_points = entry.get("total_points")
+    if total_points is not None and total_points[0:1] == '*':
+        total_points = float(total_points[1:])
     if "attempts" not in entry:
         entry["attempts"] = [base_entry]
     else:
@@ -158,7 +160,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
                                                         .replace('\t', "  "))
             response["comment"] = c
         new_total_points = sum(p["points"] for p in response["points"])
-        if conf.get("aggregate", "last") == "avg":
+        if conf.get("aggregate", "last") == "max":
             total_points = max(filter(lambda x: x is not None,
                                       [total_points, new_total_points]))
         else:

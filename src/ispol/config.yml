@@ -10,6 +10,7 @@ courses:
               visible: True
               statistics: True
           attempts: 5
+          aggregate: max
         - paths:
             - /el/fi/podzim2019/IV074/ode/ode_tests_1
             - /el/fi/podzim2019/IV074/ode/ode_tests_2
