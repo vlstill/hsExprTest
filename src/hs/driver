@@ -143,8 +143,8 @@ def mkMainFile( filename : FilePath, conf : TestConf ) -> None:
         dst.write( f"""
 module Main ( main ) where
 
-import Teacher
-import safe Student
+import qualified Teacher
+import safe qualified Student
 import Test.Expr
 import Test.Expr.Config
 import Test.Expr.Types ( TypeOrder ( TEqual ) )
