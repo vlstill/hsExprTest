@@ -113,7 +113,7 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
 
 def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> None:
     with open( dstFile, "w" ) as dst:
-        with open( srcFile, "r" ) as src:
+        with open( srcFile, "r", encoding = 'utf-8-sig' ) as src: # skip BOM if present
             dst.write( "{-# LANGUAGE " + ", ".join( ST_EXTS + conf.exts ) + " #-}\n\n" )
             if conf.reqire_type:
                 dst.write( "{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n" )
