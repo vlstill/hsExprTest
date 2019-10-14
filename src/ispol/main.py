@@ -139,7 +139,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     timestamp = time.strftime("%Y-%m-%d %H:%M")
 
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
-    data = files.get_file(filemeta).data.decode("utf8")
+    data = files.get_file(filemeta).data
     total_points = entry.get("total_points")
     if total_points is not None and total_points[0:1] == '*':
         total_points = float(total_points[1:])
