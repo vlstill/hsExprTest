@@ -12,8 +12,11 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate  # type: ignore
 import enum
 import textwrap
-from typing import Union, List, cast
+from typing import Union, List, Callable, TypeVar, cast
 import traceback
+
+
+ta = TypeVar("ta")
 
 
 @enum.unique
@@ -122,6 +125,15 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
         smtp.sendmail(conf['from'], send_to + bcc, msg.as_string())
 
 
+def fileapi_try_attempts(fn : Callable[[], ta], attempts) -> ta:
+    for _ in range(attempts - 1):
+        try:
+            return fn()
+        except isapi.files.FileAPIException as ex:
+            print("FILE API retry")
+    return fn()
+
+
 def process_file(course : str, notebooks : isapi.notebooks.Connection,
                  files : isapi.files.Connection,
                  filemeta : isapi.files.FileMeta, conf : dict,
@@ -139,7 +151,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     timestamp = time.strftime("%Y-%m-%d %H:%M")
 
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
-    data = files.get_file(filemeta).data
+    data = fileapi_try_attempts(lambda: files.get_file(filemeta).data, 5)
     total_points = entry.get("total_points")
     if total_points is not None and total_points[0:1] == '*':
         total_points = float(total_points[1:])
