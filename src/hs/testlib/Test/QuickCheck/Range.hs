@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, KindSignatures, PolyKinds, TypeOperators, GADTs
            , ExplicitForAll, ScopedTypeVariables, FlexibleInstances
-           , Safe #-}
+           , LambdaCase, Safe #-}
 
 
 -- | Entenstion of QuickCheck's modifiers with Integral ranges with type
@@ -81,8 +81,18 @@ instance forall i ranges.
          (Integral i, Arbitrary i, Random i, CRange ranges)
          => Arbitrary (Ranges i ranges)
     where
-        arbitrary = map (fromIntegral *** fromIntegral >>> choose) >>>
-                    oneof >>> fmap Range $ toRanges (Proxy :: Proxy ranges)
+        arbitrary = Range <$> sized (flip gen ranges)
+          where
+            gen :: Int -> [(i, i)] -> Gen i
+            gen n
+             | n <= 5    = let s = fromIntegral n
+                               options a b = filter (\x -> a <= x && x <= b)
+                                                    ([a .. (a + s)] ++ [(b - s) .. b])
+                           in concatMap (uncurry options) >>> elements
+             | otherwise = map choose >>> oneof
+
+            ranges :: [(i, i)]
+            ranges = map (fromIntegral *** fromIntegral) $ toRanges (Proxy :: Proxy ranges)
 
         shrink = unRange >>>
                  shrinkIntegral >>>
