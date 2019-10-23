@@ -222,7 +222,7 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
         print( "+ {} more errors hidden in syntax check mode, check that your function is correctly typed and named".format( hidden ) )
     if r.returncode != 0:
         if r.returncode == -14:
-            print( "\nTIMEOUT" );
+            print( "\nTIMEOUT -- total time limit exceeded" );
         print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file = sys.stderr )
         sys.exit( 1 )
     sys.exit( 0 )
