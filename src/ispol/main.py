@@ -15,7 +15,6 @@ import textwrap
 from typing import Union, List, Callable, Set, TypeVar, cast
 from typing_extensions import Final
 import traceback
-import textwrap
 
 
 ta = TypeVar("ta")
@@ -164,7 +163,7 @@ def fileapi_try_attempts(fn : Callable[[], ta], attempts) -> ta:
         try:
             return fn()
         except isapi.files.FileAPIException as ex:
-            print("FILE API retry")
+            fprint(f"FILE API retry ({ex})")
     return fn()
 
 
@@ -226,6 +225,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     try:
         notebooks.store(note, filemeta.author, is_entry)
     except isapi.notebooks.NotebookException as ex:
+        fprint(f"Error with isapi.notebooks (sending mail): {ex}")
         failure = True
     for mail_type in [MailType.Student, MailType.Teacher]:
         try:
