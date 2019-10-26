@@ -30,7 +30,7 @@ class MailMode (enum.Flag):
     Never = 0
     OnSuccess = 0x1
     OnFailure = 0x2
-    OnError   = 0x4
+    OnError = 0x4
     Always = OnSuccess | OnFailure | OnError
 
     @staticmethod
@@ -61,10 +61,13 @@ def fprint(what, **kvargs):
     print(what, flush=True, **kvargs)
 
 
-class LiteralUnicode(str): pass
+class LiteralUnicode(str):
+    pass
+
 
 def literal_unicode_representer(dumper, data):
     return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+
 
 yaml.add_representer(LiteralUnicode, literal_unicode_representer)
 
@@ -143,9 +146,10 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     attempts = conf.get("attempts")
     note = conf["notebook"]["short"]
     note_name = conf["notebook"]["name"]
-    notebook = notebooks.get_or_create(shortcut=note, name=note_name,
-                          visible=conf["notebook"].get("visible", False),
-                          statistics=conf["notebook"].get("statistics", False))
+    notebook = notebooks.get_or_create(
+                      shortcut=note, name=note_name,
+                      visible=conf["notebook"].get("visible", False),
+                      statistics=conf["notebook"].get("statistics", False))
     is_entry = notebook.get(filemeta.author, isapi.notebooks.Entry(""))
     entry = yaml.safe_load(is_entry.text) or {}
     timestamp = time.strftime("%Y-%m-%d %H:%M")
@@ -159,7 +163,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         entry["attempts"] = [base_entry]
     else:
         entry["attempts"].insert(0, base_entry)
-    if not forced and attempts is not None and len(entry.get("attempts", [])) > attempts:
+    if not forced and attempts is not None \
+            and len(entry.get("attempts", [])) > attempts:
         entry["attempts"][0]["error"] = "Too many attempts"
     else:
         req = requests.post(upstream, {"kod": course, "id": qid, "odp": data,
@@ -182,7 +187,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
 
     for i in range(len(entry["attempts"])):
         if "comment" in entry["attempts"][i]:
-            entry["attempts"][i]["comment"] = LiteralUnicode(entry["attempts"][i]["comment"])
+            entry["attempts"][i]["comment"] = \
+                              LiteralUnicode(entry["attempts"][i]["comment"])
 
     is_entry.text = string_yaml(entry)
     failure = False
@@ -193,8 +199,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     for mail_type in [MailType.Student, MailType.Teacher]:
         try:
             send_mail(course=course, conf=conf, result=entry,
-                      author=filemeta.author, notebooks=notebooks, failure=failure,
-                      mail_type=mail_type)
+                      author=filemeta.author, notebooks=notebooks,
+                      failure=failure, mail_type=mail_type)
         except:
             fprint(f"ERROR: Mail sending failed for {filemeta.author}:\n"
                    + is_entry.text)
