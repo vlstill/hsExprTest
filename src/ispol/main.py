@@ -12,11 +12,32 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate  # type: ignore
 import enum
 import textwrap
-from typing import Union, List, Callable, TypeVar, cast
+from typing import Union, List, Callable, Set, TypeVar, cast
+from typing_extensions import Final
 import traceback
+import textwrap
 
 
 ta = TypeVar("ta")
+
+
+def usage(script_name : str) -> None:
+    fprint(textwrap.dedent(f"""\
+        Usage:
+            {script_name} CONFIG.yml [IS_PATHS]
+
+        CONFIG.yml: a configuration file for the poller, it sets courses and
+            homeworsk which should be checked.
+
+
+        IS_PATHS: a list of paths in the IS (starting with /el/…) to be
+            processed.
+
+        If IS_PATHS are given, the script runs in single forced evaluation
+        mode, i.e., it evaluates these paths only, disregarding the number of
+        attempts allowed. The paths are evaluated according to the config.
+        Otherwise the poller will monitor paths given in the CONFIG.
+        """))
 
 
 @enum.unique
@@ -35,6 +56,13 @@ class MailMode (enum.Flag):
 
     @staticmethod
     def parse(value : Union[str, List[str]]):
+        """
+        Parse a MailMode out of a string or a list of strigns which represent
+        it. The values are matched in case-insensitive mode and spaces or
+        underscores can be used in the string representation to make it more
+        readable: e.g. "On_Success", "on_success" or "on success" are all valid
+        representations of the MailMode.OnSuccess value.
+        """
         if isinstance(value, str):
             value = [value]
         out = MailMode.Never
@@ -48,9 +76,12 @@ class MailMode (enum.Flag):
         return out
 
 
-overrides = set(sys.argv[2:])
-RE_STARNUM = re.compile(r'[*]([.]?[0-9])')
-RE_WHITENL = re.compile(r' *\n')
+# a set of paths to be processed, if nonempty, only these paths will be
+# processed and the script will exit afterward
+OVERRIDES : Final[Set[str]] = set(sys.argv[2:])
+
+RE_STARNUM : Final = re.compile(r'[*]([.]?[0-9])')
+RE_WHITENL : Final = re.compile(r' *\n')
 
 
 def escape_points(txt : str) -> str:
@@ -226,8 +257,8 @@ def poll():
                     continue
 
                 for f in entries:
-                    forced = f.ispath in overrides
-                    if not forced and len(overrides):
+                    forced = f.ispath in OVERRIDES
+                    if not forced and len(OVERRIDES):
                         continue
                     if not forced and f.read:
                         fprint(f"Skipping read {f.ispath}")
@@ -238,7 +269,7 @@ def poll():
 
 def main():
     if len(sys.argv) < 2:
-        fprint(f"Usage {sys.argv[0]} config.yml")
+        usage(sys.argv[0])
         sys.exit(1)
     with open(sys.argv[1]) as conf_file:
         config = yaml.safe_load(conf_file)
