@@ -66,6 +66,7 @@ function runtest() {
 }
 
 while read F; do test -n "$F" && runtest $F; done <<< $(find -name '*.q*' ! -name '*.todo.*' | sort)
+while read F; do test -n "$F" && echo "TODO: $F"; done <<< $(find -name '*.q*' -name '*.todo.*' | sort)
 
 if test -n "$FAILED"; then
     echo "FAILED: $FAILED"
