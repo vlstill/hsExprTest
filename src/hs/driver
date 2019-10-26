@@ -57,6 +57,7 @@ class TestConf:
         self.typecmp_num_types : int = 0
         self.exts : List[str] = []
         self.imports : List[str] = []
+        self.compiled : bool = False
 
 
 def warn(msg : str) -> None:
@@ -65,6 +66,10 @@ def warn(msg : str) -> None:
 
 def write_type(dst : TextIO, t : str, i : int) -> None:
     dst.write("t{} :: {}\nt{} = undefined\n".format(i, t, i))
+
+
+def val2bool(val : str) -> bool:
+    return val.lower() == "yes" or val.lower() == "true"
 
 
 def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
@@ -94,13 +99,13 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                         inject = False
                         inject_end = True
                     elif key == "require type":
-                        conf.reqire_type = val.lower() == "yes" \
-                                           or val.lower() == "true"
+                        conf.reqire_type = val2bool(val)
                     elif key == "allow imports":
-                        conf.allow_imports = val.lower() == "yes" \
-                                             or val.lower() == "true"
+                        conf.allow_imports = val2bool(val)
                     elif key == "typecmp":
                         conf.typecmp = True
+                    elif key == "compiled":
+                        conf.compiled = val2bool(val)
                     elif key == "import":
                         conf.imports += LIST_SPLIT_R.split(val)
                     else:
@@ -197,6 +202,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     mkMainFile("Main.hs", conf)
 
     invocation : List[str] = [f"-i{x}" for x in include] + ["-dynamic"]
+    execution : List[str] = []
 
     if conf.typecmp:
         # just compile, does not need to run
@@ -211,13 +217,17 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             invocation.insert(0, "ghc")
             invocation.extend(["-e", "return ()"])
         else:
-            invocation.insert(0, "runghc")
+            if conf.compiled:
+                invocation[:0] = ["ghc", "-o", "test", "-O2"]
+                execution = ["./test"]
+            else:
+                invocation.insert(0, "runghc")
 
         invocation.append("Main.hs")
+    pass_fds = [journal_fd] if journal_fd != 2 else []
     r = subprocess.run(invocation, stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       pass_fds=[journal_fd] if journal_fd != 2 else [],
-                       encoding="utf-8")
+                       pass_fds=pass_fds, encoding="utf-8")
 
     print(r.stdout, end='')
     hide = False
@@ -237,10 +247,20 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     if hidden > 0:
         print(f"+ {hidden} more errors hidden in syntax check mode, check "
               "that your function is correctly typed and named")
+
+    is_hint = "hint" if hint else "no hint"
+    if not hint and len(execution) != 0:
+        if r.returncode != 0:
+            print(f"failed (compilation): {r.returncode} ({is_hint})",
+                  file=sys.stderr)
+            sys.exit(2)
+        r = subprocess.run(execution, stdin=subprocess.DEVNULL,
+                           stdout=sys.stdout, stderr=sys.stdout,
+                           pass_fds=pass_fds, encoding="utf-8")
+
     if r.returncode != 0:
         if r.returncode == -14:
             print("\nTIMEOUT -- total time limit exceeded")
-        is_hint = "hint" if hint else "no hint"
         print(f"failed: {r.returncode} ({is_hint})", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
