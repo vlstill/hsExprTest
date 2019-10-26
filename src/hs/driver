@@ -3,47 +3,53 @@
 # (c) 2018-2019 Vladimír Štill
 
 import os
-import re
-import sys
-import shutil
 import os.path
-import tempfile
+import re
 import subprocess
-from typing import List, Union, Optional, Pattern, TextIO
+import sys
+import tempfile
+from typing import List, Pattern, TextIO
+
+from typing_extensions import Final
 
 FilePath = str
 
-if len( sys.argv ) < 3:
-    print( "usage: {} TEACHER_FILE STUDENT_FILE [-IDIR ...] [-pFD] [--hint]".format( sys.argv[0] ), file=sys.stderr )
-    sys.exit( 1 )
+if len(sys.argv) < 3:
+    print(f"usage: {sys.argv[0]} TEACHER_FILE STUDENT_FILE [-IDIR ...] "
+          "[-pFD] [--hint]", file=sys.stderr)
+    sys.exit(1)
 
-teacher : str = sys.argv[1]
-student : str = sys.argv[2]
+teacher : Final[str] = sys.argv[1]
+student : Final[str] = sys.argv[2]
 hint : bool = False
 include : List[str] = []
 journal_fd : int = 2
 
-for i in range( 3, len( sys.argv ) ):
+for i in range(3, len(sys.argv)):
     v = sys.argv[i]
     if v == "--hint":
         hint = True
     if v.startswith("-p"):
-        journal_fd = int( v[2:] )
-    elif v.startswith( "-I" ) or v.startswith( "-i" ):
-        include.append( v[2:] )
+        journal_fd = int(v[2:])
+    elif v.startswith("-I") or v.startswith("-i"):
+        include.append(v[2:])
 
-ALL_EXTS : List[str] = [ "NoMonomorphismRestriction" ]
-ST_EXTS : List[str] = [ "Safe" ] + ALL_EXTS
-T_EXTS : List[str] = [ "TemplateHaskell", "Unsafe", "ExplicitForAll", "ScopedTypeVariables", "DataKinds", "StandaloneDeriving", "DeriveDataTypeable" ] + ALL_EXTS
-MAIN_EXTS : List[str] = T_EXTS
+ALL_EXTS : Final[List[str]] = ["NoMonomorphismRestriction"]
+ST_EXTS : Final[List[str]] = ["Safe"] + ALL_EXTS
+T_EXTS : Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
+                             "ScopedTypeVariables", "DataKinds",
+                             "StandaloneDeriving", "DeriveDataTypeable"] \
+                             + ALL_EXTS
+MAIN_EXTS : Final[List[str]] = T_EXTS
 
-OPT_R : Pattern[str] = re.compile( "-- @ +([^:]*)(?:: +(.*))?" )
-LIST_SPLIT_R : Pattern[str] = re.compile(" *, *| +")
-ERR_HEADER : Pattern[str] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
-IGNORE : Pattern[str] = re.compile("^(-- .*)?\s*$")
+OPT_R : Final[Pattern[str]] = re.compile("-- @ +([^:]*)(?:: +(.*))?")
+LIST_SPLIT_R : Final[Pattern[str]] = re.compile(" *, *| +")
+ERR_HEADER : Final[Pattern[str]] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
+IGNORE : Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
+
 
 class TestConf:
-    def __init__( self ) -> None:
+    def __init__(self) -> None:
         self.inject : str = ""
         self.reqire_type : bool = False
         self.allow_imports : bool = True
@@ -52,31 +58,34 @@ class TestConf:
         self.exts : List[str] = []
         self.imports : List[str] = []
 
-def warn( msg : str ) -> None:
-    print( "W: " + msg, file=sys.stderr )
 
-def write_type( dst : TextIO, t : str, i : int ) -> None:
-    dst.write( "t{} :: {}\nt{} = undefined\n".format( i, t, i ) )
+def warn(msg : str) -> None:
+    print("W: " + msg, file=sys.stderr)
 
-def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
-    with open( dstFile, "w" ) as dst:
-        with open( srcFile, "r" ) as src:
+
+def write_type(dst : TextIO, t : str, i : int) -> None:
+    dst.write("t{} :: {}\nt{} = undefined\n".format(i, t, i))
+
+
+def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
+    with open(dstFile, "w") as dst:
+        with open(srcFile, "r") as src:
             conf = TestConf()
 
-            dst.write( "{-# LANGUAGE " + ", ".join( T_EXTS ) + " #-}\n\n" )
-            dst.write( "module Teacher where\n\n" )
+            dst.write("{-# LANGUAGE " + ", ".join(T_EXTS) + " #-}\n\n")
+            dst.write("module Teacher where\n\n")
 
             inject : bool = False
             inject_end : bool = False
 
             for l in src:
-                match = OPT_R.fullmatch( l.rstrip() )
+                match = OPT_R.fullmatch(l.rstrip())
                 if match:
                     key : str = match[1]
                     val : str = match[2]
 
                     if key == "exts":
-                        conf.exts += LIST_SPLIT_R.split( val )
+                        conf.exts += LIST_SPLIT_R.split(val)
                     elif key == "INJECT BEGIN":
                         assert not inject, "inject inside inject"
                         inject = True
@@ -85,15 +94,17 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                         inject = False
                         inject_end = True
                     elif key == "require type":
-                        conf.reqire_type = val.lower() == "yes" or val.lower() == "true"
+                        conf.reqire_type = val.lower() == "yes" \
+                                           or val.lower() == "true"
                     elif key == "allow imports":
-                        conf.allow_imports = val.lower() == "yes" or val.lower() == "true"
+                        conf.allow_imports = val.lower() == "yes" \
+                                             or val.lower() == "true"
                     elif key == "typecmp":
                         conf.typecmp = True
                     elif key == "import":
-                        conf.imports += LIST_SPLIT_R.split( val )
+                        conf.imports += LIST_SPLIT_R.split(val)
                     else:
-                        warn( "unknown option '{}: {}'".format( key, val ) )
+                        warn("unknown option '{}: {}'".format(key, val))
 
                 if inject:
                     conf.inject += l
@@ -102,45 +113,49 @@ def mkTeacherFile( srcFile : FilePath, dstFile : FilePath ) -> TestConf:
                     inject_end = False
 
                 if not conf.typecmp:
-                    dst.write( l )
+                    dst.write(l)
                 else:
-                    if not IGNORE.match( l ):
-                        write_type( dst, l, conf.typecmp_num_types )
+                    if not IGNORE.match(l):
+                        write_type(dst, l, conf.typecmp_num_types)
                         conf.typecmp_num_types += 1
 
             return conf
 
 
-def mkStudentFile( srcFile : FilePath, dstFile : FilePath, conf : TestConf ) -> None:
-    with open( dstFile, "w" ) as dst:
-        with open( srcFile, "r", encoding = 'utf-8-sig' ) as src: # skip BOM if present
-            dst.write( "{-# LANGUAGE " + ", ".join( ST_EXTS + conf.exts ) + " #-}\n\n" )
+def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
+        -> None:
+    with open(dstFile, "w") as dst:
+        # one skipping BOM if present
+        with open(srcFile, "r", encoding='utf-8-sig') as src:
+            exts_string = ", ".join(ST_EXTS + conf.exts)
+            dst.write("{-# LANGUAGE " + exts_string + " #-}\n\n")
             if conf.reqire_type:
-                dst.write( "{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n" )
-            dst.write( "module Student where\n\n" )
+                dst.write("{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n")
+            dst.write("module Student where\n\n")
 
             if conf.inject:
-                dst.write( conf.inject )
+                dst.write(conf.inject)
 
             if not conf.allow_imports:
-                dst.write( "no_imports_for_student_allowed :: ()\nno_imports_for_student_allowed = ()\n\n" )
+                dst.write("no_imports_for_student_allowed :: ()\n"
+                          "no_imports_for_student_allowed = ()\n\n")
 
-            dst.write( '{-# LINE 1 "IS.hs" #-}\n' )
+            dst.write('{-# LINE 1 "IS.hs" #-}\n')
             type_idx = 0
             if not conf.typecmp:
                 for l in src:
-                    dst.write( l )
+                    dst.write(l)
             else:
                 for l in src:
-                    if not IGNORE.match( l ):
-                        write_type( dst, l, type_idx )
+                    if not IGNORE.match(l):
+                        write_type(dst, l, type_idx)
                         type_idx += 1
 
 
-def mkMainFile( filename : FilePath, conf : TestConf ) -> None:
-    with open( filename, "w" ) as dst:
-        dst.write( "{-# LANGUAGE " + ", ".join( MAIN_EXTS ) + "#-}\n" )
-        dst.write( f"""
+def mkMainFile(filename : FilePath, conf : TestConf) -> None:
+    with open(filename, "w") as dst:
+        dst.write("{-# LANGUAGE " + ", ".join(MAIN_EXTS) + "#-}\n")
+        dst.write(f"""
 module Main ( main ) where
 
 import qualified Teacher
@@ -154,60 +169,61 @@ import Language.Haskell.TH ( Exp ( ConE ) )
 import Test.QuickCheck.Convertible ( convert )
 import qualified Test.QuickCheck.Modifiers
 import qualified Test.QuickCheck.Range
-""" )
+""")
         for imp in conf.imports:
-            dst.write( "import qualified {}\n".format( imp ) )
+            dst.write("import qualified {}\n".format(imp))
 
         if not conf.typecmp:
-            dst.write( f"""
+            dst.write(f"""
 $(testMainEx (TestConfig
-              (ConfigEntry Expression $(extractOption "expr")
-              : ConfigEntry TypeOrd $(extractOptionDef "typeOrder" (ConE 'TEqual))
-              : ConfigEntry JournalFd {journal_fd}
-              : catMaybes [ConfigEntry TestPattern <$> $(extractOptionMaybe "pattern"),
-                           ConfigEntry DegenType <$> $(extractOptionMaybe "degenType")
-                          ])))
-""" )
+      (ConfigEntry Expression $(extractOption "expr")
+      : ConfigEntry TypeOrd $(extractOptionDef "typeOrder" (ConE 'TEqual))
+      : ConfigEntry JournalFd {journal_fd}
+      : catMaybes [ConfigEntry TestPattern <$> $(extractOptionMaybe "pattern"),
+                   ConfigEntry DegenType <$> $(extractOptionMaybe "degenType")
+                  ])))
+""")
         else:
-            dst.write( "main :: IO ()\nmain = do\n" );
-            for i in range( conf.typecmp_num_types ):
-                dst.write( "    $(testType \"t{}\")\n".format( i ) )
+            dst.write("main :: IO ()\nmain = do\n")
+            for i in range(conf.typecmp_num_types):
+                dst.write("    $(testType \"t{}\")\n".format(i))
 
-with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
-    conf = mkTeacherFile( teacher, os.path.join( wd, "Teacher.hs" ) )
-    mkStudentFile( student, os.path.join( wd, "Student.hs" ), conf )
-    os.chdir( wd )
 
-    mkMainFile( "Main.hs", conf )
+with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
+    conf = mkTeacherFile(teacher, os.path.join(wd, "Teacher.hs"))
+    mkStudentFile(student, os.path.join(wd, "Student.hs"), conf)
+    os.chdir(wd)
 
-    invocation : List[str] = list( map( lambda x: "-i" + x, include ) ) + [ "-dynamic" ]
+    mkMainFile("Main.hs", conf)
+
+    invocation : List[str] = [f"-i{x}" for x in include] + ["-dynamic"]
 
     if conf.typecmp:
         # just compile, does not need to run
-        invocation.insert( 0, "ghc" )
-        invocation.extend( ["-e", "return ()"] )
+        invocation.insert(0, "ghc")
+        invocation.extend(["-e", "return ()"])
         if hint:
-            invocation.append( "Student.hs" ) # just parse student's file
+            invocation.append("Student.hs")  # just parse student's file
         else:
-            invocation.append( "Main.hs" ) # acutally do the comparison
-    else: # expression comparison
+            invocation.append("Main.hs")  # acutally do the comparison
+    else:  # expression comparison
         if hint:
-            invocation.insert( 0, "ghc" )
-            invocation.extend( ["-e", "return ()"] )
+            invocation.insert(0, "ghc")
+            invocation.extend(["-e", "return ()"])
         else:
-            invocation.insert( 0, "runghc" )
+            invocation.insert(0, "runghc")
 
-        invocation.append( "Main.hs" )
-    r = subprocess.run( invocation, stdin = subprocess.DEVNULL,
-                        stdout = subprocess.PIPE, stderr = subprocess.PIPE,
-                        pass_fds = [journal_fd] if journal_fd != 2 else [],
-                        encoding = "utf-8" )
+        invocation.append("Main.hs")
+    r = subprocess.run(invocation, stdin=subprocess.DEVNULL,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                       pass_fds=[journal_fd] if journal_fd != 2 else [],
+                       encoding="utf-8")
 
-    print( r.stdout, end = '' )
+    print(r.stdout, end='')
     hide = False
     hidden = 0
     for l in r.stderr.splitlines():
-        m = ERR_HEADER.match( l )
+        m = ERR_HEADER.match(l)
         if m:
             if hint and m[1] != "IS":
                 hide = True
@@ -215,14 +231,18 @@ with tempfile.TemporaryDirectory( prefix="hsExprTest." ) as wd:
             else:
                 hide = False
         if hide:
-            print( l, file = sys.stderr )
+            print(l, file=sys.stderr)
         else:
-            print( l )
+            print(l)
     if hidden > 0:
-        print( "+ {} more errors hidden in syntax check mode, check that your function is correctly typed and named".format( hidden ) )
+        print(f"+ {hidden} more errors hidden in syntax check mode, check "
+              "that your function is correctly typed and named")
     if r.returncode != 0:
         if r.returncode == -14:
-            print( "\nTIMEOUT -- total time limit exceeded" );
-        print( "failed: {} ({})".format( r.returncode, "hint" if hint else "no hint" ), file = sys.stderr )
-        sys.exit( 1 )
-    sys.exit( 0 )
+            print("\nTIMEOUT -- total time limit exceeded")
+        is_hint = "hint" if hint else "no hint"
+        print(f"failed: {r.returncode} ({is_hint})", file=sys.stderr)
+        sys.exit(1)
+    sys.exit(0)
+
+# vim: colorcolumn=80 expandtab sw=4 ts=4
