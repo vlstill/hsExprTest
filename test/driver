@@ -23,7 +23,7 @@ test -n "$MATCH" && function match() { echo $1 | grep -q $MATCH; }
 function check() {
     local GOT=$1
     local TEST=$2
-    if echo $TEST | grep -wqF $GOT; then
+    if echo $TEST | grep -wqF $GOT && ! grep '^W:' $4; then
         echo "passed"
     else
         echo "failed (got $GOT)"
