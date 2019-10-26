@@ -70,8 +70,8 @@ class MailMode (enum.Flag):
         if isinstance(value, str):
             value = [value]
         out = MailMode.Never
-        mapping = dict([(k.lower(), v)
-                        for k, v in MailMode.__members__.items()])
+        mapping = {k.lower(): v
+                   for k, v in MailMode.__members__.items()}
         for v in value:
             ev = mapping.get(v.lower().replace(' ', '').replace('_', ''))
             if ev is None:
@@ -120,8 +120,8 @@ def send_mail(course : str, mail_type : MailType, conf : dict, result : dict,
         mode |= MailMode.OnError
 
     send = False
-    success = all([e.get("points", 0) >= e.get("out_of", 0)
-                  for e in result["attempts"][0].get("points", {})])
+    success = all(e.get("points", 0) >= e.get("out_of", 0)
+                  for e in result["attempts"][0].get("points", {}))
     send |= failure and MailMode.OnError in mode
     send |= success and MailMode.OnSuccess in mode
     send |= not success and MailMode.OnFailure in mode
@@ -237,7 +237,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
             send_mail(course=course, conf=conf, result=entry,
                       author=filemeta.author, notebooks=notebooks,
                       failure=failure, mail_type=mail_type)
-        except:
+        except Exception:
             fprint(f"ERROR: Mail sending failed for {filemeta.author}:\n"
                    + is_entry.text)
             traceback.print_exc()
