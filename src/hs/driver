@@ -229,7 +229,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        pass_fds=pass_fds, encoding="utf-8")
 
-    print(r.stdout, end='')
+    print(r.stdout, end='', flush=True)
     hide = False
     hidden = 0
     for l in r.stderr.splitlines():
@@ -241,18 +241,18 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             else:
                 hide = False
         if hide:
-            print(l, file=sys.stderr)
+            print(l, file=sys.stderr, flush=True)
         else:
-            print(l)
+            print(l, flush=True)
     if hidden > 0:
         print(f"+ {hidden} more errors hidden in syntax check mode, check "
-              "that your function is correctly typed and named")
+              "that your function is correctly typed and named", flush=True)
 
     is_hint = "hint" if hint else "no hint"
     if not hint and len(execution) != 0:
         if r.returncode != 0:
             print(f"failed (compilation): {r.returncode} ({is_hint})",
-                  file=sys.stderr)
+                  file=sys.stderr, flush=True)
             sys.exit(2)
         r = subprocess.run(execution, stdin=subprocess.DEVNULL,
                            stdout=sys.stdout, stderr=sys.stdout,
@@ -260,8 +260,9 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
 
     if r.returncode != 0:
         if r.returncode == -14:
-            print("\nTIMEOUT -- total time limit exceeded")
-        print(f"failed: {r.returncode} ({is_hint})", file=sys.stderr)
+            print("\nTIMEOUT -- total time limit exceeded", flush=True)
+        print(f"failed: {r.returncode} ({is_hint})",
+              file=sys.stderr, flush=True)
         sys.exit(1)
     sys.exit(0)
 
