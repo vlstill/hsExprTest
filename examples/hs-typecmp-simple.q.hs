@@ -1,3 +1,3 @@
--- @ type
+-- @ typecmp
 
 Bool  -> [[a]] -> Int
