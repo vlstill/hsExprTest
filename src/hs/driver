@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 from typing import List, Pattern, TextIO
 
 from typing_extensions import Final
@@ -44,8 +45,10 @@ MAIN_EXTS : Final[List[str]] = T_EXTS
 
 OPT_R : Final[Pattern[str]] = re.compile("-- @ +([^:]*)(?:: +(.*))?")
 LIST_SPLIT_R : Final[Pattern[str]] = re.compile(" *, *| +")
-ERR_HEADER : Final[Pattern[str]] = re.compile("^([^:]*).hs:[0-9]*:[0-9]*:")
+ERR_HEADER : Final[Pattern[str]] = re.compile(r"^([^:]*)[.]hs:[0-9]*:[0-9]*:")
 IGNORE : Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
+AST_CHECK_DECL : Final[Pattern[str]] = re.compile(r"^([^\s:]*)\s*::\s*ASTCheck")
+GHC_LINE_ERR : Final[Pattern[str]] = re.compile(r"^[0-9]*\s*\|")
 
 
 class TestConf:
@@ -58,6 +61,8 @@ class TestConf:
         self.exts : List[str] = []
         self.imports : List[str] = []
         self.compiled : bool = False
+        self.reflection : bool = False
+        self.ast_checks : List[str] = []
 
 
 def warn(msg : str) -> None:
@@ -106,10 +111,17 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                         conf.typecmp = True
                     elif key == "compiled":
                         conf.compiled = val2bool(val)
+                    elif key == "reflection":
+                        conf.reflection = val2bool(val)
                     elif key == "import":
                         conf.imports += LIST_SPLIT_R.split(val)
                     else:
                         warn("unknown option '{}: {}'".format(key, val))
+
+                if conf.reflection:
+                    match = AST_CHECK_DECL.search(l)
+                    if match:
+                        conf.ast_checks.append(match[1])
 
                 if inject:
                     conf.inject += l
@@ -157,7 +169,48 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
                         type_idx += 1
 
 
+def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
+                           conf : TestConf) -> None:
+    with open(os.path.join(dstDir, "StudentReflector.hs"), "w") as dst:
+        with open(srcFile, "r", encoding='utf-8-sig') as src:
+            dst.write(textwrap.dedent("""\
+                {-# LANGUAGE TemplateHaskell #-}
+
+                module StudentReflector (
+                    studentAST, runASTCheck,
+                    module Test.Expr.Reflection
+                    ) where
+
+                import Test.Expr.Reflection
+
+                studentAST :: Q [Dec]
+                studentAST = [d|
+                """))
+
+            for l in src:
+                dst.write("    " + l)
+            dst.write("    |]\n\n")
+            dst.write(textwrap.dedent("""\
+                runASTCheck :: ASTCheck -> Q [Dec]
+                runASTCheck check = studentAST >>= check >> pure []
+                """))
+    with open(os.path.join(dstDir, "StudentASTChecks.hs"), "w") as dst:
+        dst.write(textwrap.dedent("""\
+            {-# LANGUAGE TemplateHaskell #-}
+
+            module StudentASTChecks () where
+
+            import StudentReflector ( runASTCheck )
+            import qualified Teacher
+
+            """))
+
+        for c in conf.ast_checks:
+            dst.write(f"$(runASTCheck Teacher.{c})\n")
+
+
 def mkMainFile(filename : FilePath, conf : TestConf) -> None:
+    reflect = "import qualified StudentASTChecks" if conf.reflection else ""
     with open(filename, "w") as dst:
         dst.write("{-# LANGUAGE " + ", ".join(MAIN_EXTS) + "#-}\n")
         dst.write(f"""
@@ -165,6 +218,7 @@ module Main ( main ) where
 
 import qualified Teacher
 import safe qualified Student
+{reflect}
 import Test.Expr
 import Test.Expr.Config
 import Test.Expr.Types ( TypeOrder ( TEqual ) )
@@ -174,6 +228,8 @@ import Language.Haskell.TH ( Exp ( ConE ) )
 import Test.QuickCheck.Convertible ( convert )
 import qualified Test.QuickCheck.Modifiers
 import qualified Test.QuickCheck.Range
+import System.Exit
+import Control.Monad
 """)
         for imp in conf.imports:
             dst.write("import qualified {}\n".format(imp))
@@ -197,6 +253,8 @@ $(testMainEx (TestConfig
 with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     conf = mkTeacherFile(teacher, os.path.join(wd, "Teacher.hs"))
     mkStudentFile(student, os.path.join(wd, "Student.hs"), conf)
+    if conf.reflection:
+        mkStudentReflectorFile(student, wd, conf)
     os.chdir(wd)
 
     mkMainFile("Main.hs", conf)
@@ -231,16 +289,21 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
 
     print(r.stdout, end='', flush=True)
     hide = False
+    ast_check = False
     hidden = 0
     for l in r.stderr.splitlines():
         m = ERR_HEADER.match(l)
         if m:
-            if hint and m[1] != "IS":
+            hide = False
+            ast_check = False
+            if hint and (m[1] != "IS" and m[1] != "StudentASTChecks"):
                 hide = True
                 hidden += 1
-            else:
-                hide = False
+            elif m[1] == "StudentASTChecks":
+                ast_check = True
         if hide:
+            print(l, file=sys.stderr, flush=True)
+        elif ast_check and GHC_LINE_ERR.search(l) is not None:
             print(l, file=sys.stderr, flush=True)
         else:
             print(l, flush=True)
