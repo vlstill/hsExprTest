@@ -20,7 +20,7 @@ import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Data.Function ( (&) )
-import Data.Maybe ( isNothing, catMaybes )
+import Data.Maybe ( isNothing, isJust, catMaybes )
 
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
@@ -70,6 +70,13 @@ testMainEx config = do
          & when (isNothing (tname <|> eval <|> evalEx))
     let Just studentName = sname'
 
+    testBefore <- lookupValueName "Teacher.testBefore"
+    $(pfail "Error: testBefore ignored in evaluator mode")
+        & when (isJust (eval <|> evalEx) && isJust testBefore)
+    let testBeforeExpr = case testBefore of
+                            Nothing -> [| pure True |]
+                            Just t -> pure $ VarE t
+
     let timeout = maybe defimeout tmout <$> lookupValueName "Teacher.timeout"
     comparer <- maybe defcmp VarE <$> lookupValueName "Teacher.comparer"
     let args = maybe defargs VarE <$> lookupValueName "Teacher.args"
@@ -84,6 +91,7 @@ testMainEx config = do
               (_, Just ev, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE ev `AppE` VarE studentName) |]
               (_, _, Just teacherName) -> [| scheduleAlarm $(timeout) >>
+                                          $(testBeforeExpr) >>= \tbr -> unless tbr exitFailure >>
                                           runProperty $(args) $(prop Prop {..}) |]
               _ -> fail "impossible"
     pure [ SigD mainName mainType
