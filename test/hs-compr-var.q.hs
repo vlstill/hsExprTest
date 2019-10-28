@@ -2,7 +2,6 @@
 -- @ require type: True
 
 import Test.Expr.Reflection
-import Data.Maybe
 
 expr = "empty"
 

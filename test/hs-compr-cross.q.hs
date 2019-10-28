@@ -3,7 +3,6 @@
 -- @ allow imports: False
 
 import Test.Expr.Reflection
-import Data.Maybe
 
 expr = "cross"
 
