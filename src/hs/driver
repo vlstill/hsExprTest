@@ -276,7 +276,8 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             invocation.extend(["-e", "return ()"])
         else:
             if conf.compiled:
-                invocation[:0] = ["ghc", "-o", "test", "-O2"]
+                invocation[:0] = ["ghc", "-o", "test", "-odir", ".",
+                                  "-hidir", ".", "-O2"]
                 execution = ["./test"]
             else:
                 invocation.insert(0, "runghc")
