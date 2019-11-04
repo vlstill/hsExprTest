@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, TemplateHaskell #-}
 
 {- | A journal can be used (when running under the ExprTest service) to set
 points and affect evaluation environment.
@@ -7,7 +7,7 @@ points and affect evaluation environment.
 module Test.Journal (
           -- * Journal Sinks
           JournalSink (NullSink), getJournalSinkFd,
-          JournalMsg (journal, getJS),
+          JournalMsg (journal),
           -- * Journal Entries
           Points (..),
           -- * Details
@@ -16,7 +16,11 @@ module Test.Journal (
 import System.IO ( Handle, hSetBinaryMode, hSetBuffering, hPutStrLn, BufferMode( LineBuffering ) )
 import System.Posix.IO ( fdToHandle )
 import System.Posix.Types ( Fd )
-import Text.JSON
+import Data.Aeson.TH ( deriveJSON, defaultOptions )
+import Data.Aeson.Text ( encodeToLazyText )
+import Data.Aeson ( ToJSON, fieldLabelModifier )
+import Data.Char ( toLower, isUpper )
+import Data.Text.Lazy ( unpack )
 
 -- | A journal is either 'NullSink' (journalling does nothing) or is a sing
 -- created with 'getJournalSinkFd'.
@@ -34,23 +38,21 @@ getJournalSinkFd fd = JournalSink <$> do
                         pure h
 
 -- | Used for assigning points.
-data Points = Points { points :: Rational, outOf :: Rational, comment :: String }
+data Points = Points { points :: Double, outOf :: Double, comment :: String }
               deriving (Show, Eq)
 
-class JournalMsg e where
+
+$(let upperToUnderscores :: String -> String
+      upperToUnderscores [] = []
+      upperToUnderscores (x:xs)
+          | isUpper x = '_' : toLower x : upperToUnderscores xs
+          | otherwise = x : upperToUnderscores xs
+  in deriveJSON defaultOptions { fieldLabelModifier = upperToUnderscores } ''Points)
+
+class ToJSON e => JournalMsg e where
     -- | Submit an entry to journal.
     journal :: JournalSink -> e -> IO ()
     journal NullSink _        = pure ()
-    journal (JournalSink h) e = hPutStrLn h . encode $ getJS e
+    journal (JournalSink h) e = hPutStrLn h . unpack $ encodeToLazyText e
 
-    -- | Implementation of entry serialization.
-    getJS :: e -> JSObject JSValue
-
-instance JournalMsg Points where
-    getJS Points { points, outOf, comment } = toJSObject
-                                                [ ("points", r2js points)
-                                                , ("out_of", r2js outOf)
-                                                , ("comment", showJSON comment)
-                                                ]
-      where
-        r2js = JSRational False
+instance JournalMsg Points
