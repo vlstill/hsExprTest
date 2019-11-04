@@ -8,7 +8,7 @@
 
 module Test.Expr (
                  -- * Test Entry
-                 testMain, testMainEx,
+                 testMain,
                  testType, extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
                  (<==>), testArgs, runProperty, Args (..), scheduleAlarm
@@ -51,10 +51,7 @@ testArgs = stdArgs { chatty = False
                    }
 
 testMain :: TestConfig -> Q [Dec]
-testMain = testMainEx
-
-testMainEx :: TestConfig -> Q [Dec]
-testMainEx config = do
+testMain config = do
     studentExp' <- maybe unitExp (fmap (fmap VarE) . lookupValueName) sn
     $(pfail "Could not find student expression %s") name & when (isNothing studentExp')
     tname   <- maybe (pure Nothing) lookupValueName tn
