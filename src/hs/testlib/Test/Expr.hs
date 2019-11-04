@@ -20,7 +20,7 @@ import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Data.Function ( (&) )
-import Data.Maybe ( isNothing, isJust, fromMaybe, catMaybes )
+import Data.Maybe ( isNothing, isJust, fromMaybe, fromJust, catMaybes )
 
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
@@ -90,7 +90,9 @@ testMainEx config = do
                                  $(pure $ VarE evx `AppE` liftSafeTH config `AppE` studentExp) |]
               (_, Just ev, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE ev `AppE` studentExp) |]
-              (_, _, Just teacherName) -> [| scheduleAlarm $(timeout) >>
+              (_, _, Just teacherName) -> lookupValueName (fromJust sn) >>=
+                                          \(Just studentName) -> -- used by {..}
+                                          [| scheduleAlarm $(timeout) >>
                                           $(testBeforeExpr) >>= \tbr -> unless tbr exitFailure >>
                                           runProperty $(args) $(prop Prop {..}) |]
               _ -> fail "impossible"
