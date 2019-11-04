@@ -14,7 +14,8 @@ homepage:           https://github.com/vlstill/hsExprTest
 
 cabal-version:      >= 1.22
 build-type:         Simple
-tested-with:        GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5
+-- see https://travis-ci.org/vlstill/hsExprTest for current test results
+tested-with:        GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.1
 
 Library
   hs-source-dirs:   testlib
