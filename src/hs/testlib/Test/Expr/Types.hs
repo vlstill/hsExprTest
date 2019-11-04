@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift, DeriveDataTypeable, Unsafe #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, LambdaCase, DeriveLift, DeriveDataTypeable, Unsafe, CPP #-}
 
 -- | Functions for working with Template Haskell type representation.
 --
@@ -23,8 +23,10 @@ import Control.Arrow ( second, (>>>) )
 import Control.Monad ( filterM )
 import Data.List ( foldl', nub, nubBy )
 import Data.Foldable ( toList )
+#if ! MIN_VERSION_base(4, 13, 0)
 import Data.Semigroup ( (<>) )
 import Data.Monoid ( mempty )
+#endif
 import Data.Function ( on )
 import Data.Char ( isSpace )
 import Data.PartialOrder ( PartialOrder ( pcompare ) )
@@ -300,6 +302,10 @@ getTVars = go
     go ConstraintT           = mempty
     go (LitT _)              = mempty
     go WildCardT             = mempty
+#if MIN_VERSION_template_haskell(2, 15, 0)
+    go (AppKindT t _)        = go t
+    go (ImplicitParamT _ t)  = go t
+#endif
 
     goBndr (PlainTV n)    = Set.singleton n
     goBndr (KindedTV n _) = Set.singleton n
@@ -329,6 +335,10 @@ rename sub = go
     go t@ConstraintT         = t
     go t@(LitT _)            = t
     go t@WildCardT           = t
+#if MIN_VERSION_template_haskell(2, 15, 0)
+    go (AppKindT t k)        = AppKindT (go t) k
+    go (ImplicitParamT s t)  = ImplicitParamT s (go t)
+#endif
 
     goBndr (PlainTV n)    = PlainTV (ren n)
     goBndr (KindedTV n k) = KindedTV (ren n) k
