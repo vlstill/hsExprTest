@@ -20,7 +20,7 @@ import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Data.Function ( (&) )
-import Data.Maybe ( isNothing, isJust, catMaybes )
+import Data.Maybe ( isNothing, isJust, fromMaybe, catMaybes )
 
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
@@ -30,7 +30,7 @@ import Control.Applicative ( (<|>) )
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
                              Lit (..), Pat, lookupValueName, mkName, Info (..),
-                             Type, reify )
+                             Type, reify, tupleDataName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -61,14 +61,14 @@ testMain name typeOrder pat degen = testMainEx $ TestConfig conf
 
 testMainEx :: TestConfig -> Q [Dec]
 testMainEx config = do
-    sname' <- lookupValueName sn
-    $(pfail "Could not find student expression %s") name & when (isNothing sname')
-    tname   <- lookupValueName tn
+    studentExp' <- maybe unitExp (fmap (fmap VarE) . lookupValueName) sn
+    $(pfail "Could not find student expression %s") name & when (isNothing studentExp')
+    tname   <- maybe (pure Nothing) lookupValueName tn
     eval    <- lookupValueName "Teacher.evaluator"
     evalEx  <- lookupValueName "Teacher.evaluatorEx"
     $(pfail "Either teacher expression or evaluator has to be given for %s") name
          & when (isNothing (tname <|> eval <|> evalEx))
-    let Just studentName = sname'
+    let Just studentExp = studentExp'
 
     testBefore <- lookupValueName "Teacher.testBefore"
     $(pfail "Error: testBefore ignored in evaluator mode")
@@ -87,9 +87,9 @@ testMainEx config = do
     degenType <- sequence degen
     body <- case (evalEx, eval, tname) of
               (Just evx, _, _) -> [| scheduleAlarm $(timeout) >>
-                                 $(pure $ VarE evx `AppE` liftSafeTH config `AppE` VarE studentName) |]
+                                 $(pure $ VarE evx `AppE` liftSafeTH config `AppE` studentExp) |]
               (_, Just ev, _) -> [| scheduleAlarm $(timeout) >>
-                                 $(pure $ VarE ev `AppE` VarE studentName) |]
+                                 $(pure $ VarE ev `AppE` studentExp) |]
               (_, _, Just teacherName) -> [| scheduleAlarm $(timeout) >>
                                           $(testBeforeExpr) >>= \tbr -> unless tbr exitFailure >>
                                           runProperty $(args) $(prop Prop {..}) |]
@@ -101,10 +101,12 @@ testMainEx config = do
     tmout x = VarE 'fromIntegral `AppE` VarE x
     defcmp = VarE '(<==>)
     defargs = VarE 'testArgs
-    tn = "Teacher." ++ name
-    sn = "Student." ++ name
+    tn = ("Teacher." ++) <$> mayName
+    sn = ("Student." ++) <$> mayName
+    name = fromMaybe "()" mayName
+    unitExp = pure . Just . ConE $ tupleDataName 0
 
-    Just name = config `getConfig` Expression
+    mayName = config `getConfig` Expression
     Just typeOrder = config `getConfig` TypeOrd
     pat = config `getConfig` TestPattern
     degen = config `getConfig` DegenType
