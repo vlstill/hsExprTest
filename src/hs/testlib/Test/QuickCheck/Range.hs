@@ -9,7 +9,7 @@
 -- >>> foo :: Range Int 0 255 -> Bool
 -- >>> foo (Range v) = /* ... */
 --
--- (c) 2014 Vladimír Štill
+-- (c) 2014-2019 Vladimír Štill
 
 module Test.QuickCheck.Range
     ( Range, Ranges ( Range, unRange )
@@ -22,6 +22,7 @@ module Test.QuickCheck.Range
 import GHC.TypeLits
 import Data.Proxy
 import Data.Char ( chr, ord )
+import Data.Kind ( Type )
 import Data.Function ( on )
 import Control.Arrow
 import System.Random
@@ -32,14 +33,14 @@ import Test.QuickCheck
 --
 -- @Range Int 0 42@ will have arbitrary values of type 'Int' in range from
 -- 0 to 42 inclusive.
-type Range (i :: *) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
+type Range (i :: Type) (from :: Nat) (to :: Nat) = Ranges i '[ '(from, to) ]
 
 -- | Modifier for choosing arbitrarily from multiple ranges (first range
 -- is chosen uniformly, than value from this range is chosen uniformly).
 --
 -- For example, @Ranges Int [(0,0), (10, 19)]@ will with probability @1/2@
 -- generate @0@, and with probability @1/20@ one of (10, 19) inclusive.
-newtype Ranges :: * -> [ (Nat, Nat) ] -> * where
+newtype Ranges :: Type -> [ (Nat, Nat) ] -> Type where
     Range :: { unRange :: i } -> Ranges i ranges
 
 -- | Show instance is transparent.
@@ -119,7 +120,7 @@ instance forall ranges. CRange ranges => Arbitrary (CharRanges ranges) where
     shrink = charRangeToRange >>> unsafeRMap ord >>> shrink >>> map (CharRange . unsafeRMap chr)
 
 
-newtype BoundedList (a :: *) (from :: Nat) (to :: Nat) = BoundedList { unBoundedList :: [a] }
+newtype BoundedList (a :: Type) (from :: Nat) (to :: Nat) = BoundedList { unBoundedList :: [a] }
         deriving ( Eq, Ord )
 
 instance Show a => Show (BoundedList a from to) where
