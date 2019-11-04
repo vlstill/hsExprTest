@@ -20,7 +20,7 @@ import Test.QuickCheck.Random ( mkQCGen )
 
 import Data.Typeable ( typeOf )
 import Data.Function ( (&) )
-import Data.Maybe ( isNothing, isJust, fromMaybe, fromJust, catMaybes )
+import Data.Maybe ( isNothing, isJust, fromMaybe, fromJust )
 
 import Control.Exception ( SomeException ( SomeException ), Exception, catch, evaluate )
 import Control.DeepSeq ( force, NFData )
@@ -29,8 +29,8 @@ import Control.Applicative ( (<|>) )
 
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
-                             Lit (..), Pat, lookupValueName, mkName, Info (..),
-                             Type, reify, tupleDataName )
+                             Lit (..), lookupValueName, mkName, Info (..),
+                             reify, tupleDataName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -38,7 +38,6 @@ import System.Posix.Signals ( scheduleAlarm )
 import Text.Printf.Mauke.TH ( sprintf )
 
 import Test.Expr.Utils
-import Test.Expr.Types
 import Test.Expr.Property
 import Test.Expr.Config
 
@@ -51,13 +50,8 @@ testArgs = stdArgs { chatty = False
                    , replay = Just (mkQCGen 0, 0)
                    }
 
-testMain :: ExprName -> TypeOrder -> Maybe (Q Pat) -> Maybe (Q Type) -> Q [Dec]
-testMain name typeOrder pat degen = testMainEx $ TestConfig conf
-  where
-    conf = ConfigEntry Expression name : ConfigEntry TypeOrd typeOrder : conf'
-    conf' = catMaybes [ ConfigEntry DegenType <$> degen
-                      , ConfigEntry TestPattern <$> pat
-                      ]
+testMain :: TestConfig -> Q [Dec]
+testMain = testMainEx
 
 testMainEx :: TestConfig -> Q [Dec]
 testMainEx config = do
