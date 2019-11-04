@@ -19,7 +19,7 @@ tested-with:        GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5
 Library
   hs-source-dirs:   testlib
 
-  build-depends:    base >= 4.10,
+  build-depends:    base >= 4.10 && < 4.14,
                     template-haskell >= 2.12 && < 2.16,
                     th-expand-syns >= 0.4,
                     QuickCheck >= 2.7,
