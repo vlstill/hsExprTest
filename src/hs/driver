@@ -236,7 +236,7 @@ import Control.Monad
 
         if not conf.typecmp:
             dst.write(f"""
-$(testMainEx (TestConfig
+$(testMain (TestConfig
       ( ConfigEntry TypeOrd $(extractOptionDef "typeOrder" (ConE 'TEqual))
       : ConfigEntry JournalFd {journal_fd}
       : catMaybes [ConfigEntry TestPattern <$> $(extractOptionMaybe "pattern"),
