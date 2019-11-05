@@ -1,4 +1,4 @@
-{-# LANGUAGE Safe, NoImplicitPrelude, CPP #-}
+{-# LANGUAGE Safe, NoImplicitPrelude #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- (c) 2016-2018 Vladimír Štill
