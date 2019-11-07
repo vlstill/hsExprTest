@@ -292,7 +292,9 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     if conf.compiled:
         for l in r.stdout.splitlines():
             if COMPILE_LINE.search(l) is None:
-                print(l, end='', flush=True)
+                print(l, flush=True)
+            else:
+                print(l, flush=True, file=sys.stderr)
     else:
         print(r.stdout, end='', flush=True)
     hide = False
