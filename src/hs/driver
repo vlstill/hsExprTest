@@ -49,6 +49,7 @@ ERR_HEADER : Final[Pattern[str]] = re.compile(r"^([^:]*)[.]hs:[0-9]*:[0-9]*:")
 IGNORE : Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
 AST_CHECK_DECL : Final[Pattern[str]] = re.compile(r"^([^\s:]*)\s*::\s*ASTCheck")
 GHC_LINE_ERR : Final[Pattern[str]] = re.compile(r"^[0-9]*\s*\|")
+COMPILE_LINE : Final[Pattern[str]] = re.compile(r"^(\[[0-9]+\s+of\s+[0-9]+\]|Linking .* ...)")
 
 
 class TestConf:
@@ -288,7 +289,12 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        pass_fds=pass_fds, encoding="utf-8")
 
-    print(r.stdout, end='', flush=True)
+    if conf.compiled:
+        for l in r.stdout.splitlines():
+            if COMPILE_LINE.search(l) is None:
+                print(l, end='', flush=True)
+    else:
+        print(r.stdout, end='', flush=True)
     hide = False
     ast_check = False
     hidden = 0
