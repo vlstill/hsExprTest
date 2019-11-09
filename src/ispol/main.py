@@ -89,7 +89,7 @@ RE_WHITENL : Final = re.compile(r' *\n')
 
 
 def escape_points(txt : str) -> str:
-    return RE_STARNUM.sub(r'* \1', txt)
+    return RE_STARNUM.sub("*\N{ZERO WIDTH SPACE}\\1", txt)
 
 
 def fprint(what, **kvargs):
