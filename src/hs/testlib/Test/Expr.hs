@@ -11,7 +11,7 @@ module Test.Expr (
                  testMain,
                  testType, extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
-                 (<==>), testArgs, runProperty, Args (..), scheduleAlarm
+                 (<==>), testArgs, runProperty, runProperties, Args (..), scheduleAlarm
                  ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
@@ -128,15 +128,22 @@ extractOption name = lookupValueName ("Teacher." ++ name) >>= \case
                         Nothing -> $(pfail "missing a mandatory option %s") name
                         Just x  -> pure $ VarE x
 
-runProperty :: Testable prp => Args -> prp -> IO ()
-runProperty args prp = do
+runPropertyAnd :: Testable prp => IO () -> (Result -> IO ()) -> Args -> prp -> IO ()
+runPropertyAnd onSucc onFail args prp = do
     r <- quickCheckWithResult args prp
     case r of
-        Success {}                      -> putStrLn "test passed" >> exitSuccess
-        _                               -> testFailure (output r)
-  where
-    testFailure output = do putStrLn output
-                            exitFailure
+        Success {}                      -> onSucc
+        _                               -> onFail r
+
+runProperty :: Testable prp => Args -> prp -> IO ()
+runProperty = runPropertyAnd (putStrLn "test passed" >> exitSuccess) onPropFail
+
+onPropFail :: Result -> IO ()
+onPropFail r = putStrLn (output r) >> exitFailure
+
+runProperties :: Testable prp => Args -> [prp] -> IO ()
+runProperties args prps = mapM_ (runPropertyAnd (pure ()) onPropFail args) prps >>
+                          exitSuccess
 
 -- | Exception aware comparison. If no exception is thrown when evaluating
 -- either of the values, compares them using '(==)', if exception is thrown
