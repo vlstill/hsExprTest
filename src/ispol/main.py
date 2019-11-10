@@ -281,7 +281,7 @@ def poll():
 
                 for f in entries:
                     forced = f.ispath in OVERRIDES
-                    reeval = "reeval" in OVERRIDES
+                    reeval = "reeval" in OVERRIDES and f.read
                     if not reeval and not forced and len(OVERRIDES):
                         continue
                     if not forced and not reeval and f.read:
