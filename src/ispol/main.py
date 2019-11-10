@@ -254,6 +254,8 @@ def poll():
             paths = d.get("paths", [])
             if "path" in d:
                 paths.append(d["path"])
+            if not d.get("enabled", True):
+                continue
             for path in paths:
                 try:
                     entries = files.list_directory(path).entries
