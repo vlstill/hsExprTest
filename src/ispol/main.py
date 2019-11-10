@@ -219,8 +219,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
                                                         .replace('\t', "  "))
             response["comment"] = c
         if reeval:
-            for k, v in response:
-                if k not in entry["attempts"][0] or entry["attempts"][0] != v:
+            for k, v in response.items():
+                if k not in entry["attempts"][0] or entry["attempts"][0].get(k) != v:
                     dirty = True
                     fprint(f"reeval {filemeta.author}/{k}:\n" +\
                            textwrap.indent(f"{entry['attempts'][0].get(k)}\n==>\n{v}\n\n", "    "))
@@ -281,7 +281,7 @@ def poll():
 
                 for f in entries:
                     forced = f.ispath in OVERRIDES
-                    reeval = OVERRIDES == ["reeval"]
+                    reeval = "reeval" in OVERRIDES
                     if not reeval and not forced and len(OVERRIDES):
                         continue
                     if not forced and not reeval and f.read:
@@ -324,7 +324,11 @@ def main():
 
     if len(sys.argv) > 2:
         stop_signal = True
-        fprint("Will only handle forced files")
+        if "reeval" in OVERRIDES:
+            fprint("Reevaluating")
+        else:
+            fprint("Will only handle forced files")
+
     poller()
     fprint("exiting…")
 
