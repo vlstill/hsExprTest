@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import enum
 import json
+import os.path
 import re
 import signal
 import smtplib
@@ -201,6 +202,9 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         entry["attempts"][0].update(base_entry)
         if "error" in entry["attempts"][0]:
             fprint(f"W: could not reeval after error: {filemeta.author}")
+            return
+        if entry["attempts"][0].get("filename", "") != os.path.basename(filemeta.ispath):
+            fprint(f"W: skipping file {filemeta.ispath} as it is not last")
             return
     else:
         entry["attempts"].insert(0, base_entry)
