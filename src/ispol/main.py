@@ -175,7 +175,7 @@ def fileapi_try_attempts(fn : Callable[[], ta], attempts) -> ta:
 def process_file(course : str, notebooks : isapi.notebooks.Connection,
                  files : isapi.files.Connection,
                  filemeta : isapi.files.FileMeta, conf : dict,
-                 upstream : str, forced : bool = False) -> None:
+                 upstream : str, forced : bool = False, reeval : bool = False) -> None:
     fprint(f"Processing {filemeta.ispath}…")
     qid = conf["id"]
     attempts = conf.get("attempts")
@@ -188,6 +188,7 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     is_entry = notebook.get(filemeta.author, isapi.notebooks.Entry(""))
     entry = yaml.safe_load(is_entry.text) or {}
     timestamp = time.strftime("%Y-%m-%d %H:%M")
+    dirty = False
 
     base_entry = {"time": timestamp, "filename": filemeta.shortname}
     data = fileapi_try_attempts(lambda: files.get_file(filemeta).data, 5)
@@ -196,8 +197,14 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
         total_points = float(total_points[1:])
     if "attempts" not in entry:
         entry["attempts"] = [base_entry]
+    elif reeval:
+        entry["attempts"][0].update(base_entry)
+        if "error" in entry["attempts"][0]:
+            fprint(f"W: could not reeval after error: {filemeta.author}")
+            return
     else:
         entry["attempts"].insert(0, base_entry)
+
     if not forced and attempts is not None \
             and len(entry.get("attempts", [])) > attempts:
         entry["attempts"][0]["error"] = "Too many attempts"
@@ -211,14 +218,20 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
             c = RE_WHITENL.sub('\n', response["comment"].rstrip()
                                                         .replace('\t', "  "))
             response["comment"] = c
-        new_total_points = sum(p["points"] for p in response["points"])
-        if conf.get("aggregate", "last") == "max":
-            total_points = max(filter(lambda x: x is not None,
-                                      [total_points, new_total_points]))
-        else:
-            total_points = new_total_points
-        entry["total_points"] = f"*{total_points}"
+        if reeval:
+            for k, v in response:
+                if k not in entry["attempts"][0] or entry["attempts"][0] != v:
+                    dirty = True
+                    fprint(f"reeval {filemeta.author}/{k}:\n" +\
+                           textwrap.indent(f"{entry['attempts'][0].get(k)}\n==>\n{v}\n\n", "    "))
         entry["attempts"][0].update(response)
+
+        all_points = [sum(p["points"] for p in a["points"]) for a in entry["attempts"]]
+        if conf.get("aggregate", "last") == "max":
+            total_points = max(all_points)
+        else:
+            total_points = all_points[0]
+        entry["total_points"] = f"*{total_points}"
 
     for i in range(len(entry["attempts"])):
         if "comment" in entry["attempts"][i]:
@@ -227,21 +240,24 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
 
     is_entry.text = string_yaml(entry)
     failure = False
-    try:
-        notebooks.store(note, filemeta.author, is_entry)
-    except isapi.notebooks.NotebookException as ex:
-        fprint(f"Error with isapi.notebooks (sending mail): {ex}")
-        failure = True
-    for mail_type in [MailType.Student, MailType.Teacher]:
+    if not reeval or dirty:
         try:
-            send_mail(course=course, conf=conf, result=entry,
-                      author=filemeta.author, notebooks=notebooks,
-                      failure=failure, mail_type=mail_type)
-        except Exception:
-            fprint(f"ERROR: Mail sending failed for {filemeta.author}:\n"
-                   + is_entry.text)
-            traceback.print_exc()
-    fprint(f"done, {total_points} points")
+            notebooks.store(note, filemeta.author, is_entry)
+        except isapi.notebooks.NotebookException as ex:
+            fprint(f"Error with isapi.notebooks (sending mail): {ex}")
+            failure = True
+        for mail_type in [MailType.Student, MailType.Teacher]:
+            try:
+                send_mail(course=course, conf=conf, result=entry,
+                          author=filemeta.author, notebooks=notebooks,
+                          failure=failure, mail_type=mail_type)
+            except Exception:
+                fprint(f"ERROR: Mail sending failed for {filemeta.author}:\n"
+                       + is_entry.text)
+                traceback.print_exc()
+        fprint(f"done, {filemeta.author}: {total_points} points")
+    else:
+        fprint(f"done, {filemeta.author} not updated")
 
 
 def poll():
@@ -265,13 +281,15 @@ def poll():
 
                 for f in entries:
                     forced = f.ispath in OVERRIDES
-                    if not forced and len(OVERRIDES):
+                    reeval = OVERRIDES == ["reeval"]
+                    if not reeval and not forced and len(OVERRIDES):
                         continue
-                    if not forced and f.read:
+                    if not forced and not reeval and f.read:
                         fprint(f"Skipping read {f.ispath}")
                         continue
                     process_file(course, notebooks, files, f, d,
-                                 config["upstream"], forced)
+                                 config["upstream"], forced=forced,
+                                 reeval=reeval)
 
 
 def main():
