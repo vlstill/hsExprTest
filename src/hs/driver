@@ -190,7 +190,7 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
 
             for l in src:
                 dst.write("    " + l)
-            dst.write("    |]\n\n")
+            dst.write("\n    |]\n\n")
             dst.write(textwrap.dedent("""\
                 runASTCheck :: ASTCheck -> Q [Dec]
                 runASTCheck check = studentAST >>= check >> pure []
