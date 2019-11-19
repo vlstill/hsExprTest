@@ -13,6 +13,10 @@ module Test.Expr.Reflection (
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+import Language.Haskell.TH.PprLib ( Doc )
+import Data.Data ( gmapT, Data )
+import Data.Typeable ( cast )
+import Data.Maybe ( fromJust )
 
 
 -- | Any function with type 'ASTCheck' declared in the teacher's file will be
@@ -58,7 +62,7 @@ callStartsWithOneOfD' allowComposition names dec = case dec of
     ValD _ _ _               ->  fail "Only plain variable declarations (without pattern matching) allowed"
     FunD _ [Clause _ body _] -> csB body
     FunD _ _                 -> fail "Forbidden multiline declaration"
-    d                        -> fail $ "Disallowed declaration " ++ show (ppr d)
+    d                        -> fail $ "Disallowed declaration " ++ compactPpr d
   where
     csB (NormalB expr) = callStartsWithOneOfE' allowComposition names expr
     csB _              = fail "Forbidden guards"
@@ -85,8 +89,20 @@ callStartsWithOneOfE' allowComposition names expr = go expr
       | otherwise                       = err n
     go e                                = reportError "go e" >> err e
 
-    err n = fail $ "Found `" ++ show (ppr n) ++ "', expected expression starting with one of "
-                   ++ show (map (\(Name (OccName x) _) -> x) names)
+    err n = fail $ "Found `" ++ compactPpr n ++ "', expected expression starting with one of "
+                   ++ show (map compactPpr' names)
+
+
+compactPpr' :: (Data a, Ppr a) => a -> Doc
+compactPpr' = ppr . stripNames
+  where
+    stripNames :: Data a => a -> a
+    stripNames d = case cast d of
+                      Nothing -> gmapT stripNames d
+                      Just (Name name _) -> fromJust . cast $ Name name NameS
+
+compactPpr :: (Data a, Ppr a) => a -> String
+compactPpr = show . compactPpr'
 
 -- | Version of 'callStartsWithOneOfE'' which does not accept function composition
 callStartsWithOneOfE :: [Name] -> Exp -> Q ()
