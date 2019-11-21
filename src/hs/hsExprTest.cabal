@@ -27,7 +27,7 @@ Library
                     deepseq >= 1.2,
                     random >= 1.1,
                     printf-mauke >= 0.7.0,
-                    aeson >= 1.4.4,
+                    aeson >= 1.3,
                     text,
                     unix,
                     containers
