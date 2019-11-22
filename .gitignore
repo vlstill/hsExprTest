@@ -10,6 +10,7 @@ cabal-dev
 cabal.sandbox.config
 cabal.config
 _build
+is*.key
 
 # vim temporaries & spol
 *~
