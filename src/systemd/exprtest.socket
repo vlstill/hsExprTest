@@ -1,3 +1,5 @@
+# You might need to change path, user & group here and set proper paths in
+# exprtest.service.
 [Unit]
 Description=ExprTest IS frontend socket
 

@@ -1,3 +1,8 @@
+# Modify this file to suit your deployment: you will need to change
+# WorkingDirectory, --config, user, and possibly also path to the Python
+# interpreter.
+# You might need to change socket paths and socket user & group in
+# exprtest.socket.
 [Unit]
 Description=ExprTest IS frontend
 
