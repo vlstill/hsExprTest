@@ -289,7 +289,6 @@ def poll():
                     if not reeval and not forced and len(OVERRIDES):
                         continue
                     if not forced and not reeval and f.read:
-                        fprint(f"Skipping read {f.ispath}")
                         continue
                     process_file(course, notebooks, files, f, d,
                                  config["upstream"], forced=forced,
