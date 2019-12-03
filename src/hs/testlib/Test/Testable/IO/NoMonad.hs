@@ -10,6 +10,7 @@ module Test.Testable.IO.NoMonad (
     , getContents
     , readIO
     , readLn
+    , interact
     , putChar
     , putStr
     , putStrLn
