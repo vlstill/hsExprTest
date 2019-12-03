@@ -9,6 +9,7 @@ module Test.Testable.IO (
     , getLine
     , getChar
     , getContents
+    , interact
     , readIO
     , readLn
     , putChar

@@ -8,6 +8,7 @@ module Test.Testable.IO.Base (
     , getLine
     , getChar
     , getContents
+    , interact
     , readIO
     , readLn
     , putChar
@@ -64,18 +65,22 @@ data IOContext = IOContext { generator :: Int -> Maybe String
 
 fmapIO :: (a -> b) -> IO a -> IO b
 fmapIO f (IO io) = IO (fmap f . io)
+infixl 4 `fmapIO`
 
 pureIO :: a -> IO a
 pureIO x = IO (\_ -> pure x)
 
 appIO :: IO (a -> b) -> IO a -> IO b
 appIO (IO f) (IO x) = IO (\ctx -> f ctx <*> x ctx)
+infixl 4 `appIO`
 
 bindIO :: IO a -> (a -> IO b) -> IO b
 bindIO (IO a) f = IO (\ctx -> a ctx >>= \x -> unIO (f x) ctx)
+infixl 1 `bindIO`
 
 thenIO :: IO a -> IO b -> IO b
 thenIO x y = x `bindIO` const y
+infixl 1 `thenIO`
 
 mapMIO :: (a -> IO b) -> [a] -> IO ()
 mapMIO f = foldr (thenIO . f) (pureIO ())
@@ -179,3 +184,10 @@ putStrLn x = mapMIO putChar x `thenIO` putChar '\n'
 -- > main = print ([(n, 2^n) | n <- [0..19]])
 print :: Show a => a -> IO ()
 print = putStrLn . show
+
+-- | The @interact@ function takes a function of type @'String' -> 'String'@ as
+-- its argument. The entire input from the standard input device is passed to
+-- this function as its argument, and the resulting string is output on the
+-- standard output device.
+interact        ::  (String -> String) -> IO ()
+interact f = getContents `bindIO` putStr . f
