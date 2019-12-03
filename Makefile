@@ -8,6 +8,7 @@ HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
 CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
 GHC ?= ghc
+HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dynamic"; else echo ""; fi
 
 PYSRC_PY != find src -type f -name '*.py'
 PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
@@ -46,7 +47,8 @@ build-hs : configure
 	cabal v1-install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
 
 doc :
-	cd ${HS_ROOT} && cabal v1-haddock --builddir=${BUILD_DIR}
+	cd ${HS_ROOT} && cabal v1-haddock $(HADDOCKDYN) --builddir=${BUILD_DIR}
+	find ${BUILD_DIR}/doc/html -name '*.html' -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
 
 test : configure pycheck build
 	cd ${HS_ROOT} && cabal v1-test --show-details=always ${CABAL_OPTS_BUILD}
