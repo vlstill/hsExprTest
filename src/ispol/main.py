@@ -199,13 +199,13 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
     if "attempts" not in entry:
         entry["attempts"] = [base_entry]
     elif reeval:
-        entry["attempts"][0].update(base_entry)
         if "error" in entry["attempts"][0]:
             fprint(f"W: could not reeval after error: {filemeta.author}")
             return
         if entry["attempts"][0].get("filename", "") != os.path.basename(filemeta.ispath):
             fprint(f"W: skipping file {filemeta.ispath} as it is not last")
             return
+        entry["attempts"][0].update(base_entry)
     else:
         entry["attempts"].insert(0, base_entry)
 
