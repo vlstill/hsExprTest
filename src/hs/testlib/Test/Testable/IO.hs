@@ -28,8 +28,10 @@ import Test.Testable.IO.Base
 import Data.Functor ( Functor, fmap )
 import Control.Applicative ( Applicative, pure, (<*>), liftA2 )
 import Control.Monad ( Monad, (>>=) )
+import Control.Monad.Fail ( MonadFail (..) )
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
+import Prelude ( error )
 
 instance Functor IO where
     fmap = fmapIO
@@ -47,3 +49,6 @@ instance Semigroup a => Semigroup (IO a) where
 instance (Semigroup a, Monoid a) => Monoid (IO a) where
     mempty = pure mempty
     mappend = (<>)
+
+instance MonadFail IO where
+    fail = error
