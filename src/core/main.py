@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-from typing import Any, Optional, Iterator, Tuple, Union, Dict, List
+from typing import Any, Optional, Iterator, Tuple, Union, Dict, List, TypeVar
 from aiohttp import web
 from glob import glob
 import asyncio
+import enum
 import signal
 import multidict
 import time
@@ -15,10 +16,15 @@ import socket
 import textwrap
 import aiohttp_mako  # type: ignore
 import yaml
+import re
 
 import config
 import functor
 import admin
+
+
+ta = TypeVar("ta")
+QSET_RE = re.compile(r"/el/(?P<faculty>[^/]*)/(?P<semester>[^/]*)/(?P<course>[^/]*)/odp/tb/(?P<file>.*[.]qdefx)")
 
 
 class PostOrGet:
@@ -60,20 +66,24 @@ class PostOrGet:
         yield from self.query.items()
 
 
-async def handle_evaluation(conf : config.Config, data : PostOrGet,
-                            hint : bool)\
-                            -> Tuple[str, str, List[testenv.PointEntry]]:
-    def error(msg : str, extra="")\
-              -> Tuple[str, str, List[testenv.PointEntry]]:
-        print(f"ERROR: {msg}\n    {extra}", file=sys.stderr)
-        return ("nok", msg, [])
+class InvalidInput(Exception):
+    pass
 
-    def missing(name : str, key : str)\
-                -> Tuple[str, str, List[testenv.PointEntry]]:
-        return error("Evaluator error: "
-                     f"Missing mandatory parameter `{key}' ({name})")
 
-    def parse_qid(qid : Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+class MissingField(InvalidInput):
+    def __init__(self, name, key):
+        InvalidInput.__init__(self, f"Evaluator error: "
+                              f"Missing mandatory parameter `{key}' ({name})")
+
+
+class InterfaceMode (enum.Flag):
+    IS = enum.auto()
+    Priviledged = enum.auto()
+
+
+class EvalTask:
+    @staticmethod
+    def parse_qid(qid : str) -> Tuple[str, Optional[str]]:
         if qid is None:
             return (None, None)
         s = qid.split("?", 1)
@@ -81,58 +91,85 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
             return (s[0], None)
         return (s[0], s[1])
 
-    try:
-        course_id = functor.fmapO(str.lower, data.get("kod"))
-        question_id, option = parse_qid(data.get("id"))
-        answer = data.get("odp")
-        if course_id is None:
-            return missing("course ID", "kod")
-        if question_id is None:
-            return missing("question ID", "id")
-        if answer is None:
-            return missing("answer", "odp")
-        student_id = functor.fmapO(functor.read_int, data.get("uco"))
-        qset = data.get("sada")
-        view_only = data.get("zobrazeni") == "p"
+    def __init__(self, data : PostOrGet, mode : InterfaceMode):
+        def ifis(a : ta, b : Optional[ta] = None) -> ta:
+            if InterfaceMode.IS in mode or b is None:
+                return a
+            return b
 
-        course = conf.courses.get(course_id)
+        def getMandatory(a : str, b : Optional[str] = None,
+                         info : Optional[str] = None) -> str:
+            key = ifis(a, b)
+            v = data.get(key)
+            if v is None:
+                raise MissingField(info or b, key)
+            return v
+
+        self.course_id = getMandatory("kod", "course_id", "course ID").lower()
+        self.question_id, self.option = EvalTask.parse_qid(getMandatory("id"))
+        self.answer = getMandatory("odp", "answer")
+        self.student_id = ifis(functor.fmapO(functor.read_int, data.get("uco")),
+                               None)
+        self.view_only = ifis(data.get("zobrazeni") == "p", False)
+        self.qset = None
+
+        if InterfaceMode.IS in mode:
+            self.qset = os.path.normpath(data.get("sada", "NO_QSET_GIVEN"))
+            qset_match = QSET_RE.fullmatch(self.qset)
+            if qset_match:
+                self.course_id = qset_match.group('course').lower()
+            elif InterfaceMode.Priviledged in mode:
+                raise InvalidInput(f"Questionare `{self.qset}' is not authorized")
+
+        if self.question_id is None:
+            raise MissingField("question ID", "id")
+
+
+async def handle_evaluation(conf : config.Config, data : PostOrGet,
+                            mode : InterfaceMode)\
+                            -> Tuple[str, str, List[testenv.PointEntry]]:
+    try:
+        task = EvalTask(data, mode)
+
+        course = conf.courses.get(task.course_id)
         if course is None:
-            return error(f"Course {course_id} not defined")
-        if hint and not course.hint:
-            return error(
+            raise InvalidInput(f"Course {task.course_id} not defined")
+        if InterfaceMode.Priviledged not in mode and not course.hint:
+            raise InvalidInput(
                 "This course does not allow unathorized (hint) access")
 
-        question_id = os.path.normpath(question_id)
-        if os.path.isabs(question_id) or question_id[0:1] == '.':
-            return error(f"Invalid question ID {question_id}")
-        qglobs = glob(os.path.join(course.qdir, f"{question_id}.q*"))
+        if os.path.isabs(task.question_id) or task.question_id[0:1] == '.':
+            raise InvalidInput(f"Invalid question ID {task.question_id}")
+        qglobs = glob(os.path.join(course.qdir, f"{task.question_id}.q*"))
         question_candidates = list(filter(os.path.isfile, qglobs))
 
         if len(question_candidates) == 0:
-            return error(f"No questions found for ID {question_id}", qglobs)
+            raise InvalidInput(f"No questions found for ID {task.question_id}",
+                               qglobs)
         if len(question_candidates) > 1:
-            return error(f"Too many questions found for ID {question_id} "
-                         f"({question_candidates})")
+            raise InvalidInput("Too many questions found for ID "
+                               f"{task.question_id} ({question_candidates})")
         question = question_candidates[0]
 
-        async with testenv.TestEnvironment(question, answer, course) as env:
-            run_res = await env.run(option, hint=hint)
+        async with testenv.TestEnvironment(question, task.answer, course) as env:
+            run_res = await env.run(task.option,
+                                    hint=InterfaceMode.Priviledged not in mode)
 
             log = 80 * "="
             log += textwrap.dedent(f"""
                           date: {time.asctime()}
-                          course_id: {course_id}
-                          question_id: {question_id}
-                          option: {option}
+                          course_id: {task.course_id}
+                          question_id: {task.question_id}
+                          option: {task.option}
                           qdir: {course.qdir}
                           question_candidates: {question_candidates}
-                          student_id: {student_id}
-                          qset: {qset}
-                          view_only: {view_only}
-                          hint: {hint}
+                          student_id: {task.student_id}
+                          qset: {task.qset}
+                          view_only: {task.view_only}
+                          interface_mode: {mode}
                           answer: |
                           """)
-            log += textwrap.indent(answer, "    ")
+            log += textwrap.indent(task.answer, "    ")
             log += "\nlog: |\n"
             log += textwrap.indent(run_res.stderr, "    ")
             log += "\n"
@@ -144,15 +181,18 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
             return (run_res.result, run_res.stdout, run_res.points)
 
+    except InvalidInput as ex:
+        print(f"ERROR: {ex}", file=sys.stderr)
+        return ("nok", str(ex), [])
     except Exception as ex:
         traceback.print_exc()
-        return error(f"Error while evaluating: {ex}")
+        return ("nok", f"Error while evaluating: {ex}", [])
 
 
 def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
-                     hint : bool):
+                     mode : InterfaceMode):
     headers : Dict[str, str] = {}
-    if hint and conf.hint_origin is not None:
+    if InterfaceMode.Priviledged not in mode and conf.hint_origin is not None:
         headers["Access-Control-Allow-Methods"] = "POST"
         headers["Access-Control-Allow-Origin"] = conf.hint_origin
 
@@ -160,13 +200,12 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
         async with eval_sem:
             start = time.perf_counter()
             data = await PostOrGet.create(request)
-            json_mode = data.get("mode", "is") == "json"
             (result, comment, points) = await handle_evaluation(conf, data,
-                                                                hint=hint)
+                                                                mode)
             end = time.perf_counter()
             print(f"Handled in {end - start}", file=sys.stderr)
 
-            if json_mode:
+            if InterfaceMode.IS not in mode:
                 dpoints = [p.__dict__ for p in points]
                 return web.json_response({"result": result,
                                           "comment": comment,
@@ -259,13 +298,19 @@ def start_web(conf : config.Config) -> None:
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
-    handle_is = get_eval_handler(eval_sem, conf, hint=False)
+    handle_is = get_eval_handler(eval_sem, conf,
+                                 InterfaceMode.IS | InterfaceMode.Priviledged)
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
 
-    handle_hint = get_eval_handler(eval_sem, conf, hint=True)
+    handle_hint = get_eval_handler(eval_sem, conf, InterfaceMode.IS)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
+
+    handle_internal = get_eval_handler(eval_sem, conf,
+                                       InterfaceMode.Priviledged)
+    app.router.add_get("/internal", handle_internal)
+    app.router.add_post("/internal", handle_internal)
 
     handle_admin = get_handle_admin(conf)
     app.router.add_get("/admin/{user}/{course_id}/", handle_admin)

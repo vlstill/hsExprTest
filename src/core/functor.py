@@ -14,6 +14,7 @@ def fmapO(fun : Callable[[ta], tb], val : Optional[ta]) -> Optional[tb]:
         return None
     return fun(val)
 
+
 def read_int(val : str) -> Optional[int]:
     """
     Get an int from a string, or None it the string does not reprsent a number.
@@ -22,5 +23,6 @@ def read_int(val : str) -> Optional[int]:
         return int(val)
     except:
         return None
+
 
 # vim: colorcolumn=80 expandtab sw=4 ts=4
