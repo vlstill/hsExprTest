@@ -8,7 +8,7 @@ make pycheck
 [[ "$PORT" -ge 1000 ]] || usage
 [[ -f $CONFIG ]] || usage
 
-python3 ./src/pyserv/main.py --port $PORT --config $CONFIG &
+python3 ./src/core/main.py --port $PORT --config $CONFIG &
 SECONDARY=$!
 echo "waiting 30s for the new server to load"
 sleep 30

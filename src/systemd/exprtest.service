@@ -9,7 +9,7 @@ Description=ExprTest IS frontend
 [Service]
 Type=simple
 WorkingDirectory=/home/checker/hsExprTest/
-ExecStart=/usr/bin/python3 ./src/pyserv/main.py --config /home/checker/hsExprTest/hesperia.yaml --socket-fd 0
+ExecStart=/usr/bin/python3 ./src/core/main.py --config /home/checker/hsExprTest/hesperia.yaml --socket-fd 0
 User=checker
 Group=checker
 Restart=always
