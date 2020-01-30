@@ -77,6 +77,7 @@ class MissingField(InvalidInput):
 
 
 class InterfaceMode (enum.Flag):
+    Null = 0
     IS = enum.auto()
     Priviledged = enum.auto()
 
@@ -303,7 +304,7 @@ def start_web(conf : config.Config) -> None:
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
 
-    handle_hint = get_eval_handler(eval_sem, conf, InterfaceMode.IS)
+    handle_hint = get_eval_handler(eval_sem, conf, InterfaceMode.Null)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
 
