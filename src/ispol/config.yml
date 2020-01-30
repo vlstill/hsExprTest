@@ -1,4 +1,4 @@
-upstream: http://127.0.0.1:8080/is
+upstream: http://127.0.0.1:8080/internal
 interval: 10
 courses:
     iv074:
