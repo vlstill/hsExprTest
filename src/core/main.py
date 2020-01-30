@@ -128,7 +128,7 @@ class EvalTask:
 
 async def handle_evaluation(conf : config.Config, data : PostOrGet,
                             mode : InterfaceMode)\
-                            -> Tuple[str, str, List[testenv.PointEntry]]:
+                            -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
         task = EvalTask(data, mode)
 
@@ -184,10 +184,10 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
     except InvalidInput as ex:
         print(f"ERROR: {ex}", file=sys.stderr)
-        return ("nok", str(ex), [])
+        return (False, str(ex), [])
     except Exception as ex:
         traceback.print_exc()
-        return ("nok", f"Error while evaluating: {ex}", [])
+        return (False, f"Error while evaluating: {ex}", [])
 
 
 def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
