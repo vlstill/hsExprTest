@@ -46,7 +46,7 @@ class PostOrGet:
         self.query = request.query
         return self
 
-    def get(self, key : str, default : Any = None) -> Any:
+    def get(self, key : str, default : str = None) -> str:
         """
         Gets value for given key, prefering post parameters and falling back to
         query if needed.
@@ -54,7 +54,9 @@ class PostOrGet:
         assert self.post is not None
         assert self.query is not None
         try:
-            return self.post[key]
+            v = self.post[key]
+            assert isinstance(v, str)
+            return v
         except KeyError:
             return self.query.get(key, default)
 
