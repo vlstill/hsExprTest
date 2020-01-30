@@ -24,7 +24,7 @@ import admin
 
 
 ta = TypeVar("ta")
-QSET_RE = re.compile(r"/el/(?P<faculty>[^/]*)/(?P<semester>[^/]*)/(?P<course>[^/]*)/odp/tb/(?P<file>.*[.]qdefx)")
+QSET_RE = re.compile(r"/el/(?P<faculty>[^/]*)/(?P<semester>[^/]*)/(?P<course>[^/]*)/odp/tb/(?P<file>.*[.]qdefx)")  # noqa: E501
 
 
 class PostOrGet:
@@ -122,7 +122,8 @@ class EvalTask:
             if qset_match:
                 self.course_id = qset_match.group('course').lower()
             elif InterfaceMode.Priviledged in mode:
-                raise InvalidInput(f"Questionare `{self.qset}' is not authorized")
+                raise InvalidInput(
+                    f"Questionare `{self.qset}' is not authorized")
 
         if self.question_id is None:
             raise MissingField("question ID", "id")
@@ -130,7 +131,7 @@ class EvalTask:
 
 async def handle_evaluation(conf : config.Config, data : PostOrGet,
                             mode : InterfaceMode)\
-                            -> Tuple[bool, str, List[testenv.PointEntry]]:
+        -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
         task = EvalTask(data, mode)
 
@@ -154,7 +155,8 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
                                f"{task.question_id} ({question_candidates})")
         question = question_candidates[0]
 
-        async with testenv.TestEnvironment(question, task.answer, course) as env:
+        async with testenv.TestEnvironment(question, task.answer, course) \
+                as env:
             run_res = await env.run(task.option,
                                     hint=InterfaceMode.Priviledged not in mode)
 
@@ -246,8 +248,8 @@ def get_handle_admin(conf : config.Config):
                                 text=f"Course {course_name} not found\n")
         if auth_user not in course.authorized:
             return web.Response(
-                  status=401,
-                  text=f"User {auth_user} not authorized for {course_name}\n")
+                status=401,
+                text=f"User {auth_user} not authorized for {course_name}\n")
         print(f"ADMIN authorized for {auth_user}/{course_name} at "
               f"{time.asctime()}")
 
@@ -294,10 +296,9 @@ def start_web(conf : config.Config) -> None:
     app = web.Application()
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "templates")
-    lookup = aiohttp_mako.setup(app, input_encoding='utf-8',
-                                     output_encoding='utf-8',
-                                     default_filters=['decode.utf8'],
-                                     directories=[templates_dir])
+    aiohttp_mako.setup(app, input_encoding='utf-8', output_encoding='utf-8',
+                       default_filters=['decode.utf8'],
+                       directories=[templates_dir])
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
@@ -328,7 +329,7 @@ def start_web(conf : config.Config) -> None:
     loop.add_signal_handler(signal.SIGUSR1, sigusr1_handler)
     try:
         loop.run_until_complete(start_runner(runner, conf))
-    except Exception as ex:
+    except Exception:
         print("ERROR starting server", file=sys.stderr)
         traceback.print_exc()
         sys.exit(1)

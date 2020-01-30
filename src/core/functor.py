@@ -21,7 +21,7 @@ def readInt(val : str) -> Optional[int]:
     """
     try:
         return int(val)
-    except:
+    except ValueError:
         return None
 
 
