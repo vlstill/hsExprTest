@@ -1,5 +1,5 @@
 // (c) 2015 Juraj Major
-// (c) 2017-2019 Vladimír Štill
+// (c) 2017-2020 Vladimír Štill
 
 // vim: set noexpandtab
 
