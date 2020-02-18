@@ -37,23 +37,21 @@ if (typeof syntax_check !== 'function') {
                     btn.onclick = function() {
                         var xhr = new XMLHttpRequest(),
                             data = 'id=' + otazky[n] +
-                                   '&kod=' + predmet +
-                                   '&odp=' + encodeURIComponent(txa.value);
+                                   '&course_id=' + predmet +
+                                   '&answer=' + encodeURIComponent(txa.value);
                         if ('withCredentials' in xhr) {
                             xhr.open('POST', url, true);
                             xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
                             xhr.onreadystatechange = function() {
                                 if (this.readyState == 4 && this.status == 200) {
                                     var text, barva;
-                                    var resp = "<pre>"
-                                               + this.responseText.replace( /^n?ok~~/, '' ).replace( /check_id=.*/, '' )
-                                               + "</pre>";
-                                    if (/^ok/.test(this.responseText)) {
-                                        text = 'V pořádku.\n' + resp;
+                                    var resp = JSON.parse(this.responseText);
+                                    if (resp.result) {
+                                        text = 'V pořádku.<pre>\n' + resp.comment + '\n</pre>';
                                         barva = 'green';
                                     } else {
-                                        text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>'
-                                               + resp;
+                                        text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>\n<pre>\n'
+                                               + resp.comment + "\n</pre>";
                                         barva = 'red';
                                     }
                                     res.innerHTML = text;
