@@ -187,7 +187,8 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
             output = run_res.stdout
             if InterfaceMode.IS in mode and course.escape_is:
-                output = f"<pre class=\"exprtest->\n{html.escape(output, quote=True)}</pre>"
+                output = "<pre class=\"exprtest-result-escaped\">\n" \
+                         f"{html.escape(output, quote=True)}</pre>"
 
             return (run_res.result, output, run_res.points)
 
