@@ -22,6 +22,7 @@ class Course:
             self.hint = bool(raw.get("hint", False))
             self.authorized : List[str] = raw.get("authorized", [])
             self.extended = bool(raw.get("extended", False))
+            self.escape_is = bool(raw.get("escape_is", False))
         except KeyError as ex:
             raise ConfigException(
                     f"Course must set at least 'name' and 'checker': missing {ex}")
@@ -33,7 +34,8 @@ class Course:
                "isolation": self.isolation,
                "hint": self.hint,
                "authorized": self.authorized,
-               "extended": self.extended}
+               "extended": self.extended,
+               "escape_is": self.escape_is}
         if expand:
             res["qdir"] = self.qdir
         else:

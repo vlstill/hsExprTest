@@ -17,6 +17,7 @@ import textwrap
 import aiohttp_mako  # type: ignore
 import yaml
 import re
+import html
 
 import config
 import functor
@@ -184,7 +185,11 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
             log += textwrap.indent(run_res.stdout, "    ")
             print(log, file=sys.stderr, flush=True)
 
-            return (run_res.result, run_res.stdout, run_res.points)
+            output = run_res.stdout
+            if InterfaceMode.IS in mode and course.escape_is:
+                output = f"<pre class=\"exprtest->\n{html.escape(output, quote=True)}</pre>"
+
+            return (run_res.result, output, run_res.points)
 
     except InvalidInput as ex:
         print(f"ERROR: {ex}", file=sys.stderr)

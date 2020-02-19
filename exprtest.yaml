@@ -15,6 +15,7 @@ courses:
     checker: ./pycheck
     qdir: /tmp
   - name: test
+    escape_is: True
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
     isolation: false
