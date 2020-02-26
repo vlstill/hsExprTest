@@ -41,7 +41,7 @@ It is not possible to combine several packets into one, even if they have differ
 
 ### Supported Packets
 
-* **Points – packet format is `{ points = <N>, out_of = <N>, comment = <STRING> }` where `<N>` is a (possibly floating-point) number, and `<STRING>` is a string.
+* **Points** – packet format is `{ points = <N>, out_of = <N>, comment = <STRING> }` where `<N>` is a (possibly floating-point) number, and `<STRING>` is a string.
     The `comment` field should contain information about this sub-assignment.
 
 [mainconf]: main_configuration.md
