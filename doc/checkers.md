@@ -46,5 +46,5 @@ It is not possible to combine several packets into one, even if they have differ
 
 [mainconf]: main_configuration.md
 [qdir]: question_repository.md
-[concepts-hint]: concepts.md#hint
+[concepts-hint]: concepts.md#hint-mode
 [qopt]: quections.md#options
