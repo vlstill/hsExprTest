@@ -85,7 +85,10 @@ class CGControl:
         self.enable_subtrees(self.controllers(subpath), subpath)
 
     def subdivide(self, subpath : str) -> str:
-        os.makedirs(os.path.join(self.cg, subpath), exist_ok=True)
+        try:
+            os.makedirs(os.path.join(self.cg, subpath), exist_ok=True)
+        except Exception as ex:
+            raise CGException(f"Error creating sub-hierarchy: {ex}")
         return subpath
 
     def set_limit(self, limit : Limit, subpath : str = ".") -> None:
