@@ -1,4 +1,5 @@
 from typing import Optional, List, Set
+import os
 import os.path
 import contextlib
 import sys
@@ -67,6 +68,9 @@ class CGControl:
                   as tgtPrcs:
             for pid in pids:
                 tgtPrcs.write(str(pid))
+
+    def register_me(self, subpath : str = ".") -> None:
+        self.register({os.getpid()}, subpath)
 
     def _write(self, path : str, key : str, value : str) -> None:
         with open(os.path.join(self.cg, path, key), "w") as dst:

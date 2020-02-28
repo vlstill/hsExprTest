@@ -116,7 +116,10 @@ class TestEnvironment(object):
                     args.append(f"-p{points_wfd}")
                     pass_fds = [points_wfd]
 
-                print("+ " + " ".join(args))
+                print("+ " + " ".join(args), file=sys.stderr, flush=True)
+                preexec = None
+                if self.slotmgr.cg is not None:
+                    preexec = lambda: self.slotmgr.cg.register_me(slot)
                 proc = await asyncio.create_subprocess_exec(
                                       *args,
                                       stdin=subprocess.DEVNULL,
@@ -124,7 +127,8 @@ class TestEnvironment(object):
                                       stderr=subprocess.PIPE,
                                       cwd=self.tmpdir,
                                       start_new_session=True,
-                                      pass_fds=pass_fds)
+                                      pass_fds=pass_fds,
+                                      preexec_fn=preexec)
                 if self.course.extended:
                     assert points_read is not None
                     assert points_wfd is not None
