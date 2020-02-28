@@ -2,6 +2,11 @@ socket: socket
 qdir_root: test/qdir
 max_workers: 2
 hint_origin: https://is.muni.cz
+# limits will only work if you have CGROUPSv2 fully working (i.e., CGROUPSv1
+# has to be disabled)
+limit:
+    memory: 1G
+    cpu: 100%
 courses:
   - name: ib015
     isolation: false
