@@ -87,7 +87,13 @@ class Config:
             self.config_file = args.config
 
     @staticmethod
-    def _parse_proc(val : str):
+    def _parse_proc(val : Union[None, str, int, float]) -> Optional[float]:
+        if val is None:
+            return None
+        if isinstance(val, float):
+            return val
+        if isinstance(val, int):
+            return float(val)
         if val[-1:] == '%':
             return int(val[:-1]) / 100
         return float(val)
@@ -98,7 +104,11 @@ class Config:
                        "T": 1024 * 1024 * 1024 * 1024}
 
     @staticmethod
-    def _parse_mem(val : str):
+    def _parse_mem(val : Union[None, str, int]) -> Optional[int]:
+        if val is None:
+            return None
+        if isinstance(val, int):
+            return val
         mult = Config.MEM_MULTIPLIERS.get(val[-1:])
         if mult is None:
             return int(val)
@@ -124,7 +134,8 @@ class Config:
 
         limit_raw = conf.get("limit", {})
         self.limit = Limit(memory = self._parse_mem(limit_raw.get("memory")),
-                               cpu = self._parse_proc(limit_raw.get("cpu")))
+                           swap = self._parse_mem(limit_raw.get("swap")),
+                           cpu = self._parse_proc(limit_raw.get("cpu")))
 
         if self.qdir_root is None:
             raise ConfigException("Field 'qdir_root' must be set")
@@ -157,6 +168,7 @@ class Config:
                 "max_workers": self.max_workers,
                 "hint_origin": self.hint_origin,
                 "limit": {k: v for k, v in [("memory", self.limit.memory),
+                                            ("swap", self.limit.swap),
                                             ("cpu", self.limit.cpu)]
                                if v is not None},
                 "courses": list(map(Course.to_dict, self.courses.values()))}
