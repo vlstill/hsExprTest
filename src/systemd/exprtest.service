@@ -8,8 +8,8 @@ Description=ExprTest IS frontend
 
 [Service]
 Type=simple
-WorkingDirectory=/home/checker/hsExprTest/
-ExecStart=/usr/bin/python3 ./src/core/main.py --config /home/checker/hsExprTest/hesperia.yaml --socket-fd 0
+WorkingDirectory=$WORKDIR
+ExecStart=/usr/bin/python3 ./src/core/main.py --config $CONFIG --socket-fd 0
 User=checker
 Group=checker
 Restart=always
@@ -20,6 +20,11 @@ StandardError=journal
 KillMode=process
 KillSignal=USR1
 TimeoutStopSec=300
+
+CPUAccounting=true
+MemoryAccounting=true
+IPAccounting=true
+Delegate=true
 
 [Install]
 WantedBy=multi-user.target
