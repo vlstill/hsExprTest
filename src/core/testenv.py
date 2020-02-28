@@ -142,6 +142,14 @@ class TestEnvironment(object):
                     raw_stdout, raw_stderr = await proc.communicate()
                 stdout = raw_stdout.decode("utf8")
                 stderr = raw_stderr.decode("utf8")
+
+                # documentation says the return code for signal termination
+                # should be negative, it seems that it also might be > 127
+                rc = proc.returncode
+                if rc > 127:
+                    rc = -(rc - 128)
+                if rc < 0:
+                    stdout += f"\n\nKILLED WITH SIGNAL {-rc}"
             return RunResult(proc.returncode == 0, stdout, stderr, points)
 
     async def __aexit__(self, type, value, traceback):
