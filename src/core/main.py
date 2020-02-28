@@ -20,6 +20,7 @@ import re
 import html
 
 import config
+import cgroup
 import functor
 import admin
 
@@ -130,8 +131,8 @@ class EvalTask:
             raise MissingField("question ID", "id")
 
 
-async def handle_evaluation(conf : config.Config, data : PostOrGet,
-                            mode : InterfaceMode)\
+async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
+                            data : PostOrGet, mode : InterfaceMode)\
         -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
         task = EvalTask(data, mode)
@@ -156,8 +157,8 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
                                f"{task.question_id} ({question_candidates})")
         question = question_candidates[0]
 
-        async with testenv.TestEnvironment(question, task.answer, course) \
-                as env:
+        async with testenv.TestEnvironment(question, task.answer,
+                                           course, slots) as env:
             run_res = await env.run(task.option,
                                     hint=InterfaceMode.Priviledged not in mode)
 
@@ -201,7 +202,7 @@ async def handle_evaluation(conf : config.Config, data : PostOrGet,
 
 
 def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
-                     mode : InterfaceMode):
+                     slots : cgroup.SlotManager, mode : InterfaceMode):
     headers : Dict[str, str] = {}
     if InterfaceMode.Priviledged not in mode and conf.hint_origin is not None:
         headers["Access-Control-Allow-Methods"] = "POST"
@@ -211,8 +212,8 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
         async with eval_sem:
             start = time.perf_counter()
             data = await PostOrGet.create(request)
-            (result, comment, points) = await handle_evaluation(conf, data,
-                                                                mode)
+            (result, comment, points) = await handle_evaluation(conf, slots,
+                                                                data, mode)
             end = time.perf_counter()
             print(f"Handled in {end - start}", file=sys.stderr)
 
@@ -267,10 +268,14 @@ def get_handle_admin(conf : config.Config):
 
 def main() -> None:
     conf = config.parse(sys.argv)
-    start_web(conf)
+    slots = cgroup.SlotManager(conf.limit)
+    if not slots.available() and conf.limit.any_set():
+        print("W: limits requested but cgroups are not available",
+              file=sys.stderr, flush=True)
+    start_web(conf, slots)
 
 
-def start_web(conf : config.Config) -> None:
+def start_web(conf : config.Config, slots : cgroup.SlotManager) -> None:
     async def shutdown():
         print("letting runner do cleanup")
         await runner.cleanup()
@@ -308,16 +313,16 @@ def start_web(conf : config.Config) -> None:
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
-    handle_is = get_eval_handler(eval_sem, conf,
+    handle_is = get_eval_handler(eval_sem, conf, slots,
                                  InterfaceMode.IS | InterfaceMode.Priviledged)
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
 
-    handle_hint = get_eval_handler(eval_sem, conf, InterfaceMode.Null)
+    handle_hint = get_eval_handler(eval_sem, conf, slots, InterfaceMode.Null)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
 
-    handle_internal = get_eval_handler(eval_sem, conf,
+    handle_internal = get_eval_handler(eval_sem, conf, slots,
                                        InterfaceMode.Priviledged)
     app.router.add_get("/internal", handle_internal)
     app.router.add_post("/internal", handle_internal)

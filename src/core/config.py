@@ -4,6 +4,8 @@ import sys
 from typing import List, Optional, Dict, Any, Union
 import os.path
 
+from limit import Limit
+
 
 class ConfigException(Exception):
     pass
@@ -58,6 +60,7 @@ class Config:
         self.courses : Dict[str, Course] = {}
         self.max_workers = 4
         self.hint_origin : Optional[str] = None
+        self.limit = Limit()
         self._load_from_argv()
         self._load_from_file()
 
@@ -83,6 +86,34 @@ class Config:
         if args.config is not None:
             self.config_file = args.config
 
+    @staticmethod
+    def _parse_proc(val : Union[None, str, int, float]) -> Optional[float]:
+        if val is None:
+            return None
+        if isinstance(val, float):
+            return val
+        if isinstance(val, int):
+            return float(val)
+        if val[-1:] == '%':
+            return int(val[:-1]) / 100
+        return float(val)
+
+    MEM_MULTIPLIERS = {"k": 1024,
+                       "M": 1024 * 1024,
+                       "G": 1024 * 1024 * 1024,
+                       "T": 1024 * 1024 * 1024 * 1024}
+
+    @staticmethod
+    def _parse_mem(val : Union[None, str, int]) -> Optional[int]:
+        if val is None:
+            return None
+        if isinstance(val, int):
+            return val
+        mult = Config.MEM_MULTIPLIERS.get(val[-1:])
+        if mult is None:
+            return int(val)
+        return int(val[:-1]) * mult
+
     def _load_from_file(self) -> None:
         try:
             with open(self.config_file, 'r') as fh:
@@ -100,6 +131,11 @@ class Config:
         self.qdir_root = conf.get("qdir_root")
         self.max_workers = conf.get("max_workers", self.max_workers)
         self.hint_origin = conf.get("hint_origin")
+
+        limit_raw = conf.get("limit", {})
+        self.limit = Limit(memory = self._parse_mem(limit_raw.get("memory")),
+                           swap = self._parse_mem(limit_raw.get("swap")),
+                           cpu = self._parse_proc(limit_raw.get("cpu")))
 
         if self.qdir_root is None:
             raise ConfigException("Field 'qdir_root' must be set")
@@ -131,6 +167,10 @@ class Config:
                 "qdir_root": self.qdir_root,
                 "max_workers": self.max_workers,
                 "hint_origin": self.hint_origin,
+                "limit": {k: v for k, v in [("memory", self.limit.memory),
+                                            ("swap", self.limit.swap),
+                                            ("cpu", self.limit.cpu)]
+                               if v is not None},
                 "courses": list(map(Course.to_dict, self.courses.values()))}
 
 
