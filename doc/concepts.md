@@ -26,7 +26,7 @@ Currently, there are the following interfaces.
 ## Checker
 
 Checker is (usually) course-specific script or program which handles actual evaluation of the assignment (but not communication collection of solutions and submission of results.
-More about checkers can be found in [separate documentation page][checkers]
+More about checkers can be found in [separate documentation page][checkers].
 
 [checkers]: checkers.md
 
