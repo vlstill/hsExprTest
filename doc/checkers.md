@@ -15,7 +15,7 @@ When the evaluator receives a solution of an assignment, it will execute the che
 - the path to the file containing student's answer (second positional argument);
 - `-I<PATH>` arguments for each path in which testing-related modules for the course should be searched in (currently only the [question repository][qdir]);
 - `-o<OPT>` if the question ID contains an [additional option][qopt], it will be passed in using this argument;
-- `--hint` if the checker should run in a [hint mode](#hint-mode) (e.g., a before-submission syntax check);
+- `--hint` if the checker should run in a [hint mode][concepts-hint] (e.g., a before-submission syntax check);
 - `-p<FILE_DESCRIPTOR_NUMBER>` if the evaluator should run in the [extended mode](#extended-interface) (used for sending points information and finer control of the evaluation) this argument is used to indicate extended mode is used and to pass to the checker the file descriptor to which the checker can send information during the evaluation.
 
 ## Basic Checker Interface
@@ -45,6 +45,6 @@ It is not possible to combine several packets into one, even if they have differ
     The `comment` field should contain information about this sub-assignment.
 
 [mainconf]: main_configuration.md
-[qdir]: question_repository.md
+[qdir]: questions.md#question-repository
 [concepts-hint]: concepts.md#hint-mode
-[qopt]: quections.md#options
+[qopt]: questions.md#options
