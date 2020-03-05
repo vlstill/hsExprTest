@@ -144,6 +144,7 @@ async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
             raise InvalidInput(
                 "This course does not allow unathorized (hint) access")
 
+        question : Optional[str] = None
         if task.question_id is not None:
             if os.path.isabs(task.question_id) or task.question_id[0:1] == '.':
                 raise InvalidInput(f"Invalid question ID {task.question_id}")
@@ -158,8 +159,6 @@ async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
                                    f"{task.question_id} "
                                    f"({question_candidates})")
             question = question_candidates[0]
-        else:
-            question = None
 
         async with testenv.TestEnvironment(question, task.answer,
                                            course, slots) as env:
