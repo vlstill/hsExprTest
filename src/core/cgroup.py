@@ -104,6 +104,7 @@ class CGControl:
 class SlotManager:
     def __init__(self, limit : Limit):
         self.cg : Optional[CGControl] = None
+        self._available = False
         try:
             self.cg = CGControl()
             self.cg.delegate("master")
@@ -113,11 +114,12 @@ class SlotManager:
             self._free_slots : List[str] = []
             self._slot_cnt = 0
             self.limit = limit
+            self._available = True
         except CGException as ex:
             print(f"W: cgroup error: {ex}", file=sys.stderr, flush=True)
 
     def available(self) -> bool:
-        return self.cg is not None
+        return self._available
 
     def _mkslot(self) -> str:
         assert self.cg is not None
@@ -138,7 +140,7 @@ class SlotManager:
 
     @contextlib.contextmanager
     def get(self):
-        if self.cg is None:
+        if not self._available:
             yield None
         else:
             slot = self._mkslot()
