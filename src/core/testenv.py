@@ -127,7 +127,7 @@ class TestEnvironment(object):
 
                 print("+ " + " ".join(args), file=sys.stderr, flush=True)
                 preexec = None
-                if self.slotmgr.cg is not None:
+                if self.slotmgr.available() and self.slotmgr.cg is not None:
                     preexec = lambda: self.slotmgr.cg.register_me(slot)
                 proc = await asyncio.create_subprocess_exec(
                                       *args,
