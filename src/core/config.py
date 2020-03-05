@@ -23,6 +23,7 @@ class Course:
             self.isolation = bool(raw.get("isolation", False))
             self.hint = bool(raw.get("hint", False))
             self.authorized : List[str] = raw.get("authorized", [])
+            self.path_append : List[str] = raw.get("path_append", [])
             self.extended = bool(raw.get("extended", False))
             self.escape_is = bool(raw.get("escape_is", False))
         except KeyError as ex:
@@ -36,6 +37,7 @@ class Course:
                "isolation": self.isolation,
                "hint": self.hint,
                "authorized": self.authorized,
+               "path_append": self.path_append,
                "extended": self.extended,
                "escape_is": self.escape_is}
         if expand:

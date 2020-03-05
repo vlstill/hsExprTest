@@ -1,5 +1,6 @@
 import tempfile
 import config
+import copy
 import os.path
 import aiofiles  # type: ignore
 import posix1e   # type: ignore
@@ -110,6 +111,14 @@ class TestEnvironment(object):
             points_read : Optional[asyncio.StreamReader] = None
             points_wfd : Optional[int] = None
             points : List[PointEntry] = []
+
+            env = copy.deepcopy(os.environ)
+            for var in self.course.path_append:
+                if var not in env:
+                    env[var] = self.course.qdir
+                else:
+                    env[var] = f"{env[var]}:{self.course.qdir}"
+
             with contextlib.ExitStack() as estack:
                 if self.course.extended:
                     points_read, points_wfd = await self.get_points_pipe(estack)
@@ -128,7 +137,8 @@ class TestEnvironment(object):
                                       cwd=self.tmpdir,
                                       start_new_session=True,
                                       pass_fds=pass_fds,
-                                      preexec_fn=preexec)
+                                      preexec_fn=preexec,
+                                      env=env)
                 if self.course.extended:
                     assert points_read is not None
                     assert points_wfd is not None

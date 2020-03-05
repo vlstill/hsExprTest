@@ -26,6 +26,9 @@ courses:
     checker: bash /home/xstill/repo/hsExprTest/test/checker
     isolation: false
     qdir: bash
+    path_append:
+      - TEST
+      - PATH
   - name: teste
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
