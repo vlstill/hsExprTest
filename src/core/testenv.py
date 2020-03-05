@@ -33,8 +33,8 @@ class RunResult:
 
 
 class TestEnvironment(object):
-    def __init__(self, question : str, answer : str, course : config.Course,
-                 slots : cgroup.SlotManager):
+    def __init__(self, question : Optional[str], answer : str,
+                 course : config.Course, slots : cgroup.SlotManager):
         self.question = question
         self.answer = answer
         self.course = course
@@ -72,13 +72,18 @@ class TestEnvironment(object):
             acl.calc_mask()
             acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
 
-        ext = os.path.splitext(self.question)[1]
-        self.qfile = os.path.join(self.tmpdir, f"question{ext}")
+        ext = ""
+        self.qfile : Optional[str] = None
+        if self.question is not None:
+            ext = os.path.splitext(self.question)[1]
+            self.qfile = os.path.join(self.tmpdir, f"question{ext}")
         self.afile = os.path.join(self.tmpdir, f"answer{ext}")
-        async with aiofiles.open(self.question) as src:
-            async with aiofiles.open(self.qfile, "w") as tgt:
-                contents = await src.read()
-                await tgt.write(contents)
+
+        if self.question is not None:
+            async with aiofiles.open(self.question) as src:
+                async with aiofiles.open(self.qfile, "w") as tgt:
+                    contents = await src.read()
+                    await tgt.write(contents)
         async with aiofiles.open(self.afile, "w") as ans:
             await ans.write(self.answer)
 
@@ -103,7 +108,9 @@ class TestEnvironment(object):
             if self.course.isolation:
                 args.extend(["sudo", "-n", "-u", f"rc-{self.course.name}"])
             args.extend(self.course.checker.split(' '))
-            args.extend([self.qfile, self.afile, f"-I{self.course.qdir}"])
+            if self.qfile is not None:
+                args.append(self.qfile)
+            args.extend([self.afile, f"-I{self.course.qdir}"])
             args.extend([f"-o{opt}" for opt in options if opt is not None])
             if hint:
                 args.append("--hint")
