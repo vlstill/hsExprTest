@@ -92,13 +92,20 @@ class CGControl:
         return subpath
 
     def set_limit(self, limit : Limit, subpath : str = ".") -> None:
-        for key, val in [("memory.max", limit.memory),
-                         ("memory.swap.max", limit.swap)]:
-            self._write(subpath, key,
-                        str(val) if val is not None else "max")
-        self._write(subpath, "cpu.max",
-                    f"{round(limit.cpu * self.CPU_MAX_PERIOD)} {self.CPU_MAX_PERIOD}"
-                        if limit.cpu is not None else "max")
+        def wr(key, val, name):
+            try:
+                self._write(subpath, key, val)
+            except OSError as ex:
+                print(f"W: cgroup error: could not set {name} limit, "
+                      f"ignoring it; error {ex}", file=sys.stderr, flush=True)
+
+        for key, val, name in [("memory.max", limit.memory, "memory"),
+                               ("memory.swap.max", limit.swap, "swap")]:
+            wr(key, str(val) if val is not None else "max", name)
+        wr("cpu.max",
+           f"{round(limit.cpu * self.CPU_MAX_PERIOD)} {self.CPU_MAX_PERIOD}"
+               if limit.cpu is not None else "max",
+           "CPU")
 
 
 class SlotManager:
