@@ -8,15 +8,20 @@ fail() {
 	false
 }
 	
-
-QUESTION=$1; shift
-ANSWER=$1; shift
+if [[ "${2:0:1}" = "-" ]]; then
+    ANSWER=$1; shift
+else
+    QUESTION=$1; shift
+    ANSWER=$1; shift
+fi
 INC=$(echo $1 | sed 's/-I//'); shift
 ARG=$(echo $1 | sed 's/-o//')
 
 [[ "$2" = "" ]] || fail "too many args"
-[[ -f "$QUESTION" ]] || fail "fist argument must be a file"
-[[ -r "$QUESTION" ]] || fail "first argument must be readable"
+if [[ "$QUESTION" ]]; then
+    [[ -f "$QUESTION" ]] || fail "fist argument must be a file"
+    [[ -r "$QUESTION" ]] || fail "first argument must be readable"
+fi
 [[ -f "$ANSWER" ]] || fail "second argument must be a file"
 [[ -r $ANSWER ]] || fail "second argument must be readable"
 [[ -d "$INC" ]] || fail "third argument must be -IDIR"
