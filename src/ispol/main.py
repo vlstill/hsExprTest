@@ -213,9 +213,8 @@ def process_file(course : str, notebooks : isapi.notebooks.Connection,
             and len(entry.get("attempts", [])) > attempts:
         entry["attempts"][0]["error"] = "Too many attempts"
     else:
-        req = requests.post(upstream, {"kod": course, "id": qid, "odp": data,
-                                       "uco": filemeta.author,
-                                       "mode": "json"})
+        req = requests.post(upstream, {"course_id": course, "id": qid,
+                                       "answer": data, "uco": filemeta.author})
         assert req.status_code == 200
         response = json.loads(req.text)
         if "comment" in response:
