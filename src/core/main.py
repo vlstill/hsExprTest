@@ -218,7 +218,7 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
             (result, comment, points) = await handle_evaluation(conf, slots,
                                                                 data, mode)
             end = time.perf_counter()
-            print(f"Handled in {end - start}", file=sys.stderr)
+            print(f"Handled in {end - start}", file=sys.stderr, flush=True)
 
             if InterfaceMode.IS not in mode:
                 dpoints = [p.__dict__ for p in points]
