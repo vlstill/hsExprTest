@@ -4,6 +4,7 @@ module Data.Tuple.TH.GenCurry ( curryN, uncurryN, genCurries, genUncurries ) whe
 
 import Control.Monad
 import Language.Haskell.TH
+import Test.Expr.Internal.Compat
 
 -- | For each n >= 0 build a generalization of curry function of given arity
 curryN :: Int -> Q Exp
@@ -12,7 +13,7 @@ curryN n = do
     f <- newName "f"
     xs <- replicateM n (newName "x")
     let args = map VarP (f:xs) -- build function patterns
-        ntup = TupE (map VarE xs) -- build tuple expression
+        ntup = TupE (map (wrapTupElemE . VarE) xs) -- build tuple expression
     pure $ LamE args (AppE (VarE f) ntup) -- generate the actual curryN as a lambda
 
 -- | For each n >= 0 build a generalization of uncurry function of given arity
@@ -26,14 +27,14 @@ uncurryN n = do
     pure $ LamE args (foldl AppE (VarE f) vars)
 
 genCurries :: Int -> Q [Dec]
-genCurries n = forM [1..n] mkCurryDec
+genCurries n = forM [2..n] mkCurryDec
   where mkCurryDec ith = do
             curr <- curryN ith
             let name = mkName $ "curry" ++ show ith
             pure $ FunD name [Clause [] (NormalB curr) []]
 
 genUncurries :: Int -> Q [Dec]
-genUncurries n = forM [1..n] mkUncurryDec
+genUncurries n = forM [2..n] mkUncurryDec
   where mkUncurryDec ith = do
             uncurr <- uncurryN ith
             let name = mkName $ "uncurry" ++ show ith

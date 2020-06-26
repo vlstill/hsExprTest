@@ -19,7 +19,7 @@ module Test.Testable.Data
 
 import Data.Data
 import Control.Arrow
-import Data.List
+import Data.List ( sort, intercalate )
 
 -- | Representation of (monomorphic) data type.
 data DataDecl = DataDecl { dataDeclName :: String

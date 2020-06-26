@@ -7,6 +7,7 @@ import Language.Haskell.TH ( Exp (..), Type (..), Dec (..), Pat (..), Q
                            , mkName, newName, tupleTypeName
                            , Overlap (..), Clause (..), Body (..) )
 import Control.Monad ( replicateM )
+import Test.Expr.Internal.Compat
 
 -- instance {-# OVERLAPS #-} (Convertible a a', Convertible b b') => Convertible (Fun a' b) (a -> b') where
 --     convert (Fun _ f) x = convert (f (convert x))
@@ -39,7 +40,7 @@ convertibleN n = do
         fun_p = ConP fun [WildP, VarP f] -- (Pat _ f)
 
         -- (convert x1, convert x2, …)
-        argtuple = TupE $ map (\x -> VarE convert `AppE` VarE x) xs
+        argtuple = TupE $ map (\x -> wrapTupElemE (VarE convert `AppE` VarE x)) xs
         -- convert (f (convert x1, convert x2, …))
         body = VarE convert `AppE` (VarE f `AppE` argtuple)
 

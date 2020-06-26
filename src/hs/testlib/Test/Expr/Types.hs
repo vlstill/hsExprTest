@@ -306,6 +306,9 @@ getTVars = go
     go (AppKindT t _)        = go t
     go (ImplicitParamT _ t)  = go t
 #endif
+#if MIN_VERSION_template_haskell(2, 16, 0)
+    go (ForallVisT bndrs t)  = go t <> mconcat (map goBndr bndrs)
+#endif
 
     goBndr (PlainTV n)    = Set.singleton n
     goBndr (KindedTV n _) = Set.singleton n
@@ -338,6 +341,9 @@ rename sub = go
 #if MIN_VERSION_template_haskell(2, 15, 0)
     go (AppKindT t k)        = AppKindT (go t) k
     go (ImplicitParamT s t)  = ImplicitParamT s (go t)
+#endif
+#if MIN_VERSION_template_haskell(2, 16, 0)
+    go (ForallVisT bndrs t)  = ForallVisT (map goBndr bndrs) (go t)
 #endif
 
     goBndr (PlainTV n)    = PlainTV (ren n)
