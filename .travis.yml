@@ -23,8 +23,8 @@ before_install:
     - PATH=$PATH:/opt/ghc/bin/
     - $GHC --version
     - cabal --version
-    - python3.7 --version
-    - pip3.7 install aiohttp aiofiles pylibacl pyaml mypy
+    - python3 --version
+    - pip3 install aiohttp aiofiles pylibacl pyaml mypy
     - cabal update
 
 script:
