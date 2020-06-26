@@ -163,6 +163,7 @@ class TestEnvironment(object):
                 # documentation says the return code for signal termination
                 # should be negative, it seems that it also might be > 127
                 rc = proc.returncode
+                assert rc is not None
                 if rc > 127:
                     rc = -(rc - 128)
                 if rc < 0:
