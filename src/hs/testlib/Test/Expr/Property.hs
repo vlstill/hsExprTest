@@ -117,11 +117,12 @@ testFun Prop {..} ttype0 stype0 = do
             pure $ ConP 'Blind [typed]
       where
         baseT (AppT ListT tt) = ListT `AppT` baseT tt
-        baseT tt | isFunctionType tt = ConT ''Fun `AppT` foldl AppT (TupleT arrt) ct `AppT` rt
+        baseT tt | isFunctionType tt = ConT ''Fun `AppT` mkArgTuple ct `AppT` rt
                  | otherwise         = tt
           where
             (ct, rt) = uncurryType tt
-            arrt = length ct
+            mkArgTuple [a] = a
+            mkArgTuple as = foldl AppT (TupleT (length as)) as
 
     mkvar :: Type -> Name -> Q Exp
     mkvar t x = pure $ (VarE 'convert `AppE` VarE x) `SigE` t
