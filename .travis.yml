@@ -9,6 +9,7 @@ cache:
 
 matrix:
   include:
+    - env: GHC=ghc-8.10.1
     - env: GHC=ghc-8.8.1
     - env: GHC=ghc-8.6.5
     - env: GHC=ghc-8.4.4
