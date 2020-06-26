@@ -1,5 +1,7 @@
 language: python
-python: 3.7
+python:
+  - 3.7
+  - 3.8
 sudo: true
 dist: bionic
 
@@ -7,13 +9,12 @@ cache:
   directories:
     - $HOME/.stack
 
-matrix:
-  include:
-    - env: GHC=ghc-8.10.1
-    - env: GHC=ghc-8.8.1
-    - env: GHC=ghc-8.6.5
-    - env: GHC=ghc-8.4.4
-    - env: GHC=ghc-8.2.2
+env:
+  - GHC=ghc-8.10.1
+  - GHC=ghc-8.8.1
+  - GHC=ghc-8.6.5
+  - GHC=ghc-8.4.4
+  - GHC=ghc-8.2.2
 
 before_install:
     - sudo add-apt-repository -y ppa:hvr/ghc
