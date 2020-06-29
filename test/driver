@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 
-PYTHON=python3
-if which python3.6 2>/dev/null; then
-    PYTHON=python3.6
-fi
-if which python3.7 2>/dev/null; then
-    PYTHON=python3.7
-fi
-
 BUILD=$PWD/_build
 OUTDIR=$BUILD/tests
 mkdir -p $OUTDIR
