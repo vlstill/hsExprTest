@@ -66,4 +66,4 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean test configure build builddir submodules pycheck $(PYSRC:%=%-mypy)
+.PHONY: all clean test configure build builddir submodules pycheck doc $(PYSRC:%=%-mypy)
