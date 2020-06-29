@@ -57,6 +57,7 @@ deploy:
   local-dir: _build/doc/html/hsExprTest/
   on:
     branch: master
+    python: 3.8
     condition: "$GHC = ghc-8.6.5"
 
 # vim: expandtab
