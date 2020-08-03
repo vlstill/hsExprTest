@@ -30,7 +30,7 @@ before_install:
 script:
     - make build
     - make test
-    - if [[ "$GHC" = "ghc-8.6.5" ]]; then make doc; fi
+    - if [[ "$GHC" = "ghc-8.10.1" ]]; then make doc; fi
 
 notifications:
   email:
@@ -58,6 +58,6 @@ deploy:
   on:
     branch: master
     python: 3.8
-    condition: "$GHC = ghc-8.6.5"
+    condition: "$GHC = ghc-8.10.1"
 
 # vim: expandtab
