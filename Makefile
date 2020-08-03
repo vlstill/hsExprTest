@@ -12,7 +12,7 @@ HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dyn
 
 PYSRC_PY != find src -type f -name '*.py'
 PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
-PYSRC=$(PYSRC_PY) $(PYSRC_HASHBANG)
+PYSRC != echo $(PYSRC_PY) $(PYSRC_HASHBANG) | tr ' ' '\n' | awk '!a[$$0]++'
 
 -include local.make
 
