@@ -41,9 +41,14 @@ class TestEnvironment(object):
         self.slotmgr = slots
         self.tmpdirHandle = tempfile.TemporaryDirectory(prefix="exprtest.")
 
-    async def __aenter__(self):
-        self.tmpdir = self.tmpdirHandle.__enter__()
+    @staticmethod
+    def set_rwx(e) -> None:
+        e.permset.clear()
+        e.permset.read = True
+        e.permset.write = True
+        e.permset.execute = True
 
+    def setup_isolation(self) -> None:
         if self.course.isolation:
             user = f"rc-{self.course.name}"
             uid = pwd.getpwnam(user).pw_uid
@@ -53,11 +58,7 @@ class TestEnvironment(object):
             # add entry for test user to ensure it can access test files
             e.tag_type = posix1e.ACL_USER
             e.qualifier = uid
-            e.permset.clear()
-            e.permset.read = True
-            e.permset.write = True
-            e.permset.execute = True
-            acl.calc_mask()
+            self.set_rwx(e)
             acl.applyto(self.tmpdir)
 
             # add another default entry for checker to ensure we can delete
@@ -65,12 +66,15 @@ class TestEnvironment(object):
             ec = acl.append()
             ec.tag_type = posix1e.ACL_USER
             ec.qualifier = os.geteuid()
-            ec.permset.clear()
-            ec.permset.read = True
-            ec.permset.write = True
-            ec.permset.execute = True
-            acl.calc_mask()
+            self.set_rwx(e)
             acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
+
+            acl.calc_mask()
+
+    async def __aenter__(self):
+        self.tmpdir = self.tmpdirHandle.__enter__()
+
+        self.setup_isolation()
 
         ext = ""
         self.qfile : Optional[str] = None
@@ -101,8 +105,7 @@ class TestEnvironment(object):
         estack.callback(lambda t: t.close(), transport)
         return reader, wfd
 
-    async def run(self, *options, hint : bool)\
-                  -> RunResult:
+    async def run(self, *options, hint : bool) -> RunResult:
         with self.slotmgr.get() as slot:
             args = []
             if self.course.isolation:
