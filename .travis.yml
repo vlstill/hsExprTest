@@ -5,10 +5,6 @@ python:
 sudo: true
 dist: bionic
 
-cache:
-  directories:
-    - $HOME/.stack
-
 env:
   - GHC=ghc-8.10.1
   - GHC=ghc-8.8.1
@@ -45,7 +41,6 @@ addons:
       - socat
       - curl
       - time
-      - libgmp-dev # for the sake of Haskell stack
       - acl
       - libacl1-dev
 
