@@ -54,6 +54,25 @@ class EvalConf:
         with open(path, "w") as fh:
             self.dump_to(fh)
 
+    def from_source_file(self, path : Union[str, PathLike]) -> None:
+        path = Path(path)
+        if path.suffix == ".hs":
+            self._from_source_file(path, "-- @")
+        elif path.suffix in [".c", ".cc", "cpp"]:
+            self._from_source_file(path, "//@")
+        elif path.suffix in [".py", ".pl", ".sh"]:
+            self._from_source_file(path, "#@")
+
+    def _from_source_file(self, path : Path, prefix : str) -> None:
+        pat = re.compile(f"{prefix}\\s+([^:]*):\s*(.*)")
+        collected = ""
+        with open(path, "r") as h:
+            for line in h:
+                m = pat.match(line)
+                if m is not None:
+                    collected += f"{m[1]}: {m[2]}\n"
+        self.add(yaml.safe_load(collected))
+
     def __setitem__(self, key : str, value : T) -> T:
         self.config[key] = value
         return value

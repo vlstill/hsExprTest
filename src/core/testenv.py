@@ -95,9 +95,11 @@ class TestEnvironment(object):
         # note we are skipping the last element (file name)
         for i in range(len(question_rel)):
             conf_p = Path(qdir_p.joinpath(*question_rel[:i], "eval.conf"))
-            print(f"looking for {conf_p}")
             if conf_p.exists():
                 conf.load(str(conf_p))
+
+        if self.question is not None:
+            conf.from_source_file(self.question)
 
         conf.dump(self.conffile)
 
