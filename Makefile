@@ -58,7 +58,7 @@ test : configure pycheck build
 pycheck : $(PYSRC:%=%-mypy)
 
 $(PYSRC:%=%-mypy) :
-	$(MYPY) --check-untyped-defs --warn-redundant-casts --warn-unused-ignores --warn-return-any $(@:%-mypy=%)
+	env MYPYPATH=$(dir $@) $(MYPY) --check-untyped-defs --warn-redundant-casts --warn-unused-ignores --warn-return-any $(@:%-mypy=%)
 
 clean :
 	rm -rf ${BUILD_DIR}
