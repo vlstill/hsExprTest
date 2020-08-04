@@ -72,7 +72,9 @@ class EvalConf:
                 m = pat.match(line)
                 if m is not None:
                     collected += f"{m[1]}: {m[2]}\n"
-        self.add(yaml.safe_load(collected))
+        raw = yaml.safe_load(collected)
+        if raw is not None:
+            self.add(raw)
 
     def __setitem__(self, key : str, value : T) -> T:
         self.config[key] = value
