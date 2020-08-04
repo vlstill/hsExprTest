@@ -139,6 +139,15 @@ class TestEnvironment(object):
         estack.callback(lambda t: t.close(), transport)
         return reader, wfd
 
+    def get_environ(self):
+        env = copy.deepcopy(os.environ)
+        for var in self.course.path_append:
+            if var not in env:
+                env[var] = self.course.qdir
+            else:
+                env[var] = f"{env[var]}:{self.course.qdir}"
+        return env
+
     async def run(self, *options, hint : bool) -> RunResult:
         with self.slotmgr.get() as slot:
             args = []
@@ -156,12 +165,7 @@ class TestEnvironment(object):
             points_wfd : Optional[int] = None
             points : List[PointEntry] = []
 
-            env = copy.deepcopy(os.environ)
-            for var in self.course.path_append:
-                if var not in env:
-                    env[var] = self.course.qdir
-                else:
-                    env[var] = f"{env[var]}:{self.course.qdir}"
+            env = self.get_environ()
 
             with contextlib.ExitStack() as estack:
                 if self.course.extended:
