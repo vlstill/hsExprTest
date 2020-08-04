@@ -14,10 +14,26 @@ else
     QUESTION=$1; shift
     ANSWER=$1; shift
 fi
-INC=$(echo $1 | sed 's/-I//'); shift
-ARG=$(echo $1 | sed 's/-o//')
+while [[ -n "$1" ]]; do
+    arg=${1:0:2}
+    val=${1:2}
+    if [[ "$arg" = "-I" ]]; then
+        INC=$val
+        shift
+    elif [[ "$arg" = "-o" ]]; then
+        ARG=$val
+        shift
+    elif [[ "$arg" = "-p" ]]; then
+        PIPE=$val
+        shift
+    elif [[ "$arg" = "-c" ]]; then
+        CONFIG=$val
+        shift
+    else
+        fail "unknow arg $1"
+    fi
+done
 
-[[ "$2" = "" ]] || fail "too many args"
 if [[ "$QUESTION" ]]; then
     [[ -f "$QUESTION" ]] || fail "fist argument must be a file"
     [[ -r "$QUESTION" ]] || fail "first argument must be readable"
