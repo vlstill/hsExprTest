@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# (c) 2018-2019 Vladimír Štill
+# (c) 2018-2020 Vladimír Štill
 
 import os
 import os.path
@@ -9,15 +9,17 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from typing import List, Pattern, TextIO
+import yaml
+from typing import List, Pattern, TextIO, Optional, TypeVar
 
 from typing_extensions import Final
 
+T = TypeVar("T")
 FilePath = str
 
 if len(sys.argv) < 3:
     print(f"usage: {sys.argv[0]} TEACHER_FILE STUDENT_FILE [-IDIR ...] "
-          "[-pFD] [--hint]", file=sys.stderr)
+          "[-pFD] [-cCONFIG] [--hint]", file=sys.stderr)
     sys.exit(1)
 
 teacher : Final[str] = sys.argv[1]
@@ -25,6 +27,7 @@ student : Final[str] = sys.argv[2]
 hint : bool = False
 include : List[str] = []
 journal_fd : int = 2
+_config = dict()
 
 for i in range(3, len(sys.argv)):
     v = sys.argv[i]
@@ -34,6 +37,10 @@ for i in range(3, len(sys.argv)):
         journal_fd = int(v[2:])
     elif v.startswith("-I") or v.startswith("-i"):
         include.append(v[2:])
+    elif v.startswith("-c"):
+        with open(v[2:], "r") as h:
+            _config = yaml.safe_load(h)
+
 
 ALL_EXTS : Final[List[str]] = ["NoMonomorphismRestriction"]
 ST_EXTS : Final[List[str]] = ["Safe"] + ALL_EXTS
@@ -53,17 +60,42 @@ COMPILE_LINE : Final[Pattern[str]] = re.compile(r"^(\[[0-9]+\s+of\s+[0-9]+\]|Lin
 
 
 class TestConf:
-    def __init__(self) -> None:
+    def __init__(self, config : dict) -> None:
         self.inject : str = ""
-        self.reqire_type : bool = False
-        self.allow_imports : bool = True
         self.typecmp : bool = False
         self.typecmp_num_types : int = 0
-        self.exts : List[str] = []
-        self.imports : List[str] = []
-        self.compiled : bool = False
-        self.reflection : bool = False
         self.ast_checks : List[str] = []
+        self.config = config
+
+    def reflection(self) -> bool:
+        return self.get("reflection", False)
+
+    def compiled(self) -> bool:
+        return self.get("compiled", False)
+
+    def exts(self) -> List[str]:
+        return self.get("exts", [])
+
+    def student_exts(self) -> List[str]:
+        return ST_EXTS + self.exts() + self.get("student exts", [])
+
+    def teacher_exts(self) -> List[str]:
+        return T_EXTS + self.exts() + self.get("teacher exts", [])
+
+    def main_exts(self) -> List[str]:
+        return MAIN_EXTS + self.exts() + self.get("main exts", [])
+
+    def imports(self) -> List[str]:
+        return self.get("imports", [])
+
+    def require_type(self) -> bool:
+        return self.get("require type", False)
+
+    def allow_imports(self) -> bool:
+        return self.get("allow imports", True)
+
+    def get(self, key : str, default : T) -> T:
+        return self.config.get(key, default)
 
 
 def warn(msg : str) -> None:
@@ -81,9 +113,10 @@ def val2bool(val : str) -> bool:
 def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
     with open(dstFile, "w") as dst:
         with open(srcFile, "r") as src:
-            conf = TestConf()
+            conf = TestConf(_config)
 
-            dst.write("{-# LANGUAGE " + ", ".join(T_EXTS) + " #-}\n\n")
+            dst.write("{-# LANGUAGE " + ", ".join(conf.teacher_exts())
+                                      + " #-}\n\n")
             dst.write("module Teacher where\n\n")
 
             inject : bool = False
@@ -93,33 +126,18 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                 match = OPT_R.fullmatch(l.rstrip())
                 if match:
                     key : str = match[1]
-                    val : str = match[2]
 
-                    if key == "exts":
-                        conf.exts += LIST_SPLIT_R.split(val)
-                    elif key == "INJECT BEGIN":
+                    if key == "INJECT BEGIN":
                         assert not inject, "inject inside inject"
                         inject = True
                     elif key == "INJECT END":
                         assert inject, "inject end without start"
                         inject = False
                         inject_end = True
-                    elif key == "require type":
-                        conf.reqire_type = val2bool(val)
-                    elif key == "allow imports":
-                        conf.allow_imports = val2bool(val)
                     elif key == "typecmp":
                         conf.typecmp = True
-                    elif key == "compiled":
-                        conf.compiled = val2bool(val)
-                    elif key == "reflection":
-                        conf.reflection = val2bool(val)
-                    elif key == "import":
-                        conf.imports += LIST_SPLIT_R.split(val)
-                    else:
-                        warn("unknown option '{}: {}'".format(key, val))
 
-                if conf.reflection:
+                if conf.reflection():
                     match = AST_CHECK_DECL.search(l)
                     if match:
                         conf.ast_checks.append(match[1])
@@ -145,16 +163,16 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
     with open(dstFile, "w") as dst:
         # one skipping BOM if present
         with open(srcFile, "r", encoding='utf-8-sig') as src:
-            exts_string = ", ".join(ST_EXTS + conf.exts)
+            exts_string = ", ".join(conf.student_exts())
             dst.write("{-# LANGUAGE " + exts_string + " #-}\n\n")
-            if conf.reqire_type:
+            if conf.require_type():
                 dst.write("{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n")
             dst.write("module Student where\n\n")
 
             if conf.inject:
                 dst.write(conf.inject)
 
-            if not conf.allow_imports:
+            if not conf.allow_imports():
                 dst.write("no_imports_for_student_allowed :: ()\n"
                           "no_imports_for_student_allowed = ()\n\n")
 
@@ -211,9 +229,11 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
 
 
 def mkMainFile(filename : FilePath, conf : TestConf) -> None:
-    reflect = "import qualified StudentASTChecks" if conf.reflection else ""
+    reflect = ""
+    if conf.reflection():
+        reflect = "import qualified StudentASTChecks"
     with open(filename, "w") as dst:
-        dst.write("{-# LANGUAGE " + ", ".join(MAIN_EXTS) + "#-}\n")
+        dst.write("{-# LANGUAGE " + ", ".join(conf.main_exts()) + "#-}\n")
         dst.write(f"""
 module Main ( main ) where
 
@@ -232,7 +252,7 @@ import qualified Test.QuickCheck.Range
 import System.Exit
 import Control.Monad
 """)
-        for imp in conf.imports:
+        for imp in conf.imports():
             dst.write("import qualified {}\n".format(imp))
 
         if not conf.typecmp:
@@ -254,7 +274,7 @@ $(testMain (TestConfig
 with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     conf = mkTeacherFile(teacher, os.path.join(wd, "Teacher.hs"))
     mkStudentFile(student, os.path.join(wd, "Student.hs"), conf)
-    if conf.reflection:
+    if conf.reflection():
         mkStudentReflectorFile(student, wd, conf)
     os.chdir(wd)
 
@@ -276,7 +296,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             invocation.insert(0, "ghc")
             invocation.extend(["-e", "return ()"])
         else:
-            if conf.compiled:
+            if conf.compiled():
                 invocation[:0] = ["ghc", "-o", "test", "-odir", ".",
                                   "-hidir", ".", "-O2"]
                 execution = ["./test"]
@@ -289,7 +309,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        pass_fds=pass_fds, encoding="utf-8")
 
-    if conf.compiled:
+    if conf.compiled():
         for l in r.stdout.splitlines():
             if COMPILE_LINE.search(l) is None:
                 print(l, flush=True)
