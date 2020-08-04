@@ -10,7 +10,8 @@ import sys
 import tempfile
 import textwrap
 import yaml
-from typing import List, Pattern, TextIO, Optional, TypeVar
+import evalconf
+from typing import List, Pattern, TextIO, Optional, Dict, Any, TypeVar
 
 from typing_extensions import Final
 
@@ -27,7 +28,7 @@ student : Final[str] = sys.argv[2]
 hint : bool = False
 include : List[str] = []
 journal_fd : int = 2
-_config = dict()
+_config : Optional[Dict[str, Any]] = None
 
 for i in range(3, len(sys.argv)):
     v = sys.argv[i]
@@ -40,6 +41,9 @@ for i in range(3, len(sys.argv)):
     elif v.startswith("-c"):
         with open(v[2:], "r") as h:
             _config = yaml.safe_load(h)
+
+if _config is None:
+    _config = evalconf.EvalConf().from_source_file(teacher).config
 
 
 ALL_EXTS : Final[List[str]] = ["NoMonomorphismRestriction"]
@@ -113,6 +117,7 @@ def val2bool(val : str) -> bool:
 def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
     with open(dstFile, "w") as dst:
         with open(srcFile, "r") as src:
+            assert _config is not None
             conf = TestConf(_config)
 
             dst.write("{-# LANGUAGE " + ", ".join(conf.teacher_exts())
