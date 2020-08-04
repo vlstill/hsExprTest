@@ -46,7 +46,7 @@ if _config is None:
     _config = evalconf.EvalConf().from_source_file(teacher).config
 
 
-ALL_EXTS : Final[List[str]] = ["NoMonomorphismRestriction"]
+ALL_EXTS : Final[List[str]] = []
 ST_EXTS : Final[List[str]] = ["Safe"] + ALL_EXTS
 T_EXTS : Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
                              "ScopedTypeVariables", "DataKinds",
