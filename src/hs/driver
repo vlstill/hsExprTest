@@ -98,6 +98,9 @@ class TestConf:
     def allow_imports(self) -> bool:
         return self.get("allow imports", True)
 
+    def warnings(self) -> List[str]:
+        return self.get("warnings", [])
+
     def get(self, key : str, default : T) -> T:
         return self.config.get(key, default)
 
@@ -172,6 +175,9 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
             dst.write("{-# LANGUAGE " + exts_string + " #-}\n\n")
             if conf.require_type():
                 dst.write("{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n")
+            if conf.warnings():
+                ws = " ".join(f"-W{w}" for w in conf.warnings())
+                dst.write("{-# OPTIONS_GHC " + ws + " #-}")
             dst.write("module Student where\n\n")
 
             if conf.inject:
