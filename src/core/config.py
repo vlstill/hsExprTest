@@ -26,20 +26,23 @@ class Course:
             self.path_append : List[str] = raw.get("path_append", [])
             self.extended = bool(raw.get("extended", False))
             self.escape_is = bool(raw.get("escape_is", False))
+            self.evalconf = raw.get("config", dict())
         except KeyError as ex:
             raise ConfigException(
-                    f"Course must set at least 'name' and 'checker': missing {ex}")
+                f"Course must set at least 'name' and 'checker': missing {ex}")
 
-    def to_dict(self, expand = False) -> Dict[str, Union[str, bool, List[str]]]:
-        res : Dict[str, Union[str, bool, List[str]]] = \
-              {"name": self.name,
-               "checker": self.checker,
-               "isolation": self.isolation,
-               "hint": self.hint,
-               "authorized": self.authorized,
-               "path_append": self.path_append,
-               "extended": self.extended,
-               "escape_is": self.escape_is}
+    def to_dict(self, expand=False) \
+            -> Dict[str, Union[str, bool, List[str], dict]]:
+        res : Dict[str, Union[str, bool, List[str], dict]] = \
+            {"name": self.name,
+             "checker": self.checker,
+             "isolation": self.isolation,
+             "hint": self.hint,
+             "authorized": self.authorized,
+             "path_append": self.path_append,
+             "extended": self.extended,
+             "escape_is": self.escape_is,
+             "config": self.evalconf}
         if expand:
             res["qdir"] = self.qdir
         else:

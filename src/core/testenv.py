@@ -11,10 +11,13 @@ import asyncio
 import subprocess
 import contextlib
 import json
+from pathlib import Path, PurePath
 from typing import Tuple, List, Optional
 
 
 import cgroup
+from evalconf import EvalConf
+
 
 class PointEntry:
     def __init__(self, points : int, out_of : int, comment : str, **kvargs):
@@ -71,6 +74,33 @@ class TestEnvironment(object):
 
             acl.calc_mask()
 
+    def setup_config(self, path : str) -> None:
+        if not self.course.extended:
+            self.conffile : Optional[str] = None
+            return
+
+        self.conffile = path
+        conf = EvalConf()
+        conf.add(self.course.evalconf)
+        conf["qdir"] = self.course.qdir
+        conf["question_path"] = self.question
+
+        qdir_p = PurePath(self.course.qdir)
+        if self.question is not None:
+            question_p = PurePath(self.question)
+        else:
+            question_p = qdir_p
+        question_rel = question_p.relative_to(qdir_p).parts
+
+        # note we are skipping the last element (file name)
+        for i in range(len(question_rel)):
+            conf_p = Path(qdir_p.joinpath(*question_rel[:i], "eval.conf"))
+            print(f"looking for {conf_p}")
+            if conf_p.exists():
+                conf.load(str(conf_p))
+
+        conf.dump(self.conffile)
+
     async def __aenter__(self):
         self.tmpdir = self.tmpdirHandle.__enter__()
 
@@ -90,6 +120,8 @@ class TestEnvironment(object):
                     await tgt.write(contents)
         async with aiofiles.open(self.afile, "w") as ans:
             await ans.write(self.answer)
+
+        self.setup_config(os.path.join(self.tmpdir, "eval.conf"))
 
         return self
 
@@ -134,6 +166,8 @@ class TestEnvironment(object):
                     points_read, points_wfd = await self.get_points_pipe(estack)
                     args.append(f"-p{points_wfd}")
                     pass_fds = [points_wfd]
+                if self.conffile:
+                    args.append(f"-c{self.conffile}")
 
                 print("+ " + " ".join(args), file=sys.stderr, flush=True)
                 preexec = None
