@@ -54,7 +54,7 @@ class EvalConf:
         with open(path, "w") as fh:
             self.dump_to(fh)
 
-    def from_source_file(self, path : Union[str, PathLike]) -> None:
+    def from_source_file(self, path : Union[str, PathLike]) -> EvalConf:
         path = Path(path)
         if path.suffix == ".hs":
             self._from_source_file(path, "-- @")
@@ -62,6 +62,7 @@ class EvalConf:
             self._from_source_file(path, "//@")
         elif path.suffix in [".py", ".pl", ".sh"]:
             self._from_source_file(path, "#@")
+        return self
 
     def _from_source_file(self, path : Path, prefix : str) -> None:
         pat = re.compile(f"{prefix}\\s+([^:]*):\s*(.*)")
