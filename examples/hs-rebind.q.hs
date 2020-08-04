@@ -1,4 +1,4 @@
--- @ exts: RebindableSyntax
+-- @ student exts: [RebindableSyntax]
 --
 -- this example demonstrates how rebindable syntax can be used to disable
 -- syntax constructs such as if-then-else
