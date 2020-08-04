@@ -35,6 +35,9 @@ courses:
     isolation: false
     qdir: bash
     extended: true
+    config:
+        a: b
+        b: [1, 2, 3]
   - name: testi
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
