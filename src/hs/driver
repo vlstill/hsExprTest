@@ -64,7 +64,7 @@ COMPILE_LINE : Final[Pattern[str]] = re.compile(r"^(\[[0-9]+\s+of\s+[0-9]+\]|Lin
 
 
 class TestConf:
-    def __init__(self, config : dict) -> None:
+    def __init__(self, config : Dict[str, object]) -> None:
         self.inject : str = ""
         self.typecmp : bool = False
         self.typecmp_num_types : int = 0
@@ -101,18 +101,17 @@ class TestConf:
     def warnings(self) -> List[str]:
         return self.get_typed("warnings", [], list)
 
-    def get(self, key : str, default : T) -> T:
+    def _get(self, key : str, default : object) -> object:
         return self.config.get(key, default)
 
     def get_typed(self, key : str, default : T, ty : type) -> T:
-        val : T = self.get(key, default)
+        val = self._get(key, default)
         if not isinstance(val, ty):
             msg = f"Invalid config type of {key}, got {type(val)} expected " \
                   f"(subtype of) {ty}"
             print("Error:", msg)
             raise TypeError(msg)
         return val  # type: ignore
-
 
 
 def warn(msg : str) -> None:
