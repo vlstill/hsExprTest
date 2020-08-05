@@ -191,7 +191,7 @@ async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
 
             output = run_res.stdout
             if (InterfaceMode.IS in mode and course.escape_is) \
-                    or data.get("escape", "True").lower() == "True":
+                    or data.get("escape", "true").lower() == "true":
                 output = "<pre class=\"exprtest-result-escaped\">\n" \
                          f"{html.escape(output, quote=True)}</pre>"
 
