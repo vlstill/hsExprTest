@@ -72,37 +72,47 @@ class TestConf:
         self.config = config
 
     def reflection(self) -> bool:
-        return self.get("reflection", False)
+        return self.get_typed("reflection", False, bool)
 
     def compiled(self) -> bool:
-        return self.get("compiled", False)
+        return self.get_typed("compiled", False, bool)
 
     def exts(self) -> List[str]:
-        return self.get("exts", [])
+        return self.get_typed("exts", [], list)
 
     def student_exts(self) -> List[str]:
-        return ST_EXTS + self.exts() + self.get("student exts", [])
+        return ST_EXTS + self.exts() + self.get_typed("student exts", [], list)
 
     def teacher_exts(self) -> List[str]:
-        return T_EXTS + self.exts() + self.get("teacher exts", [])
+        return T_EXTS + self.exts() + self.get_typed("teacher exts", [], list)
 
     def main_exts(self) -> List[str]:
-        return MAIN_EXTS + self.exts() + self.get("main exts", [])
+        return MAIN_EXTS + self.exts() + self.get_typed("main exts", [], list)
 
     def imports(self) -> List[str]:
-        return self.get("imports", [])
+        return self.get_typed("imports", [], list)
 
     def require_type(self) -> bool:
-        return self.get("require type", False)
+        return self.get_typed("require type", False, bool)
 
     def allow_imports(self) -> bool:
-        return self.get("allow imports", True)
+        return self.get_typed("allow imports", True, bool)
 
     def warnings(self) -> List[str]:
-        return self.get("warnings", [])
+        return self.get_typed("warnings", [], list)
 
     def get(self, key : str, default : T) -> T:
         return self.config.get(key, default)
+
+    def get_typed(self, key : str, default : T, ty : type) -> T:
+        val : T = self.get(key, default)
+        if not isinstance(val, ty):
+            msg = f"Invalid config type of {key}, got {type(val)} expected " \
+                  f"(subtype of) {ty}"
+            print("Error:", msg)
+            raise TypeError(msg)
+        return val  # type: ignore
+
 
 
 def warn(msg : str) -> None:
