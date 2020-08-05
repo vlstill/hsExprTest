@@ -38,7 +38,8 @@ if (typeof syntax_check !== 'function') {
                         var xhr = new XMLHttpRequest(),
                             data = 'id=' + otazky[n] +
                                    '&course_id=' + predmet +
-                                   '&answer=' + encodeURIComponent(txa.value);
+                                   '&answer=' + encodeURIComponent(txa.value) +
+                                   '&escape=True';
                         if ('withCredentials' in xhr) {
                             xhr.open('POST', url, true);
                             xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
@@ -47,11 +48,11 @@ if (typeof syntax_check !== 'function') {
                                     var text, barva;
                                     var resp = JSON.parse(this.responseText);
                                     if (resp.result) {
-                                        text = 'V pořádku.<pre>\n' + resp.comment + '\n</pre>';
+                                        text = 'V pořádku.\n' + resp.comment + '\n';
                                         barva = 'green';
                                     } else {
-                                        text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>\n<pre>\n'
-                                               + resp.comment + "\n</pre>";
+                                        text = 'Vstup obsahuje syntaktické nebo typové chyby nebo překlep v názvu funkce.<br>\n\n'
+                                               + resp.comment + "\n";
                                         barva = 'red';
                                     }
                                     res.innerHTML = text;
