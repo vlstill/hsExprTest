@@ -62,6 +62,7 @@ class TestEnvironment(object):
             e.tag_type = posix1e.ACL_USER
             e.qualifier = uid
             self.set_rwx(e)
+            acl.calc_mask()
             acl.applyto(self.tmpdir)
 
             # add another default entry for checker to ensure we can delete
@@ -70,9 +71,8 @@ class TestEnvironment(object):
             ec.tag_type = posix1e.ACL_USER
             ec.qualifier = os.geteuid()
             self.set_rwx(e)
-            acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
-
             acl.calc_mask()
+            acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
 
     def setup_config(self, path : str) -> None:
         if not self.course.extended:
