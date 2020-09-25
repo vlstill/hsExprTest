@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE TemplateHaskellQuotes, LambdaCase #-}
 
 module Test.Expr.Reflection (
     module Language.Haskell.TH,
@@ -8,16 +8,18 @@ module Test.Expr.Reflection (
     isComprehentionD,
     callStartsWithOneOfD, callStartsWithOneOfD',
     callStartsWithOneOfE, callStartsWithOneOfE',
-    onFunD
+    onFunD,
+    onFunBodyExp,
+    singleClauseFunWithoutGuards,
+    hasConstructorE
     ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.PprLib ( Doc )
-import Data.Data ( gmapT, Data )
-import Data.Typeable ( cast )
+import Data.Data ( gmapT, gmapQl, Data, Constr, toConstr )
 import Data.Maybe ( fromJust )
-
+import Data.Typeable ( cast )
 
 -- | Any function with type 'ASTCheck' declared in the teacher's file will be
 -- executed if reflection is enabled
@@ -52,20 +54,42 @@ onFunD decs name fn = mapM_ fn . assertExists $ filter select decs
     assertExists [] = fail $ "Missing mandatory function `" ++ name ++ "'"
     assertExists x  = x
 
+disallowdDec :: Dec -> Q ()
+disallowdDec d = fail $ "Disallowed declaration " ++ compactPpr d
+
+onFunBodyExp :: Dec -> (Exp -> Q ()) -> Q ()
+onFunBodyExp dec check = case dec of
+    FunD _ cls    -> mapM_ (\(Clause _ body _) -> onBody body) cls
+    ValD _ body _ -> onBody body
+    d             -> disallowdDec d
+  where
+    onBody (GuardedB grds) = mapM_ (check . snd) grds
+    onBody (NormalB ex)   = check ex
+
 
 -- | Accepts a function which is defined in term of given names. The function
 -- must not have multiline declarations. The first argument specifies if
 -- functional composition is allowed.
 callStartsWithOneOfD' :: Bool -> [Name] -> Dec -> Q ()
-callStartsWithOneOfD' allowComposition names dec = case dec of
-    ValD (VarP _) body _     -> csB body
-    ValD _ _ _               ->  fail "Only plain variable declarations (without pattern matching) allowed"
-    FunD _ [Clause _ body _] -> csB body
-    FunD _ _                 -> fail "Forbidden multiline declaration"
-    d                        -> fail $ "Disallowed declaration " ++ compactPpr d
+callStartsWithOneOfD' allowComposition names dec = do
+    singleClauseFunWithoutGuards dec
+    case dec of
+        ValD _ (NormalB expr) _            -> check expr
+        FunD _ [Clause _ (NormalB expr) _] -> check expr
+        d                                  -> disallowdDec d
   where
-    csB (NormalB expr) = callStartsWithOneOfE' allowComposition names expr
-    csB _              = fail "Forbidden guards"
+    check expr = callStartsWithOneOfE' allowComposition names expr
+
+singleClauseFunWithoutGuards :: Dec -> Q ()
+singleClauseFunWithoutGuards dec = case dec of
+    ValD (VarP _) body _     -> check body
+    ValD _ _ _               -> fail "Only plain variable declarations (without pattern matching) allowed"
+    FunD _ [Clause _ body _] -> check body
+    FunD _ _                 -> fail "Forbidden multiline declaration"
+    d                        -> disallowdDec d
+  where
+    check (NormalB _) = pure ()
+    check _              = fail "Forbidden guards"
 
 -- | Version of 'callStartsWithOneOfD'' which does not accept function composition
 callStartsWithOneOfD :: [Name] -> Dec -> Q ()
@@ -91,6 +115,23 @@ callStartsWithOneOfE' allowComposition names expr = go expr
 
     err n = fail $ "Found `" ++ compactPpr n ++ "', expected expression starting with one of "
                    ++ show (map compactPpr' names)
+
+-- | Check if the given expression contains a subexpression created by given constructor
+hasConstructorE :: Constr -> String -> Exp -> Q ()
+hasConstructorE constr msg expr0 = if go expr0 then pure () else fail msg
+  where
+    go :: Exp -> Bool
+    go expr
+      | toConstr expr == constr = True
+      | InfixE a b c <- expr    = mGo a || go b || mGo c
+      | otherwise               = gmapQl (||) False
+                                         (\x -> case cast x of
+                                                Nothing -> False
+                                                Just ex -> go (ex :: Exp))
+                                         expr
+
+    mGo Nothing = False
+    mGo (Just ex) = go ex
 
 
 compactPpr' :: (Data a, Ppr a) => a -> Doc
