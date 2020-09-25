@@ -269,6 +269,8 @@ import Language.Haskell.TH ( Exp ( ConE ) )
 import Test.QuickCheck.Convertible ( convert )
 import qualified Test.QuickCheck.Modifiers
 import qualified Test.QuickCheck.Range
+import qualified Test.QuickCheck.Literal
+import qualified Test.QuickCheck.Union
 import System.Exit
 import Control.Monad
 """)

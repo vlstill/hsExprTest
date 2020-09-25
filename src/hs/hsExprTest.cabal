@@ -1,5 +1,5 @@
 name:                hsExprTest
-version:             3.2
+version:             3.3
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
@@ -28,6 +28,7 @@ Library
                     random >= 1.1,
                     printf-mauke >= 0.7.0,
                     aeson >= 1.3,
+                    data-default-class,
                     text,
                     unix,
                     containers
@@ -40,6 +41,8 @@ Library
                       Test.Expr.Reflection
                       Test.QuickCheck.Range
                       Test.QuickCheck.Convertible
+                      Test.QuickCheck.Literal
+                      Test.QuickCheck.Union
                       Test.Testable.IO
                       Test.Testable.IO.Base
                       Test.Testable.IO.NoMonad
