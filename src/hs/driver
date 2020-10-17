@@ -59,8 +59,14 @@ LIST_SPLIT_R : Final[Pattern[str]] = re.compile(" *, *| +")
 ERR_HEADER : Final[Pattern[str]] = re.compile(r"^([^:]*)[.]hs:[0-9]*:[0-9]*:")
 IGNORE : Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
 AST_CHECK_DECL : Final[Pattern[str]] = re.compile(r"^([^\s:]*)\s*::\s*ASTCheck")
+
 GHC_LINE_ERR : Final[Pattern[str]] = re.compile(r"^[0-9]*\s*\|")
 COMPILE_LINE : Final[Pattern[str]] = re.compile(r"^(\[[0-9]+\s+of\s+[0-9]+\]|Linking .* ...)")
+AST_CHECK_EXC: Final = re.compile(r"^\s+Exception when trying to run compile-time code:")
+AST_CHECK_CALL_STACK: Final = re.compile(
+    r"^(CallStack \(from HasCallStack\):"
+    r"|\s+error, called at [.]/Teacher[.]hs:[0-9]+:[0-9]+ in main:Teacher"
+    r"|\s+Code: runASTCheck)")
 
 
 class TestConf:
@@ -354,7 +360,10 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                 ast_check = True
         if hide:
             print(l, file=sys.stderr, flush=True)
-        elif ast_check and GHC_LINE_ERR.search(l) is not None:
+        elif ast_check and \
+                (GHC_LINE_ERR.search(l) is not None or
+                 AST_CHECK_EXC.search(l) is not None or
+                 AST_CHECK_CALL_STACK.search(l) is not None):
             print(l, file=sys.stderr, flush=True)
         else:
             print(l, flush=True)
