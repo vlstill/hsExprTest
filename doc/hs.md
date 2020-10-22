@@ -215,12 +215,15 @@ instance NFData a => NFData (BinTree a) where
     rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
-### Using QuickCheck Modifiers {#patterns}
+### Using QuickCheck Modifiers & Patterns {#patterns}
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
 added automatically and functions are generated wrapped in the `Fun` type and
-uncurried.
+uncurried. There are also additional modifiers defined in `hsExprTest`, namely
+[Test.QuickCheck.Range](https://vlstill.github.io/hsExprTest/Test-QuickCheck-Range.html),
+[Test.QuickCheck.Literal](https://vlstill.github.io/hsExprTest/Test-QuickCheck-Literal.html), and
+[Test.QuickCheck.Union](https://vlstill.github.io/hsExprTest/Test-QuickCheck-Union.html).
 
 [qcm]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Modifiers.html
 
@@ -242,11 +245,39 @@ numbers :: Int -> Int -> Bool
 
 The patterns are provided by the optional `pattern` global declaration in the
 teacher's file. This variable should be set to a pattern using the
-TemplateHaskell pattern notation `[p| … |]`{.haskell}. The pattern in the
-parenthesis must define all the variables used as the arguments of the tested
-expression (in order), but uncurried, i.e. as a tuple, not as a separate arguments. You
-can optionally also specify types of the arguments: `[p| (NonNegative x ::
-NonNegative Int, NonNegative y :: NonNegative Integer) |]`{.hasell}.
+TemplateHaskell pattern notation `[p| … |]`{.haskell}. The pattern must define
+all the variables used as the arguments of the tested expression (in order).
+The simples case is binding all arguments in a tuple as seen in the example
+above. You can optionally also specify types of the arguments: `[p|
+(NonNegative x :: NonNegative Int, NonNegative y :: NonNegative Integer)
+|]`{.hasell}. Furthermore, it is also possible to use more complex types in the
+patterns:
+
+```haskell
+newtype Point = P (Integer, Integer, Integer) deriving ( Eq )
+data Triangle = T Point Point Point deriving ( Eq )
+
+instance Arbitrary Point where
+    {- … -}
+
+instance Arbitrary Triangle where
+    {- … -}
+
+pattern = [p| (T (P a) (P b) (P c)) |]
+expr = "isTriangle"
+
+isTriangle :: (Integer, Integer, Integer) -> (Integer, Integer, Integer) -> (Integer, Integer, Integer) -> Bool
+isTriangle a b c = …
+```
+
+This will case hsExprTest to generate instances of `Triangle` and pass the
+points to `isTriangle`.
+
+In general, all the free, named variables in the pattern are matched
+left-to-right to the arguments of the tested function (and possibly coerced by
+a cast that can shed `newtype`s). The only exception are the "as" patterns:
+`xss@(x:xs)`, in this case, only the internal variables (`x` and `xs`) are
+matched. These patterns should be avoided.
 
 #### Range modifier
 
