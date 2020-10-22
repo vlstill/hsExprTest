@@ -148,15 +148,11 @@ section, so `foldr` can be used in solution file.
 Normally student is allowed to import any [Safe
 Haskell](https://ghc.haskell.org/trac/ghc/wiki/SafeHaskell)  module in scope
 (which includes `base`, `QuickCheck` and `hsExprTest` and their dependencies).
-This can be disallowed by injecting any function declaration into student file,
-after this compilation of student file which attempts import will fail.
+This can be disallowed by the annotation `-- @ allow imports: False`.
 
 ```haskell
+-- @ allow imports: False
 import qualified Data.Maybe
-
--- @ INJECT BEGIN
-no_imports_for_student = ()
--- @ INJECT END
 
 expr = "mapMaybe"
 
@@ -215,7 +211,7 @@ instance NFData a => NFData (BinTree a) where
     rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
-### Using QuickCheck Modifiers & Patterns {#patterns}
+### Using QuickCheck Modifiers & Patterns
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
