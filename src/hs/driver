@@ -223,10 +223,9 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
 
                 module StudentReflector (
                     studentAST, runASTCheck,
-                    module Test.Expr.Reflection
                     ) where
 
-                import Test.Expr.Reflection
+                import Test.Expr.Reflection ( Q, Dec, ASTCheck )
 
                 studentAST :: Q [Dec]
                 studentAST = [d|
