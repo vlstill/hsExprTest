@@ -70,7 +70,7 @@ class TestEnvironment(object):
             ec = acl.append()
             ec.tag_type = posix1e.ACL_USER
             ec.qualifier = os.geteuid()
-            self.set_rwx(e)
+            self.set_rwx(ec)
             acl.calc_mask()
             acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
 
