@@ -142,6 +142,7 @@ class SlotManager:
     def _terminate(self, slot : str) -> None:
         assert self.cg is not None
         for p in self.cg.procs(slot):
+            print(f"W: killing stale {p}", file=sys.stderr, flush=True)
             os.kill(p, signal.SIGKILL)
         self._free_slots.append(slot)
 
