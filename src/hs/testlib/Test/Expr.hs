@@ -11,7 +11,8 @@ module Test.Expr (
                  testMain,
                  testType, extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
-                 (<==>), testArgs, runProperty, runProperties, Args (..), scheduleAlarm
+                 (<==>), cmpTeacherStudent,
+                 testArgs, runProperty, runProperties, Args (..), scheduleAlarm
                  ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
@@ -92,7 +93,7 @@ testMain config = do
   where
     defimeout = LitE $ IntegerL 10
     tmout x = VarE 'fromIntegral `AppE` VarE x
-    defcmp = VarE '(<==>)
+    defcmp = VarE 'cmpTeacherStudent
     defargs = VarE 'testArgs
     tn = ("Teacher." ++) <$> mayName
     sn = ("Student." ++) <$> mayName
@@ -152,11 +153,21 @@ runProperties args prps = mapM_ (runPropertyAnd (pure ()) onPropFail args) prps 
 -- 'QC.counterexample' on failure.
 (<==>) :: (Eq a, Show a, NFData a) => a -> a -> Property
 infix 4 <==>
-x <==> y = x `comp` y
+(<==>) = excCompare (\sx sy -> sx ++ " ≠ " ++ sy)
+
+cmpTeacherStudent :: (Eq a, Show a, NFData a) => a -> a -> Property
+infix 4 `cmpTeacherStudent`
+cmpTeacherStudent = excCompare $ \steacher sstudent -> unlines
+    ["Unexpected value",
+     "Expected: " ++ steacher,
+     "Yours: " ++ sstudent]
+
+excCompare :: (Eq a, Show a, NFData a) => (String -> String -> String) -> a -> a -> Property
+excCompare ceFmt x y = x `comp` y
   where
     wrap v = unsafePerformIO $ (evaluate . OK $ force v) `catch` handler
     handler (SomeException e) = pure (Exc e)
-    comp x0 y0 = counterexample (sx ++ " /= " ++ sy) (wx == wy)
+    comp x0 y0 = counterexample (ceFmt sx sy) (wx == wy)
       where
         wx = wrap x0
         wy = wrap y0
