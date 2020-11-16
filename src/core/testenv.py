@@ -116,11 +116,12 @@ class TestEnvironment(object):
         self.afile = os.path.join(self.tmpdir, f"answer{ext}")
 
         if self.question is not None:
-            async with aiofiles.open(self.question) as src:
-                async with aiofiles.open(self.qfile, "w") as tgt:
+            assert self.qfile is not None
+            async with aiofiles.open(self.question) as src:  # type: ignore
+                async with aiofiles.open(self.qfile, "w") as tgt:  # type: ignore
                     contents = await src.read()
                     await tgt.write(contents)
-        async with aiofiles.open(self.afile, "w") as ans:
+        async with aiofiles.open(self.afile, "w") as ans:  # type: ignore
             await ans.write(self.answer)
 
         self.setup_config(os.path.join(self.tmpdir, "eval.conf"))
