@@ -190,7 +190,9 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
             dst.write("{-# LANGUAGE " + exts_string + " #-}\n\n")
             if conf.require_type():
                 dst.write("{-# OPTIONS_GHC -Werror=missing-signatures #-}\n\n")
-            if conf.warnings():
+            if conf.typecmp:
+                dst.write("{-# OPTIONS_GHC -w #-}")
+            elif conf.warnings():
                 ws = " ".join(f"-W{w}" for w in conf.warnings())
                 dst.write("{-# OPTIONS_GHC " + ws + " #-}")
             dst.write("module Student where\n\n")
