@@ -285,6 +285,39 @@ def get_handle_admin(conf: config.Config) \
     return handle_admin
 
 
+async def update_qdir(course: config.Course) -> Optional[str]:
+    try:
+        git = await asyncio.create_subprocess_exec("git", "pull", "--ff-only",
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.STDOUT,
+                                                   cwd=course.qdir)
+    except FileNotFoundError as ex:
+        return f"Error while updating: {ex}"
+
+    out, _ = await asyncio.shield(git.communicate())
+    logging.getLogger("update-qdir") \
+           .debug(f"Update result {course.name}: {out.decode('utf-8')}")
+    if git.returncode != 0:
+        return out.decode('utf-8')
+    return None
+
+
+def get_handle_update(conf: config.Config) \
+        -> Callable[[web.Request], Awaitable[web.Response]]:
+    async def handle_update(req: web.Request) -> web.Response:
+        course = req.match_info.get("course_id")
+        conf.logger.debug(f"update req {course}")
+        if course not in conf.courses:
+            return web.Response(status=404, text=f"Not found {course}\n")
+        res = await update_qdir(conf.courses[course])
+        if res is None:
+            return web.Response(text=f"Updated {course}")
+        else:
+            return web.Response(status=500,
+                                text=f"Update for {course} error: {res}")
+    return handle_update
+
+
 def main() -> None:
     conf = config.parse(sys.argv)
     slots = cgroup.SlotManager(conf.limit)
@@ -345,6 +378,9 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
                                        InterfaceMode.Priviledged)
     app.router.add_get("/internal", handle_internal)
     app.router.add_post("/internal", handle_internal)
+
+    app.router.add_get("/update-qdir/{course_id}",  # noqa: FS003
+                       get_handle_update(conf))
 
     handle_admin = get_handle_admin(conf)
     app.router.add_get("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
