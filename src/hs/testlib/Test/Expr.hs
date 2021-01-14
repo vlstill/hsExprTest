@@ -160,7 +160,7 @@ infix 4 `cmpTeacherStudent`
 cmpTeacherStudent = excCompare $ \steacher sstudent -> unlines
     ["Unexpected value",
      "Expected: " ++ steacher,
-     "Yours: " ++ sstudent]
+     "Yours:    " ++ sstudent]
 
 excCompare :: (Eq a, Show a, NFData a) => (String -> String -> String) -> a -> a -> Property
 excCompare ceFmt x y = x `comp` y
