@@ -166,10 +166,14 @@ class Config:
 
         if self.qdir_root is None:
             raise ConfigException("Field 'qdir_root' must be set")
-        courses = conf.get("courses", [])
-        if not isinstance(courses, list):
+        courses0 = conf.get("courses", [])
+        if not (isinstance(courses0, list) or isinstance(courses0, dict)):
             raise ConfigException(
-                    "Courses must be an array of course objects")
+                    "Courses must be an array or map of course objects")
+        if isinstance(courses0, dict):
+            courses = [{"name": n} | c for n, c in courses0.items()]
+        else:
+            courses = courses0
         for c in courses:
             cc = Course(c, self.qdir_root)
             self.courses[cc.name.lower()] = cc
