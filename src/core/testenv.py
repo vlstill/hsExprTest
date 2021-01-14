@@ -1,6 +1,9 @@
+# (c) 2019–2021 Vladimír Štill <code@vstill.eu>
+
+from __future__ import annotations
+
 import tempfile
 import config
-import copy
 import os.path
 import aiofiles  # type: ignore
 import posix1e   # type: ignore
@@ -12,7 +15,8 @@ import subprocess
 import contextlib
 import json
 from pathlib import Path, PurePath
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Any, Dict, Type
+from types import TracebackType
 
 
 import cgroup
@@ -20,15 +24,16 @@ from evalconf import EvalConf
 
 
 class PointEntry:
-    def __init__(self, points : int, out_of : int, comment : str, **kvargs):
+    def __init__(self, points: int, out_of: int, comment: str, **kvargs: Any) \
+            -> None:
         self.points = points
         self.out_of = out_of
         self.comment = comment
 
 
 class RunResult:
-    def __init__(self, res : bool, stdout : str, stderr : str,
-                 points : List[PointEntry]):
+    def __init__(self, res: bool, stdout: str, stderr: str,
+                 points: List[PointEntry]) -> None:
         self.result = res
         self.stdout = stdout
         self.stderr = stderr
@@ -36,8 +41,8 @@ class RunResult:
 
 
 class TestEnvironment(object):
-    def __init__(self, question : Optional[str], answer : str,
-                 course : config.Course, slots : cgroup.SlotManager):
+    def __init__(self, question: Optional[str], answer: str,
+                 course: config.Course, slots: cgroup.SlotManager) -> None:
         self.question = question
         self.answer = answer
         self.course = course
@@ -45,7 +50,7 @@ class TestEnvironment(object):
         self.tmpdirHandle = tempfile.TemporaryDirectory(prefix="exprtest.")
 
     @staticmethod
-    def set_rwx(e) -> None:
+    def set_rwx(e: posix1e.ACL) -> None:
         e.permset.clear()
         e.permset.read = True
         e.permset.write = True
@@ -74,9 +79,9 @@ class TestEnvironment(object):
             acl.calc_mask()
             acl.applyto(self.tmpdir, posix1e.ACL_TYPE_DEFAULT)
 
-    def setup_config(self, path : str) -> None:
+    def setup_config(self, path: str) -> None:
         if not self.course.extended:
-            self.conffile : Optional[str] = None
+            self.conffile: Optional[str] = None
             return
 
         self.conffile = path
@@ -103,13 +108,13 @@ class TestEnvironment(object):
 
         conf.dump(self.conffile)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> TestEnvironment:
         self.tmpdir = self.tmpdirHandle.__enter__()
 
         self.setup_isolation()
 
         ext = ""
-        self.qfile : Optional[str] = None
+        self.qfile: Optional[str] = None
         if self.question is not None:
             ext = os.path.splitext(self.question)[1]
             self.qfile = os.path.join(self.tmpdir, f"question{ext}")
@@ -118,7 +123,7 @@ class TestEnvironment(object):
         if self.question is not None:
             assert self.qfile is not None
             async with aiofiles.open(self.question) as src:  # type: ignore
-                async with aiofiles.open(self.qfile, "w") as tgt:  # type: ignore
+                async with aiofiles.open(self.qfile, "w") as tgt:  # type: ignore # noqa: E501
                     contents = await src.read()
                     await tgt.write(contents)
         async with aiofiles.open(self.afile, "w") as ans:  # type: ignore
@@ -129,8 +134,8 @@ class TestEnvironment(object):
         return self
 
     @staticmethod
-    async def get_points_pipe(estack : contextlib.ExitStack)\
-                              -> Tuple[asyncio.StreamReader, int]:
+    async def get_points_pipe(estack: contextlib.ExitStack) \
+            -> Tuple[asyncio.StreamReader, int]:
         rfd, wfd = os.pipe()
         ro = open(rfd, 'rb', buffering=0)
         loop = asyncio.get_running_loop()
@@ -140,8 +145,8 @@ class TestEnvironment(object):
         estack.callback(lambda t: t.close(), transport)
         return reader, wfd
 
-    def get_environ(self):
-        env = copy.deepcopy(os.environ)
+    def get_environ(self) -> Dict[str, str]:
+        env = os.environ.copy()
         for var in self.course.path_append:
             if var not in env:
                 env[var] = self.course.qdir
@@ -149,7 +154,7 @@ class TestEnvironment(object):
                 env[var] = f"{env[var]}:{self.course.qdir}"
         return env
 
-    async def run(self, *options, hint : bool) -> RunResult:
+    async def run(self, *options: Optional[str], hint: bool) -> RunResult:
         with self.slotmgr.get() as slot:
             args = []
             if self.course.isolation:
@@ -161,16 +166,17 @@ class TestEnvironment(object):
             args.extend([f"-o{opt}" for opt in options if opt is not None])
             if hint:
                 args.append("--hint")
-            pass_fds : List[int] = []
-            points_read : Optional[asyncio.StreamReader] = None
-            points_wfd : Optional[int] = None
-            points : List[PointEntry] = []
+            pass_fds: List[int] = []
+            points_read: Optional[asyncio.StreamReader] = None
+            points_wfd: Optional[int] = None
+            points: List[PointEntry] = []
 
             env = self.get_environ()
 
             with contextlib.ExitStack() as estack:
                 if self.course.extended:
-                    points_read, points_wfd = await self.get_points_pipe(estack)
+                    points_read, points_wfd = \
+                        await self.get_points_pipe(estack)
                     args.append(f"-p{points_wfd}")
                     pass_fds = [points_wfd]
                 if self.conffile:
@@ -178,8 +184,9 @@ class TestEnvironment(object):
 
                 print("+ " + " ".join(args), file=sys.stderr, flush=True)
                 preexec = None
-                if self.slotmgr.available() and self.slotmgr.cg is not None:
-                    preexec = lambda: self.slotmgr.cg.register_me(slot)
+                if self.slotmgr.available() and self.slotmgr.cg is not None \
+                        and slot is not None:
+                    preexec = lambda: self.slotmgr.cg.register_me(slot)  # noqa: E731, E501
                 proc = await asyncio.create_subprocess_exec(
                                       *args,
                                       stdin=subprocess.DEVNULL,
@@ -194,11 +201,12 @@ class TestEnvironment(object):
                     assert points_read is not None
                     assert points_wfd is not None
                     os.close(points_wfd)
-                    (raw_stdout, raw_stderr), raw_points = await asyncio.gather(
-                                            proc.communicate(), points_read.read())
+                    (raw_stdout, raw_stderr), raw_points = \
+                        await asyncio.gather(proc.communicate(),
+                                             points_read.read())
                     point_lines = raw_points.decode("utf8").splitlines()
                     points = [PointEntry(**json.loads(x))
-                                     for x in point_lines]
+                              for x in point_lines]
                 else:
                     raw_stdout, raw_stderr = await proc.communicate()
                 stdout = raw_stdout.decode("utf8")
@@ -214,7 +222,9 @@ class TestEnvironment(object):
                     stdout += f"\n\nKILLED WITH SIGNAL {-rc}"
             return RunResult(proc.returncode == 0, stdout, stderr, points)
 
-    async def __aexit__(self, type, value, traceback):
-        self.tmpdirHandle.__exit__(type, value, traceback)
+    async def __aexit__(self, type_: Optional[Type[BaseException]],
+                        value: Optional[BaseException],
+                        traceback: Optional[TracebackType]) -> None:
+        self.tmpdirHandle.__exit__(type_, value, traceback)
 
 # vim: colorcolumn=80 expandtab sw=4 ts=4

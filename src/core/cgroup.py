@@ -1,4 +1,6 @@
-from typing import Optional, List, Set
+# (c) 2020–2021 Vladimír Štill <code@vstill.eu>
+
+from typing import Optional, List, Set, Generator
 import os
 import os.path
 import contextlib
@@ -15,13 +17,13 @@ class CGException(Exception):
 class CGControl:
     CPU_MAX_PERIOD = 10000  # 10ms
 
-    def __init__(self):
-        cgpath : Optional[str] = None
-        basepath : Optional[str] = None
+    def __init__(self) -> None:
+        cgpath: Optional[str] = None
+        basepath: Optional[str] = None
         try:
             with open("/proc/self/cgroup") as cginfo:
-                for l in cginfo:
-                    n0, _, path = l.split(":")
+                for line in cginfo:
+                    n0, _, path = line.split(":")
                     n = int(n0)
                     if n != 0:
                         raise CGException("cgroups v2 not fully available")
@@ -34,8 +36,8 @@ class CGControl:
 
         try:
             with open("/etc/mtab") as mtab:
-                for l in mtab:
-                    typ, path, _ = l.split(" ", 2)
+                for line in mtab:
+                    typ, path, _ = line.split(" ", 2)
                     if typ == "cgroup2" and basepath is None:
                         basepath = path
         except OSError:
@@ -45,7 +47,7 @@ class CGControl:
                               "not mounted")
         self.cg = os.path.join(basepath, cgpath)
 
-    def delegate(self, moveTo : str) -> None:
+    def delegate(self, moveTo: str) -> None:
         """
         Moves the current processes to {moveTo} and enables subtree_controll
         """
@@ -53,46 +55,46 @@ class CGControl:
         self.register(self.procs(), moveTo)
         self.enable_available_subtrees()
 
-    def procs(self, subpath : str = ".") -> Set[int]:
+    def procs(self, subpath: str = ".") -> Set[int]:
         with open(os.path.join(self.cg, subpath, "cgroup.procs")) as prcs:
             return {int(p) for p in prcs}
 
-    def controllers(self, subpath : str = ".") -> Set[str]:
+    def controllers(self, subpath: str = ".") -> Set[str]:
         with open(os.path.join(self.cg, subpath, "cgroup.controllers")) \
                   as ctrlsF:
             return set(ctrlsF.read().strip().split(' '))
 
-    def register(self, pids : Set[int], subpath : str = ".") \
+    def register(self, pids: Set[int], subpath: str = ".") \
             -> None:
         with open(os.path.join(self.cg, subpath, "cgroup.procs"), "w") \
                   as tgtPrcs:
             for pid in pids:
                 tgtPrcs.write(str(pid))
 
-    def register_me(self, subpath : str = ".") -> None:
+    def register_me(self, subpath: str = ".") -> None:
         self.register({os.getpid()}, subpath)
 
-    def _write(self, path : str, key : str, value : str) -> None:
+    def _write(self, path: str, key: str, value: str) -> None:
         with open(os.path.join(self.cg, path, key), "w") as dst:
             dst.write(value)
 
-    def enable_subtrees(self, controllers : Set[str],
-                        subpath : str = ".") -> None:
+    def enable_subtrees(self, controllers: Set[str],
+                        subpath: str = ".") -> None:
         self._write(subpath, "cgroup.subtree_control",
                     f"+{' +'.join(controllers)}")
 
-    def enable_available_subtrees(self, subpath : str = ".") -> None:
+    def enable_available_subtrees(self, subpath: str = ".") -> None:
         self.enable_subtrees(self.controllers(subpath), subpath)
 
-    def subdivide(self, subpath : str) -> str:
+    def subdivide(self, subpath: str) -> str:
         try:
             os.makedirs(os.path.join(self.cg, subpath), exist_ok=True)
         except Exception as ex:
             raise CGException(f"Error creating sub-hierarchy: {ex}")
         return subpath
 
-    def set_limit(self, limit : Limit, subpath : str = ".") -> None:
-        def wr(key, val, name):
+    def set_limit(self, limit: Limit, subpath: str = ".") -> None:
+        def wr(key: str, val: str, name: str) -> None:
             try:
                 self._write(subpath, key, val)
             except OSError as ex:
@@ -104,13 +106,13 @@ class CGControl:
             wr(key, str(val) if val is not None else "max", name)
         wr("cpu.max",
            f"{round(limit.cpu * self.CPU_MAX_PERIOD)} {self.CPU_MAX_PERIOD}"
-               if limit.cpu is not None else "max",
+           if limit.cpu is not None else "max",
            "CPU")
 
 
 class SlotManager:
-    def __init__(self, limit : Limit):
-        self.cg : Optional[CGControl] = None
+    def __init__(self, limit: Limit) -> None:
+        self.cg: Optional[CGControl] = None
         self._available = False
         try:
             self.cg = CGControl()
@@ -118,7 +120,7 @@ class SlotManager:
             self.slaves = "slaves"
             self.cg.subdivide(self.slaves)
             self.cg.enable_available_subtrees(self.slaves)
-            self._free_slots : List[str] = []
+            self._free_slots: List[str] = []
             self._slot_cnt = 0
             self.limit = limit
             self._available = True
@@ -139,7 +141,7 @@ class SlotManager:
         self.cg.set_limit(self.limit, slot)
         return slot
 
-    def _terminate(self, slot : str) -> None:
+    def _terminate(self, slot: str) -> None:
         assert self.cg is not None
         for p in self.cg.procs(slot):
             print(f"W: killing stale {p}", file=sys.stderr, flush=True)
@@ -147,7 +149,7 @@ class SlotManager:
         self._free_slots.append(slot)
 
     @contextlib.contextmanager
-    def get(self):
+    def get(self) -> Generator[Optional[str], None, None]:
         if not self._available:
             yield None
         else:

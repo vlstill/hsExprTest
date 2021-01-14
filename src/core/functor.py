@@ -1,3 +1,5 @@
+# (c) 2019–2021 Vladimír Štill <code@vstill.eu>
+
 from typing import Optional, Callable, TypeVar
 
 
@@ -5,7 +7,7 @@ ta = TypeVar("ta")
 tb = TypeVar("tb")
 
 
-def mapO(fun : Callable[[ta], tb], val : Optional[ta]) -> Optional[tb]:
+def mapO(fun: Callable[[ta], tb], val: Optional[ta]) -> Optional[tb]:
     """
     Fmap on Optional[T] i.e., if a value is not None, apply a function to it
     and return result, otherwise return None.
@@ -15,7 +17,7 @@ def mapO(fun : Callable[[ta], tb], val : Optional[ta]) -> Optional[tb]:
     return fun(val)
 
 
-def readInt(val : str) -> Optional[int]:
+def readInt(val: str) -> Optional[int]:
     """
     Get an int from a string, or None it the string does not reprsent a number.
     """

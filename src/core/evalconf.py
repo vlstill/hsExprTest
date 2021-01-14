@@ -1,4 +1,4 @@
-# (c) 2020 Vladimír Štill <code@vstill.eu>
+# (c) 2020–2021 Vladimír Štill <code@vstill.eu>
 
 from __future__ import annotations
 import yaml
@@ -14,13 +14,14 @@ T = TypeVar("T")
 class EvalConf:
 
     def __init__(self) -> None:
-        self.config : Dict[str, Any] = dict()
+        self.config: Dict[str, Any] = {}
 
     @staticmethod
-    def _merge_in(left : Dict[str, Any], right : Dict[str, Any]) -> None:
-        def checktype(r, t):
+    def _merge_in(left: Dict[str, Any], right: Dict[str, Any]) -> None:
+        def checktype(r: Any, t: type) -> None:
             if not isinstance(r, t):
-                raise ValueError(f"config type mismatch in {k}, expected {t}, got {type(r)}")
+                raise ValueError(f"config type mismatch in {k}, expected {t}, "
+                                 f"got {type(r)}")
 
         for k, v in right.items():
             if k not in left:
@@ -34,11 +35,11 @@ class EvalConf:
             else:
                 left[k] = v
 
-    def add(self, raw : Dict[str, Any]) -> EvalConf:
+    def add(self, raw: Dict[str, Any]) -> EvalConf:
         EvalConf._merge_in(self.config, copy.deepcopy(raw))
         return self
 
-    def load(self, path : str) -> EvalConf:
+    def load(self, path: str) -> EvalConf:
         with open(path, "r") as fh:
             # do not go through add - avoid copy
             EvalConf._merge_in(self.config, yaml.safe_load(fh))
@@ -47,14 +48,14 @@ class EvalConf:
     def get(self) -> Dict[str, Any]:
         return copy.deepcopy(self.config)
 
-    def dump_to(self, stream : Any) -> None:
+    def dump_to(self, stream: Any) -> None:
         yaml.safe_dump(self.config, stream, default_flow_style=False)
 
-    def dump(self, path : str) -> None:
+    def dump(self, path: str) -> None:
         with open(path, "w") as fh:
             self.dump_to(fh)
 
-    def from_source_file(self, path : Union[str, PathLike]) -> EvalConf:
+    def from_source_file(self, path: Union[str, PathLike[Any]]) -> EvalConf:
         path = Path(path)
         if path.suffix == ".hs":
             self._from_source_file(path, "-- @")
@@ -64,8 +65,8 @@ class EvalConf:
             self._from_source_file(path, "#@")
         return self
 
-    def _from_source_file(self, path : Path, prefix : str) -> None:
-        pat = re.compile(f"{prefix}\\s+([^:]*):\s*(.*)")
+    def _from_source_file(self, path: Path, prefix: str) -> None:
+        pat = re.compile(f"{prefix}\\s+([^:]*):\\s*(.*)")
         collected = ""
         with open(path, "r") as h:
             for line in h:
@@ -76,6 +77,8 @@ class EvalConf:
         if raw is not None:
             self.add(raw)
 
-    def __setitem__(self, key : str, value : T) -> T:
+    def __setitem__(self, key: str, value: T) -> T:
         self.config[key] = value
         return value
+
+# vim: colorcolumn=80 expandtab sw=4 ts=4

@@ -1,6 +1,9 @@
-#!/usr/bin/env python3
+# (c) 2019–2021 Vladimír Štill <code@vstill.eu>
 
-from typing import Any, Optional, Iterator, Tuple, Union, Dict, List, TypeVar
+from __future__ import annotations
+
+from typing import Any, Optional, Iterator, Tuple, Union, Dict, List, \
+    TypeVar, Callable, Awaitable, overload
 from aiohttp import web
 from glob import glob
 import asyncio
@@ -36,19 +39,27 @@ class PostOrGet:
     Prefers POST.
     """
 
-    def __init__(self):
+    PostDictT = multidict.MultiDictProxy[Union[str, bytes, web.FileField]]
+    GetDictT = multidict.MultiDictProxy[str]
+
+    def __init__(self) -> None:
         """Creates an empty PostOrGet, do not use directly, use 'create'"""
-        self.post : Optional[multidict.MultiDictProxy] = None
-        self.query : Optional[multidict.MultiDictProxy] = None
+        self.post: Optional[PostOrGet.PostDictT] = None
+        self.query: Optional[PostOrGet.GetDictT] = None
 
     @staticmethod
-    async def create(request : web.Request):
+    async def create(request: web.Request) -> PostOrGet:
         self = PostOrGet()
         self.post = await request.post()
         self.query = request.query
         return self
 
-    def get(self, key : str, default : str = None) -> str:
+    @overload
+    def get(self, key: str) -> Optional[str]: ...
+    @overload
+    def get(self, key: str, default: str) -> str: ...
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """
         Gets value for given key, prefering post parameters and falling back to
         query if needed.
@@ -75,7 +86,7 @@ class InvalidInput(Exception):
 
 
 class MissingField(InvalidInput):
-    def __init__(self, name, key):
+    def __init__(self, name: str, key: str) -> None:
         InvalidInput.__init__(self, f"Evaluator error: "
                               f"Missing mandatory parameter `{key}' ({name})")
 
@@ -88,7 +99,7 @@ class InterfaceMode (enum.Flag):
 
 class EvalTask:
     @staticmethod
-    def parse_qid(qid : str) -> Tuple[Optional[str], Optional[str]]:
+    def parse_qid(qid: str) -> Tuple[Optional[str], Optional[str]]:
         if qid is None:
             return (None, None)
         s = qid.split("?", 1)
@@ -96,18 +107,18 @@ class EvalTask:
             return (s[0], None)
         return (s[0] or None, s[1])
 
-    def __init__(self, data : PostOrGet, mode : InterfaceMode):
-        def ifis(a : ta, b : Optional[ta] = None) -> ta:
+    def __init__(self, data: PostOrGet, mode: InterfaceMode) -> None:
+        def ifis(a: ta, b: Optional[ta] = None) -> ta:
             if InterfaceMode.IS in mode or b is None:
                 return a
             return b
 
-        def getMandatory(a : str, b : Optional[str] = None,
-                         info : Optional[str] = None) -> str:
+        def getMandatory(a: str, b: Optional[str] = None,
+                         info: Optional[str] = None) -> str:
             key = ifis(a, b)
             v = data.get(key)
             if v is None:
-                raise MissingField(info or b, key)
+                raise MissingField(info or b or a, key)
             return v
 
         self.course_id = getMandatory("kod", "course_id", "course ID").lower()
@@ -131,8 +142,8 @@ class EvalTask:
             raise MissingField("question ID", "id")
 
 
-async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
-                            data : PostOrGet, mode : InterfaceMode)\
+async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
+                            data: PostOrGet, mode: InterfaceMode)\
         -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
         task = EvalTask(data, mode)
@@ -144,7 +155,7 @@ async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
             raise InvalidInput(
                 "This course does not allow unathorized (hint) access")
 
-        question : Optional[str] = None
+        question: Optional[str] = None
         if task.question_id is not None:
             if os.path.isabs(task.question_id) or task.question_id[0:1] == '.':
                 raise InvalidInput(f"Invalid question ID {task.question_id}")
@@ -205,14 +216,15 @@ async def handle_evaluation(conf : config.Config, slots : cgroup.SlotManager,
         return (False, f"Error while evaluating: {ex}", [])
 
 
-def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
-                     slots : cgroup.SlotManager, mode : InterfaceMode):
-    headers : Dict[str, str] = {}
+def get_eval_handler(eval_sem: asyncio.BoundedSemaphore, conf: config.Config,
+                     slots: cgroup.SlotManager, mode: InterfaceMode) \
+                     -> Callable[[web.Request], Awaitable[web.Response]]:
+    headers: Dict[str, str] = {}
     if InterfaceMode.Priviledged not in mode and conf.hint_origin is not None:
         headers["Access-Control-Allow-Methods"] = "POST"
         headers["Access-Control-Allow-Origin"] = conf.hint_origin
 
-    async def handle_eval(request : web.Request) -> web.Response:
+    async def handle_eval(request: web.Request) -> web.Response:
         async with eval_sem:
             start = time.perf_counter()
             data = await PostOrGet.create(request)
@@ -240,8 +252,9 @@ def get_eval_handler(eval_sem : asyncio.BoundedSemaphore, conf : config.Config,
     return handle_eval
 
 
-def get_handle_admin(conf : config.Config):
-    async def handle_admin(req : web.Request) -> web.Response:
+def get_handle_admin(conf: config.Config) \
+        -> Callable[[web.Request], Awaitable[web.Response]]:
+    async def handle_admin(req: web.Request) -> web.Response:
         # assuming we run behind a proxy which sets this
         auth_user = req.match_info.get("user")
         if auth_user is None:
@@ -279,8 +292,8 @@ def main() -> None:
     start_web(conf, slots)
 
 
-def start_web(conf : config.Config, slots : cgroup.SlotManager) -> None:
-    async def shutdown():
+def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
+    async def shutdown() -> None:
         print("letting runner do cleanup")
         await runner.cleanup()
 
@@ -288,13 +301,13 @@ def start_web(conf : config.Config, slots : cgroup.SlotManager) -> None:
         print("Received SIGUSR1, shutting down...")
         loop.create_task(shutdown())
 
-    async def stop_loop(app) -> None:
+    async def stop_loop(app: web.Application) -> None:
         print("shutdown")
         loop.stop()
 
-    async def start_runner(runner, conf : config.Config):
+    async def start_runner(runner: web.AppRunner, conf: config.Config) -> None:
         await runner.setup()
-        site : Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
+        site: Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
         if conf.port is not None:
             print(f"Starting HTTP server on localhost:{conf.port}")
             site = web.TCPSite(runner, 'localhost', conf.port)
@@ -306,7 +319,7 @@ def start_web(conf : config.Config, slots : cgroup.SlotManager) -> None:
             sock = socket.socket(fileno=conf.socket_fd)
             site = web.SockSite(runner, sock)
         assert site is not None, "Invalid config, no listening address"
-        return await site.start()
+        await site.start()
 
     app = web.Application()
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -332,10 +345,10 @@ def start_web(conf : config.Config, slots : cgroup.SlotManager) -> None:
     app.router.add_post("/internal", handle_internal)
 
     handle_admin = get_handle_admin(conf)
-    app.router.add_get("/admin/{user}/{course_id}/", handle_admin)
-    app.router.add_post("/admin/{user}/{course_id}/", handle_admin)
-    app.router.add_get("/admin/{user}/{course_id}/{page}", handle_admin)
-    app.router.add_post("/admin/{user}{course_id}/{page}", handle_admin)
+    app.router.add_get("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
+    app.router.add_post("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
+    app.router.add_get("/admin/{user}/{course_id}/{page}", handle_admin)  # noqa: FS003, E501
+    app.router.add_post("/admin/{user}{course_id}/{page}", handle_admin)  # noqa: FS003, E501
 
     runner = web.AppRunner(app, handle_signals=True)
     app.on_cleanup.append(stop_loop)
