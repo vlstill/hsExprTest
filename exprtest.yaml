@@ -9,18 +9,18 @@ limit: # per worker
     swap: 0 # default if memory is set
     cpu: 100% # 100% is one CPU
 courses:
-  - name: ib015
+  ib015:
     isolation: false
     checker: /home/xstill/repo/hsExprTest/src/hs/driver
-    qdir: /home/xstill/repo/ib015_questions
+    qdir: /home/xstill/repo/ib015_q
     hint: true
     extended: true
     authorized: [ "xstill" ]
-  - name: ib002
+  ib002:
     isolation: false
     checker: ./pycheck
     qdir: /tmp
-  - name: test
+  test:
     escape_is: True
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
@@ -29,7 +29,7 @@ courses:
     path_append:
       - TEST
       - PATH
-  - name: teste
+  teste:
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
     isolation: false
@@ -38,7 +38,7 @@ courses:
     config:
         a: b
         b: [1, 2, 3]
-  - name: testi
+  testi:
     authorized: [ "xstill" ]
     checker: bash /home/xstill/repo/hsExprTest/test/checker
     isolation: true
