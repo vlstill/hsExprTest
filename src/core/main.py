@@ -16,11 +16,13 @@ import os.path
 import testenv
 import traceback
 import socket
+import subprocess
 import textwrap
 import aiohttp_mako  # type: ignore
 import yaml
 import re
 import html
+import logging
 
 import config
 import cgroup

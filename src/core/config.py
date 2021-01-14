@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 import argparse
 import yaml
 from typing import List, Optional, Dict, Any, Union
 import os.path
+import logging
+from systemd.journal import JournalHandler  # type: ignore
 
 from limit import Limit
 
@@ -70,8 +73,12 @@ class Config:
         self.max_workers = 4
         self.hint_origin: Optional[str] = None
         self.limit = Limit()
+        self.verbose: bool = False
+        self.journal: bool = False
+
         self._load_from_argv()
         self._load_from_file()
+        self._setup_logging()
 
     def _load_from_argv(self) -> None:
         parser = argparse.ArgumentParser(
@@ -90,10 +97,19 @@ class Config:
                   '--config', metavar='FILE',
                   help="YAML config file with description of evaluation "
                        "environment")
+        parser.add_argument(
+                  '--verbose', action='store_const', const=True, default=False,
+                  help="Verbose logging")
+        parser.add_argument(
+                  '--journal', action='store_const', const=True, default=False,
+                  help="log to systemd journal")
+
         args = parser.parse_args(self.argv[1:])
         self.socket_fd = args.socket_fd
         self.socket = args.socket
         self.port = args.port
+        self.verbose = args.verbose
+        self.journal = args.journal
         if args.config is not None:
             self.config_file = args.config
 
@@ -167,6 +183,24 @@ class Config:
                                   "or '--port' must be used")
         if len(self.courses) == 0:
             raise ConfigException("At least one course must be set")
+
+    def _setup_logging(self) -> None:
+        root = logging.getLogger()
+        if self.verbose:
+            root.setLevel(logging.DEBUG)
+        else:
+            root.setLevel(logging.INFO)
+
+        if self.journal:
+            handler = JournalHandler()
+            formatter = logging.Formatter('%(message)s')
+        else:
+            handler = logging.StreamHandler(sys.stderr)
+            formatter = logging.Formatter('%(levelname)s: %(message)s')
+
+        handler.setFormatter(formatter)
+        root.addHandler(handler)
+        self.logger = logging.getLogger("core")
 
     def dump(self, stream: Any = None) -> Any:
         return yaml.safe_dump(self.to_dict(), stream, default_flow_style=False)
