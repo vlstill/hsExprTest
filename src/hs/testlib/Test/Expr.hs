@@ -41,6 +41,7 @@ import Text.Printf.Mauke.TH ( sprintf )
 import Test.Expr.Utils
 import Test.Expr.Property
 import Test.Expr.Config
+import Test.Expr.Types ( TypeOrder )
 
 testArgs :: Args
 testArgs = stdArgs { chatty = False
@@ -105,11 +106,11 @@ testMain config = do
     pat = config `getConfig` TestPattern
     degen = config `getConfig` DegenType
 
-testType :: ExprName -> Q Exp
-testType name = do
+testType :: TypeOrder -> ExprName -> Q Exp
+testType typeOrder name = do
     st <- getType "student" =<< sequence . fmap reify =<< lookupValueName sn
     tt <- getType "teacher" =<< sequence . fmap reify =<< lookupValueName tn
-    compareTypes tt st
+    compareTypes typeOrder tt st
   where
     getType kind Nothing = $(pfail "could not find %s type %s") kind name
     getType _ (Just (VarI _ t _)) = pure t

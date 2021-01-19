@@ -11,7 +11,7 @@ module Test.Expr.Property ( prop, Prop (..), compareTypes ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun )
-import Control.Monad ( unless, replicateM, filterM, zipWithM )
+import Control.Monad ( unless, replicateM, filterM, zipWithM, void )
 import Language.Haskell.TH ( Q, Name, Cxt
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName )
@@ -64,15 +64,22 @@ prop p@Prop {..} = (,) <$> info teacherName <*> info studentName >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
+assertAndNormalizeType :: TypeOrder -> Teacher Type -> Student Type -> Teacher Type -> Student Type -> Q Type
+assertAndNormalizeType typeOrder ttype stype ttype0 stype0 = do
+    (ord, cmpty) <- unifyOrFail ttype stype ttype0 stype0
+    unless (ord `gte` typeOrder) $
+        $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
+                (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
+    pure cmpty
+
+
 testFun :: Prop -> Teacher Type -> Student Type -> Q Exp
 testFun Prop {..} ttype0 stype0 = do
     let nttype = normalizeContext ttype0
     ttype <- expandSyns $ stripAnnotations nttype
     stype <- expandSyns $ normalizeContext stype0
 
-    (ord, cmpty) <- unifyOrFail ttype stype ttype0 stype0
-    unless (ord `gte` typeOrder) $ $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
-            (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
+    cmpty <- assertAndNormalizeType typeOrder ttype stype ttype0 stype0
 
     dcmpty <- case degenType of
                 Nothing -> degeneralize cmpty
@@ -194,14 +201,12 @@ typeOrdErr TLessGeneral = "the student's type is more general then the teacher's
 typeOrdErr TMoreGeneral = "the student's type is less general then the teacher's type"
 typeOrdErr TUnifiable = "they are unifiable, but neither of them is more general then the other"
 
-compareTypes :: Teacher Type -> Student Type -> Q Exp
-compareTypes tt st = do
+compareTypes :: TypeOrder -> Teacher Type -> Student Type -> Q Exp
+compareTypes typeOrder tt st = do
     ttype <- expandSyns $ normalizeContext tt
     stype <- expandSyns $ normalizeContext st
 
-    ord <- fst <$> unifyOrFail ttype stype tt st
-    unless (ord == TEqual) $ $(pfail "The student's type is not valid: expecting types to be equal, but %s\n\tteacher: %s\n\tstudent: %s")
-            (typeOrdErr ord) (ppty ttype) (ppty stype)
+    void $ assertAndNormalizeType typeOrder ttype stype tt st
     [| pure () |] -- do nothing at runtime
 
 type ClassName = Name
