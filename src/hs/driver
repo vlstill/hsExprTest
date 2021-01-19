@@ -73,8 +73,10 @@ class TestConf:
     def __init__(self, config : Dict[str, object]) -> None:
         self.inject : str = ""
         self.typecmp : bool = False
+        self.typecmpex: bool = False
         self.typecmp_num_types : int = 0
         self.ast_checks : List[str] = []
+        self.raw: bool = False
         self.config = config
 
     def reflection(self) -> bool:
@@ -124,8 +126,8 @@ def warn(msg : str) -> None:
     print("W: " + msg, file=sys.stderr)
 
 
-def write_type(dst : TextIO, t : str, i : int) -> None:
-    dst.write("t{} :: {}\nt{} = undefined\n".format(i, t, i))
+def write_type(dst: TextIO, t: str, i: int, prefix: str = "") -> None:
+    dst.write(f"{prefix}t{i} :: {t}\n{prefix}t{i} = undefined\n")
 
 
 def val2bool(val : str) -> bool:
@@ -157,8 +159,15 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                         assert inject, "inject end without start"
                         inject = False
                         inject_end = True
-                    elif key == "typecmp":
+                    elif key.startswith("typecmp"):
                         conf.typecmp = True
+                        if key == "typecmpex":
+                            conf.typecmpex = True
+                            conf.typecmp_num_types = 1
+                        if key == "typecmp num types":
+                            conf.typecmp_num_types = int(match[2])
+                    elif key == "raw":
+                        conf.raw = True
 
                 if conf.reflection():
                     match = AST_CHECK_DECL.search(l)
@@ -171,7 +180,7 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                     conf.inject += l
                     inject_end = False
 
-                if not conf.typecmp:
+                if not conf.typecmp or conf.typecmpex:
                     dst.write(l)
                 else:
                     if not IGNORE.match(l):
@@ -179,6 +188,19 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                         conf.typecmp_num_types += 1
 
             return conf
+
+
+def write_student(src: TextIO, dst: TextIO, conf: TestConf, prefix: str = "") \
+        -> None:
+    type_idx = 0
+    if not conf.typecmp:
+        for ln in src:
+            dst.write(prefix + ln)
+    else:
+        for ln in src:
+            if not IGNORE.match(ln):
+                write_type(dst, ln, type_idx, prefix)
+                type_idx += 1
 
 
 def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
@@ -205,15 +227,7 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
                           "no_imports_for_student_allowed = ()\n\n")
 
             dst.write('{-# LINE 1 "IS.hs" #-}\n')
-            type_idx = 0
-            if not conf.typecmp:
-                for l in src:
-                    dst.write(l)
-            else:
-                for l in src:
-                    if not IGNORE.match(l):
-                        write_type(dst, l, type_idx)
-                        type_idx += 1
+            write_student(src, dst, conf)
 
 
 def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
@@ -233,8 +247,7 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
                 studentAST = [d|
                 """))
 
-            for l in src:
-                dst.write("    " + l)
+            write_student(src, dst, conf, "    ")
             dst.write("\n    |]\n\n")
             dst.write(textwrap.dedent("""\
                 runASTCheck :: ASTCheck -> Q [Dec]
@@ -297,7 +310,7 @@ $(testMain (TestConfig
         else:
             dst.write("main :: IO ()\nmain = do\n")
             for i in range(conf.typecmp_num_types):
-                dst.write("    $(testType \"t{}\")\n".format(i))
+                dst.write(f'''    $(testType $(extractOptionDef "typeOrder" (ConE 'TEqual)) "t{i}")\n''')
 
 
 with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
