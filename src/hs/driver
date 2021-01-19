@@ -331,6 +331,8 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
         invocation.extend(["-e", "return ()"])
         if hint:
             invocation.append("Student.hs")  # just parse student's file
+            if conf.reflection():
+                invocation.append("StudentASTChecks.hs")
         else:
             invocation.append("Main.hs")  # acutally do the comparison
     else:  # expression comparison
