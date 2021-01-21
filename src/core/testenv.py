@@ -14,6 +14,7 @@ import asyncio
 import subprocess
 import contextlib
 import json
+import jinja2
 from pathlib import Path, PurePath
 from typing import Tuple, List, Optional, Any, Dict, Type
 from types import TracebackType
@@ -108,6 +109,20 @@ class TestEnvironment(object):
 
         conf.dump(self.conffile)
 
+    async def get_answer(self) -> str:
+        if self.question is None:
+            return self.answer
+        try:
+            qpath = os.path.dirname(self.question)
+            qbase = os.path.basename(self.question).split('.q')[0]
+            template_path = os.path.join(qpath, qbase + ".j2")
+            async with aiofiles.open(template_path) as htemp:  # type: ignore
+                template = jinja2.Template(await htemp.read())
+            data: Dict[str, Any] = {"student": {"answer": self.answer}}
+            return template.render(**data)
+        except FileNotFoundError:
+            return self.answer
+
     async def __aenter__(self) -> TestEnvironment:
         self.tmpdir = self.tmpdirHandle.__enter__()
 
@@ -127,7 +142,7 @@ class TestEnvironment(object):
                     contents = await src.read()
                     await tgt.write(contents)
         async with aiofiles.open(self.afile, "w") as ans:  # type: ignore
-            await ans.write(self.answer)
+            await ans.write(await self.get_answer())
 
         self.setup_config(os.path.join(self.tmpdir, "eval.conf"))
 
