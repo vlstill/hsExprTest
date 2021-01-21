@@ -41,13 +41,11 @@ class PostOrGet:
     Prefers POST.
     """
 
-    PostDictT = multidict.MultiDictProxy[Union[str, bytes, web.FileField]]
-    GetDictT = multidict.MultiDictProxy[str]
-
     def __init__(self) -> None:
         """Creates an empty PostOrGet, do not use directly, use 'create'"""
-        self.post: Optional[PostOrGet.PostDictT] = None
-        self.query: Optional[PostOrGet.GetDictT] = None
+        self.post: Optional[multidict.MultiDictProxy[
+                            Union[str, bytes, web.FileField]]] = None
+        self.query: Optional[multidict.MultiDictProxy[str]] = None
 
     @staticmethod
     async def create(request: web.Request) -> PostOrGet:
