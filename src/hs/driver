@@ -23,8 +23,8 @@ if len(sys.argv) < 3:
           "[-pFD] [-cCONFIG] [--hint]", file=sys.stderr)
     sys.exit(1)
 
-teacher : Final[str] = sys.argv[1]
-student : Final[str] = sys.argv[2]
+teacher : Final[str] = os.path.abspath(sys.argv[1])
+student : Final[str] = os.path.abspath(sys.argv[2])
 hint : bool = False
 include : List[str] = []
 journal_fd : int = 2
@@ -109,6 +109,9 @@ class TestConf:
 
     def warnings(self) -> List[str]:
         return self.get_typed("warnings", [], list)
+
+    def question_path(self) -> str:
+        return self.get_typed("question_path", teacher, str)
 
     def _get(self, key : str, default : object) -> object:
         return self.config.get(key, default)
@@ -329,6 +332,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
 
     mkMainFile("Main.hs", conf)
 
+    include.append(os.path.dirname(conf.question_path()))
     invocation : List[str] = [f"-i{x}" for x in include] + ["-dynamic"]
     execution : List[str] = []
 
