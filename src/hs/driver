@@ -76,6 +76,7 @@ class TestConf:
         self.typecmpex: bool = False
         self.typecmp_num_types : int = 0
         self.ast_checks : List[str] = []
+        self.allow_hint = True
         self.raw: bool = False
         self.config = config
 
@@ -166,8 +167,9 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                             conf.typecmp_num_types = 1
                         if key == "typecmp num types":
                             conf.typecmp_num_types = int(match[2])
-                    elif key == "raw":
-                        conf.raw = True
+                    elif key == "allow hint":
+                        conf.allow_hint = match[2].strip().lower() == "true"
+
 
                 if conf.reflection():
                     match = AST_CHECK_DECL.search(l)
@@ -315,6 +317,11 @@ $(testMain (TestConfig
 
 with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     conf = mkTeacherFile(teacher, os.path.join(wd, "Teacher.hs"))
+
+    if hint and not conf.allow_hint:
+        print("syntax check not allowed for this question")
+        sys.exit(1)
+
     mkStudentFile(student, os.path.join(wd, "Student.hs"), conf)
     if conf.reflection():
         mkStudentReflectorFile(student, wd, conf)
