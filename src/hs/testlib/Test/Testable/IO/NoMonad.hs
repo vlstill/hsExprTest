@@ -15,9 +15,9 @@ module Test.Testable.IO.NoMonad (
     , putStr
     , putStrLn
     , print
---    , readFile
---    , writeFile
---    , appendFile
+    , readFile
+    , writeFile
+    , appendFile
     -- * running
     , runIOLines
     , runIOLines'

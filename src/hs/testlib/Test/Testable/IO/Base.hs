@@ -15,9 +15,9 @@ module Test.Testable.IO.Base (
     , putStr
     , putStrLn
     , print
---    , readFile
---    , writeFile
---    , appendFile
+    , readFile
+    , writeFile
+    , appendFile
     -- * running
     , runIOLines
     , runIOLines'
@@ -35,12 +35,14 @@ module Test.Testable.IO.Base (
 --                      )
 
 import Control.Monad ( (>>=), return )
-import Prelude ( Int, String, Char, Maybe(..), Show(..), Num(..), Read(..), read
-               , ($), (.)
+import Prelude ( Int, String, FilePath, Char, Maybe(..), Show(..), Num(..)
+               , Read(..), read
+               , ($), (.), (++)
                , reverse, map, error, head, tail, foldr, fmap, const )
 import Control.Monad.ST ( ST, runST )
 import Control.Applicative ( (<*>), (<$>), pure )
 import Data.STRef ( STRef, newSTRef, readSTRef, writeSTRef, modifySTRef )
+import Data.Map as Map ( Map, insertWith, (!?), empty )
 
 -- | 'IO' is opaque, as in Prelude, but it does not interract with outer world
 -- therefore it is safe and escapable by means of 'runIOLines'
@@ -61,6 +63,7 @@ data IOContext = IOContext { generator :: Int -> Maybe String
                            , lineIx :: Int
                            , inLine :: Maybe String
                            , outLines :: [String]
+                           , files :: Map FilePath String
                            }
 
 fmapIO :: (a -> b) -> IO a -> IO b
@@ -106,7 +109,7 @@ mapMIO f = foldr (thenIO . f) (pureIO ())
 -- (1, ["1",""])
 runIOLines' :: (Int -> Maybe String) -> IO a -> (a, [String])
 runIOLines' gen (IO io) = runST $ do
-    ctx <- newSTRef IOContext { generator = gen, lineIx = 1, inLine = gen 0, outLines = [[]] }
+    ctx <- newSTRef IOContext { generator = gen, lineIx = 1, inLine = gen 0, outLines = [[]], files = empty }
     r <- io ctx
     out <- outLines <$> readSTRef ctx
     return (r, reverse (map reverse out))
@@ -191,3 +194,32 @@ print = putStrLn . show
 -- standard output device.
 interact        ::  (String -> String) -> IO ()
 interact f = getContents `bindIO` putStr . f
+
+-- | The 'readFile' function reads a file and returns the contents of the file
+-- as a string. While the standard 'Prelude.readFile' is lazy, this one is not.
+-- Furthermore it calls 'error' if the file does not exist.
+readFile :: FilePath -> IO String
+readFile path = IO $ \sctx -> do
+    ctx <- readSTRef sctx
+    case files ctx !? path of
+        Nothing -> error $ "File " ++ path ++ " does not exist"
+        Just co -> pure co
+
+-- | The computation @'writeFile' file str@ function writes the string @str@, to
+-- the file @file@. The file is created if it did not exist and ovewritten
+-- otherwise ('Prelude.writeFile' does not specify this).
+writeFile :: FilePath -> String -> IO ()
+writeFile = writeWith const
+
+writeWith :: (String -> String -> String) -> FilePath -> String -> IO ()
+writeWith merger path val = IO $ \sctx ->
+    modifySTRef sctx $ \ctx -> ctx { files = insertWith merger path val (files ctx) }
+
+-- | The computation @'appendFile' file str@ function appends the string @str@,
+-- to the file @file@.
+
+-- Note that 'writeFile' and 'appendFile' write a literal string to a file. To
+-- write a value of any printable type, as with print, use the show function to
+-- convert the value to a string first.
+appendFile :: FilePath -> String -> IO ()
+appendFile = writeWith (\new old -> old ++ new)

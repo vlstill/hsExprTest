@@ -16,9 +16,9 @@ module Test.Testable.IO (
     , putStr
     , putStrLn
     , print
---    , readFile
---    , writeFile
---    , appendFile
+    , readFile
+    , writeFile
+    , appendFile
     -- * running
     , runIOLines
     , runIOLines'
