@@ -171,7 +171,11 @@ class Config:
             raise ConfigException(
                     "Courses must be an array or map of course objects")
         if isinstance(courses0, dict):
-            courses = [{"name": n} | c for n, c in courses0.items()]
+            courses = []
+            for n, c in courses0.items():
+                if "name" not in c:
+                    c["name"] = n
+                courses.append(c)
         else:
             courses = courses0
         for c in courses:
