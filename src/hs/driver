@@ -358,7 +358,12 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             else:
                 invocation.insert(0, "runghc")
 
-        invocation.append("Main.hs")
+        if hint and not conf.get_typed("hint teacher", True, bool):
+            invocation.append("Student.hs")  # just parse student's file
+            if conf.reflection():
+                invocation.append("StudentASTChecks.hs")
+        else:
+            invocation.append("Main.hs")
     pass_fds = [journal_fd] if journal_fd != 2 else []
     r = subprocess.run(invocation, stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
