@@ -379,6 +379,8 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
 
     app.router.add_get("/update-qdir/{course_id}",  # noqa: FS003
                        get_handle_update(conf))
+    app.router.add_post("/update-qdir/{course_id}",  # noqa: FS003
+                       get_handle_update(conf))
 
     handle_admin = get_handle_admin(conf)
     app.router.add_get("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
