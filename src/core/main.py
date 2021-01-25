@@ -311,7 +311,7 @@ def get_handle_update(conf: config.Config) \
         if res is None:
             return web.Response(text=f"Updated {course}")
         else:
-            return web.Response(status=500,
+            return web.Response(status=418,
                                 text=f"Update for {course} error: {res}")
     return handle_update
 
