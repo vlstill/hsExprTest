@@ -247,6 +247,9 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
                     ) where
 
                 import Test.Expr.Reflection ( Q, Dec, ASTCheck )
+                """))
+            dst.write(format(conf.inject or ""))
+            dst.write(textwrap.dedent("""\
 
                 studentAST :: Q [Dec]
                 studentAST = [d|
