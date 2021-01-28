@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import sys
 import argparse
+import asyncio
+import getpass
 import yaml
 from typing import List, Optional, Dict, Any, Union
 import os.path
@@ -60,6 +62,23 @@ class Course:
         return yaml.safe_dump(self.to_dict(expand=expand), stream,
                               default_flow_style=False)
 
+    async def course_stamp(self) -> str:
+        return await Course._git_stamp(self.qdir)
+
+    @staticmethod
+    async def _git_stamp(path: str) -> str:
+        git = await asyncio.create_subprocess_exec(
+            "git", "log", "--pretty=format:%H", "-n1", cwd=path,
+            stdout=asyncio.subprocess.PIPE)
+        out = (await git.communicate())[0]
+        return out.strip().decode('utf-8')
+
+    async def full_stamp(self) -> str:
+        self_dir = os.path.dirname(os.path.abspath(__file__))
+        course_st = await self.course_stamp()
+        self_st = await Course._git_stamp(self_dir)
+        return f"{self_st}+{course_st}"
+
 
 class Config:
     def __init__(self, argv: List[str]) -> None:
@@ -75,6 +94,9 @@ class Config:
         self.limit = Limit()
         self.verbose: bool = False
         self.journal: bool = False
+        self.postgres_cache: bool = True
+        self.postgres_host: str = "/var/run/postgresql"
+        self.postgres_user: str = getpass.getuser()
 
         self._load_from_argv()
         self._load_from_file()

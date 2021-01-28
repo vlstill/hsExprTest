@@ -24,6 +24,7 @@ import re
 import html
 import logging
 
+from cache import Cache
 import config
 import cgroup
 import functor
@@ -143,7 +144,8 @@ class EvalTask:
 
 
 async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
-                            data: PostOrGet, mode: InterfaceMode)\
+                            cache: Cache, data: PostOrGet,
+                            mode: InterfaceMode) \
         -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
         task = EvalTask(data, mode)
@@ -171,42 +173,54 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
                                    f"({question_candidates})")
             question = question_candidates[0]
 
-        async with testenv.TestEnvironment(question, task.answer,
-                                           course, slots) as env:
-            run_res = await env.run(task.option,
+        cache_res = await cache.get(course=course,
+                                    question=task.question_id,
+                                    option=task.option,
+                                    answer=task.answer,
+                                    author=task.student_id,
                                     hint=InterfaceMode.Priviledged not in mode)
+        if cache_res is not None and cache_res.result is not None:
+            run_res = cache_res.result
+        else:
+            async with testenv.TestEnvironment(question, task.answer,
+                                               course, slots) as env:
+                run_res = await env.run(
+                            task.option,
+                            hint=InterfaceMode.Priviledged not in mode)
+                await cache.set(cache_res, run_res)
 
-            log = 80 * "="
-            log += textwrap.dedent(f"""
-                          date: {time.asctime()}
-                          course_id: {task.course_id}
-                          question_id: {task.question_id}
-                          option: {task.option}
-                          qdir: {course.qdir}
-                          question: {question}
-                          student_id: {task.student_id}
-                          qset: {task.qset}
-                          view_only: {task.view_only}
-                          interface_mode: {mode}
-                          answer: |
-                          """)
-            log += textwrap.indent(task.answer, "    ")
-            log += "\nlog: |\n"
-            log += textwrap.indent(run_res.stderr, "    ")
-            log += "\n"
-            log += yaml.safe_dump({"points":
-                                  [p.__dict__ for p in run_res.points]})
-            log += f"\nresult: {run_res.result}\nreply: |\n"
-            log += textwrap.indent(run_res.stdout, "    ")
-            print(log, file=sys.stderr, flush=True)
+        log = 80 * "="
+        log += textwrap.dedent(f"""
+              date: {time.asctime()}
+              course_id: {task.course_id}
+              question_id: {task.question_id}
+              option: {task.option}
+              qdir: {course.qdir}
+              question: {question}
+              student_id: {task.student_id}
+              qset: {task.qset}
+              view_only: {task.view_only}
+              interface_mode: {mode}
+              cached: {cache_res is not None and cache_res.result is not None}
+              answer: |
+              """)
+        log += textwrap.indent(task.answer, "    ")
+        log += "\nlog: |\n"
+        log += textwrap.indent(run_res.stderr, "    ")
+        log += "\n"
+        log += yaml.safe_dump({"points":
+                              [p.__dict__ for p in run_res.points]})
+        log += f"\nresult: {run_res.result}\nreply: |\n"
+        log += textwrap.indent(run_res.stdout, "    ")
+        print(log, file=sys.stderr, flush=True)
 
-            output = run_res.stdout
-            if (InterfaceMode.IS in mode and course.escape_is) \
-                    or data.get("escape", "true").lower() == "true":
-                output = "<pre class=\"exprtest-result-escaped\">\n" \
-                         f"{html.escape(output, quote=True)}</pre>"
+        output = run_res.stdout
+        if (InterfaceMode.IS in mode and course.escape_is) \
+                or data.get("escape", "true").lower() == "true":
+            output = "<pre class=\"exprtest-result-escaped\">\n" \
+                     f"{html.escape(output, quote=True)}</pre>"
 
-            return (run_res.result, output, run_res.points)
+        return (run_res.result, output, run_res.points)
 
     except InvalidInput as ex:
         print(f"ERROR: {ex}", file=sys.stderr)
@@ -217,7 +231,8 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
 
 
 def get_eval_handler(eval_sem: asyncio.BoundedSemaphore, conf: config.Config,
-                     slots: cgroup.SlotManager, mode: InterfaceMode) \
+                     slots: cgroup.SlotManager, cache: Cache,
+                     mode: InterfaceMode) \
                      -> Callable[[web.Request], Awaitable[web.Response]]:
     headers: Dict[str, str] = {}
     if InterfaceMode.Priviledged not in mode and conf.hint_origin is not None:
@@ -229,6 +244,7 @@ def get_eval_handler(eval_sem: asyncio.BoundedSemaphore, conf: config.Config,
             start = time.perf_counter()
             data = await PostOrGet.create(request)
             (result, comment, points) = await handle_evaluation(conf, slots,
+                                                                cache,
                                                                 data, mode)
             end = time.perf_counter()
             print(f"Handled in {end - start}", file=sys.stderr, flush=True)
@@ -338,7 +354,10 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
         print("shutdown")
         loop.stop()
 
+    cache = Cache(conf)
+
     async def start_runner(runner: web.AppRunner, conf: config.Config) -> None:
+        await cache.init()
         await runner.setup()
         site: Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
         if conf.port is not None:
@@ -363,16 +382,17 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
-    handle_is = get_eval_handler(eval_sem, conf, slots,
+    handle_is = get_eval_handler(eval_sem, conf, slots, cache,
                                  InterfaceMode.IS | InterfaceMode.Priviledged)
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
 
-    handle_hint = get_eval_handler(eval_sem, conf, slots, InterfaceMode.Null)
+    handle_hint = get_eval_handler(eval_sem, conf, slots, cache,
+                                   InterfaceMode.Null)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
 
-    handle_internal = get_eval_handler(eval_sem, conf, slots,
+    handle_internal = get_eval_handler(eval_sem, conf, slots, cache,
                                        InterfaceMode.Priviledged)
     app.router.add_get("/internal", handle_internal)
     app.router.add_post("/internal", handle_internal)
@@ -380,7 +400,7 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
     app.router.add_get("/update-qdir/{course_id}",  # noqa: FS003
                        get_handle_update(conf))
     app.router.add_post("/update-qdir/{course_id}",  # noqa: FS003
-                       get_handle_update(conf))
+                        get_handle_update(conf))
 
     handle_admin = get_handle_admin(conf)
     app.router.add_get("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
