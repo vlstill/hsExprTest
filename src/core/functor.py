@@ -26,5 +26,4 @@ def readInt(val: str) -> Optional[int]:
     except ValueError:
         return None
 
-
 # vim: colorcolumn=80 expandtab sw=4 ts=4
