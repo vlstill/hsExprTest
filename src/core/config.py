@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import argparse
 import asyncio
+import getpass
 import yaml
 from typing import List, Optional, Dict, Any, Union
 import os.path
@@ -96,7 +96,7 @@ class Config:
         self.journal: bool = False
         self.postgres_cache: bool = True
         self.postgres_host: str = "/var/run/postgresql"
-        self.postgres_user: str = os.getlogin()
+        self.postgres_user: str = getpass.getuser()
 
         self._load_from_argv()
         self._load_from_file()
