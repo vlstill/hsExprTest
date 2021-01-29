@@ -135,12 +135,46 @@ class Cache:
                                result,
                                o.data as output,
                                e.data as errors,
-                               revision_id
+                               revision_id,
+                               stamp
                         from eval_request
                         join eval_data on ( data_id = eval_data.id)
                         left join eval_cache on ( cache_id = eval_cache.id )
                         join content as e on ( err_sha = e.sha )
                         join content as o on ( out_sha = o.sha );
+
+                    create or replace view usage as
+                        with
+                          cache as (
+                            select count(*) as cache,
+                                   course
+                              from eval_cache
+                              join eval_data on ( data_id = eval_data.id )
+                              group by ( course )
+                          ),
+                          req as (
+                            select count(*) as req,
+                                   course
+                              from eval_request
+                              join eval_data on ( data_id = eval_data.id )
+                              group by ( course )
+                          ),
+                          stat as (
+                              select *
+                                from cache
+                                natural join req
+                          )
+                        select course,
+                               req,
+                               cache,
+                               cache :: float * 100 / req as ratio
+                          from stat
+                        union all
+                        select 'all' as course,
+                               sum( req ) as req,
+                               sum( cache ) as cache,
+                               100 * sum( cache )::float / sum( req ) as ratio
+                          from stat;
                     """)
                 self.log.debug("db initialized")
 
