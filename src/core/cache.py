@@ -218,7 +218,7 @@ class Cache:
                         returning ( id )
                     """, author, data_id)
 
-                course_stamp = (await course.full_stamp()).encode('utf-8')
+                course_stamp = course.full_stamp().encode('utf-8')
                 rev_id = await conn.fetchval("""
                     insert into course_revision ( course, stamp )
                         values ( $1, $2 )

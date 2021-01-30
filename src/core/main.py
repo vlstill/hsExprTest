@@ -313,8 +313,13 @@ async def update_qdir(course: config.Course) -> Optional[str]:
         return f"Error while updating: {ex}"
 
     out, _ = await asyncio.shield(git.communicate())
+
+    pre = course.stamp
+    await course.async_update_stamp()
     logging.getLogger("update-qdir") \
-           .debug(f"Update result {course.name}: {out.decode('utf-8')}")
+           .debug(f"Update result {course.name}: {out.decode('utf-8').strip()}"
+                  f"\nstamp {pre} → {course.stamp}")
+
     if git.returncode != 0:
         return out.decode('utf-8')
     return None

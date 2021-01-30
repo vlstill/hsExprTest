@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-import sys
 import argparse
 import asyncio
 import getpass
+import sys
+import subprocess
 import yaml
-from typing import List, Optional, Dict, Any, Union
 import os.path
 import logging
+
+from typing import List, Optional, Dict, Any, Union
 from systemd.journal import JournalHandler  # type: ignore
 
 from limit import Limit
@@ -17,6 +19,27 @@ from limit import Limit
 
 class ConfigException(Exception):
     pass
+
+
+_GIT_STAMP_ARGS = ["git", "log", "--pretty=format:%H", "-n1"]
+
+
+def _sync_git_stamp(path: str) -> str:
+    git = subprocess.run(_GIT_STAMP_ARGS,
+                         cwd=path, stdout=subprocess.PIPE)
+    return git.stdout.strip().decode('utf-8')
+
+
+async def _async_git_stmap(path: str) -> str:
+    git = await asyncio.create_subprocess_exec(
+                *_GIT_STAMP_ARGS, cwd=path,
+                stdout=asyncio.subprocess.PIPE)
+    out = (await git.communicate())[0]
+    return out.strip().decode('utf-8')
+
+
+_EXPRTEST_GIT_STAMP = _sync_git_stamp(os.path.dirname(
+                                      os.path.abspath(__file__)))
 
 
 class Course:
@@ -37,6 +60,7 @@ class Course:
             self.extended = bool(raw.get("extended", False))
             self.escape_is = bool(raw.get("escape_is", False))
             self.evalconf = raw.get("config", {})
+            self.stamp = _sync_git_stamp(self.qdir)
         except KeyError as ex:
             raise ConfigException(
                 f"Course must set at least 'name' and 'checker': missing {ex}")
@@ -62,22 +86,11 @@ class Course:
         return yaml.safe_dump(self.to_dict(expand=expand), stream,
                               default_flow_style=False)
 
-    async def course_stamp(self) -> str:
-        return await Course._git_stamp(self.qdir)
+    async def async_update_stamp(self) -> None:
+        self.stamp = await _async_git_stmap(self.qdir)
 
-    @staticmethod
-    async def _git_stamp(path: str) -> str:
-        git = await asyncio.create_subprocess_exec(
-            "git", "log", "--pretty=format:%H", "-n1", cwd=path,
-            stdout=asyncio.subprocess.PIPE)
-        out = (await git.communicate())[0]
-        return out.strip().decode('utf-8')
-
-    async def full_stamp(self) -> str:
-        self_dir = os.path.dirname(os.path.abspath(__file__))
-        course_st = await self.course_stamp()
-        self_st = await Course._git_stamp(self_dir)
-        return f"{self_st}+{course_st}"
+    def full_stamp(self) -> str:
+        return f"{_EXPRTEST_GIT_STAMP}+{self.stamp}"
 
 
 class Config:
@@ -97,6 +110,7 @@ class Config:
         self.postgres_cache: bool = True
         self.postgres_host: str = "/var/run/postgresql"
         self.postgres_user: str = getpass.getuser()
+        self.exprtest_stamp = _EXPRTEST_GIT_STAMP
 
         self._load_from_argv()
         self._load_from_file()
@@ -246,7 +260,11 @@ class Config:
                                             ("swap", self.limit.swap),
                                             ("cpu", self.limit.cpu)]
                           if v is not None},
-                "courses": list(map(Course.to_dict, self.courses.values()))}
+                "courses": list(map(Course.to_dict, self.courses.values())),
+                "postgres_user": self.postgres_user,
+                "postgres_host": self.postgres_host,
+                "postgres_cache": self.postgres_cache,
+                "exprtest_stamp": self.exprtest_stamp}
 
 
 def parse(argv: List[str]) -> Config:
