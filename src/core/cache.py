@@ -135,7 +135,8 @@ class Cache:
                                result,
                                o.data as output,
                                e.data as errors,
-                               revision_id
+                               revision_id,
+                               stamp
                         from eval_request
                         join eval_data on ( data_id = eval_data.id)
                         left join eval_cache on ( cache_id = eval_cache.id )
