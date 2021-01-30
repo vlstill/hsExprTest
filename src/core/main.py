@@ -158,20 +158,6 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
                 "This course does not allow unathorized (hint) access")
 
         question: Optional[str] = None
-        if task.question_id is not None:
-            if os.path.isabs(task.question_id) or task.question_id[0:1] == '.':
-                raise InvalidInput(f"Invalid question ID {task.question_id}")
-            qglobs = glob(os.path.join(course.qdir, f"{task.question_id}.q*"))
-            question_candidates = list(filter(os.path.isfile, qglobs))
-
-            if len(question_candidates) == 0:
-                raise InvalidInput("No questions found for ID "
-                                   f"{task.question_id}", qglobs)
-            if len(question_candidates) > 1:
-                raise InvalidInput("Too many questions found for ID "
-                                   f"{task.question_id} "
-                                   f"({question_candidates})")
-            question = question_candidates[0]
 
         cache_res = await cache.get(course=course,
                                     question=task.question_id,
@@ -182,6 +168,23 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
         if cache_res is not None and cache_res.result is not None:
             run_res = cache_res.result
         else:
+            if task.question_id is not None:
+                if os.path.isabs(task.question_id) \
+                        or task.question_id[0:1] == '.':
+                    raise InvalidInput(
+                        f"Invalid question ID {task.question_id}")
+                qglobs = glob(os.path.join(
+                              course.qdir, f"{task.question_id}.q*"))
+                question_candidates = list(filter(os.path.isfile, qglobs))
+
+                if len(question_candidates) == 0:
+                    raise InvalidInput("No questions found for ID "
+                                       f"{task.question_id}", qglobs)
+                if len(question_candidates) > 1:
+                    raise InvalidInput("Too many questions found for ID "
+                                       f"{task.question_id} "
+                                       f"({question_candidates})")
+                question = question_candidates[0]
             async with testenv.TestEnvironment(question, task.answer,
                                                course, slots) as env:
                 run_res = await env.run(
@@ -196,6 +199,7 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
               question_id: {task.question_id}
               option: {task.option}
               qdir: {course.qdir}
+              question_id: {task.question_id}
               question: {question}
               student_id: {task.student_id}
               qset: {task.qset}
