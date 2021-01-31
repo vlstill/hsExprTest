@@ -18,7 +18,8 @@ import traceback
 import socket
 import subprocess
 import textwrap
-import aiohttp_mako  # type: ignore
+import aiohttp_jinja2  # type: ignore
+import jinja2
 import yaml
 import re
 import html
@@ -281,24 +282,8 @@ def get_handle_admin(conf: config.Config) \
             return web.Response(status=401, text="No user info\n")
 
         course_name = req.match_info.get("course_id")
-        if course_name is None:
-            return web.Response(status=404,
-                                text=f"No course given for {auth_user}\n")
-        course = conf.courses.get(course_name.lower())
-        print(f"ADMIN attempt HTTP auth user {auth_user} for {course_name}")
-
-        if course is None:
-            return web.Response(status=404,
-                                text=f"Course {course_name} not found\n")
-        if auth_user not in course.authorized:
-            return web.Response(
-                status=401,
-                text=f"User {auth_user} not authorized for {course_name}\n")
-        print(f"ADMIN authorized for {auth_user}/{course_name} at "
-              f"{time.asctime()}")
-
         page = req.match_info.get("page")
-        return await admin.get(req, course, auth_user, page)
+        return await admin.get(req, conf, auth_user, course_name, page)
 
     return handle_admin
 
@@ -385,9 +370,7 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
     app = web.Application()
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "templates")
-    aiohttp_mako.setup(app, input_encoding='utf-8', output_encoding='utf-8',
-                       default_filters=['decode.utf8'],
-                       directories=[templates_dir])
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(templates_dir))
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
@@ -412,6 +395,7 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
                         get_handle_update(conf))
 
     handle_admin = get_handle_admin(conf)
+    app.router.add_get("/admin/{user}/", handle_admin)  # noqa: FS003
     app.router.add_get("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
     app.router.add_post("/admin/{user}/{course_id}/", handle_admin)  # noqa: FS003, E501
     app.router.add_get("/admin/{user}/{course_id}/{page}", handle_admin)  # noqa: FS003, E501
