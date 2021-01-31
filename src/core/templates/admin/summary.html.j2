@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang=en>
+  <head>
+	<title>External evaluator for IS</title>
+	<link rel="stylesheet" href="stylesheet.css" type="text/css">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="Author" content="Vladimír Štill">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    td { padding: 0.2em; }
+  </style>
+  </head>
+
+  <body>
+	<h1>External Evaluator for IS</h1>
+  <p>
+    There are the following courses currently configured:
+    {% for c in config.courses %}{{c.name}}{% if not loop.last %}, {% endif %}{% endfor %}.
+  </p>
+  <p>
+    Statistics since {{since}}:
+    <table>
+      <tr>
+        <td>Course ID</td>
+        <td># of requests</td>
+        <td># of cache entries</td>
+        <td>cache hit ratio (%)</td>
+      </tr>
+      {% for row in stats %}
+        <tr>
+        {% for entry in row %}
+          <td>{{entry}}</td>
+        {% endfor %}
+        </tr>
+      {% endfor %}
+    <table>
+  </p>
+  </body>
+</html>
+<!-- vim: expandtab tabstop=2 ft=html
+-->
