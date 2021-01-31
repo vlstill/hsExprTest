@@ -19,7 +19,16 @@
 	<h1>External Evaluator for IS</h1>
   <p>
     There are the following courses currently configured:
-    {% for c in config.courses %}{{c.name}}{% if not loop.last %}, {% endif %}{% endfor %}.
+    {% for c in config.courses %}
+      {% if user in c.authorized %}
+      <a href="{{c.name}}/">
+      {% endif %}
+      {{c.name}}
+      {%- if user in c.authorized -%}
+      </a>
+      {%- endif -%}
+      {% if not loop.last %}, {% endif -%}
+      {% endfor -%}.<br>
   </p>
   <p>
     Statistics since {{since}}:
