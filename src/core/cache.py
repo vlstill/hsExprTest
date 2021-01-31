@@ -167,13 +167,13 @@ class Cache:
                         select course,
                                req,
                                cache,
-                               cache :: float * 100 / req as ratio
+                               100 - cache :: float * 100 / req as ratio
                           from stat
                         union all
                         select 'all' as course,
                                sum( req ) as req,
                                sum( cache ) as cache,
-                               100 * sum( cache )::float / sum( req ) as ratio
+                               100 - 100 * sum( cache )::float / sum( req ) as ratio
                           from stat;
                     """)
                 self.log.debug("db initialized")
