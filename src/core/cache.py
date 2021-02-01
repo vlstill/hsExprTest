@@ -136,12 +136,15 @@ class Cache:
                                o.data as output,
                                e.data as errors,
                                revision_id,
-                               stamp
+                               stamp,
+                               eval_request.id as id,
+                               a.data as answer
                         from eval_request
                         join eval_data on ( data_id = eval_data.id)
                         left join eval_cache on ( cache_id = eval_cache.id )
                         join content as e on ( err_sha = e.sha )
-                        join content as o on ( out_sha = o.sha );
+                        join content as o on ( out_sha = o.sha )
+                        join content as a on ( student_sha = a.sha );
 
                     create or replace view usage as
                         with
