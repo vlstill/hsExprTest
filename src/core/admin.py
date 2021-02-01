@@ -84,7 +84,8 @@ class Admin:
         to = parse_date(args["to"], 23, 59, 59, 999999)
         async with Cache(self.conf).connect() as conn:
             rows = await conn.fetch("""
-                select author,
+                select stamp as timestamp,
+                       author,
                        convert_from(question, 'UTF8') as question,
                        convert_from(option, 'UTF8') as option,
                        hint,
