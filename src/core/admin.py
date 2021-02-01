@@ -72,11 +72,13 @@ class Admin:
         assert self.course is not None
         async with Cache(self.conf).connect() as conn:
             dates = await conn.fetch("""
-                select distinct stamp::date from eval_log
-                    where course = $1 order by stamp desc
+                select stamp :: date, count(*) from eval_log
+                    where course = $1
+                    group by ( stamp :: date )
+                    order by stamp desc
                 """, course.name.encode('utf-8'))
             return self._render("admin/log_summary.html.j2",
-                                dates=[date[0] for date in dates])
+                                dates=dates)
 
     async def log(self, course: config.Course, args: Dict[str, str]) \
             -> web.Response:

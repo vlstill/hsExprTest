@@ -12,6 +12,8 @@
       border-collapse: collapse;
     }
     td { padding: 0.2em; }
+    td.resTrue { background-color: #6f6; }
+    td.resFalse { background-color: #f66; }
   </style>
   </head>
 
@@ -21,15 +23,22 @@
     Logs by days:<br>
     <table>
       <tr>
-    {% for r in rows[0].keys() %}
-        <td>{{r}}</td>
-    {% endfor %}
+        <td>Timestamp</td>
+        <td>Author</td>
+        <td>Question</td>
+        <td>Option</td>
+        <td>Mode</td>
+        <td>result</td>
+        <td></td>
       </tr>
     {% for r in rows %}
       <tr>
-        {% for val in r.values() %}
-          <td>{{val}}</td>
-        {% endfor %}
+        <td>{{r.timestamp}}</td>
+        <td>{{ r.author | default("(unknown)", true) }}</td>
+        <td><code>{{ r.question }}</code></td>
+        <td><code>{{ r.option }}</td>
+        <td>{{ "syntax check (hint)" if r.hint else "authorized" }}</td>
+        <td class="res{{r.result}}">{{ r.result }}</td>
         <td><a href="log_detail;id={{r.id}}">details</a></td>
       </tr>
     {% endfor %}
