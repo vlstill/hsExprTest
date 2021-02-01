@@ -23,24 +23,24 @@
 	<h1>Logs for {{course}}, evaluation id {{entry.id}}</h1>
   <p>
     author: {{ entry.author | default("(unknown)", true) }}<br>
-    question: {{ entry.question}}<br>
-    option: {{ entry.option }}<br>
-    mode: {{ "syntax check" if entry.hint else "authorized" }}<br>
+    question: <code>{{ entry.question}}</code><br>
+    option: <code>{{ entry.option }}</code><br>
+    mode: {{ "syntax check (hint)" if entry.hint else "authorized" }}<br>
     result: {{ entry.result }}<br>
     timestamp: {{ entry.stamp }}<br>
     student's answer:
     <pre>
-      {{ entry.answer }}
+      {{- entry.answer -}}
     </pre>
 
     standard output (sent to student):
     <pre>
-      {{ entry.output }}
+      {{- entry.output -}}
     </pre>
 
     standard error (internal):
     <pre>
-      {{ entry.error }}
+      {{- entry.error -}}
     </pre>
   </p>
   </body>
