@@ -1,6 +1,5 @@
 # (c) 2019–2021 Vladimír Štill <code@vstill.eu>
 
-import typing
 import aiohttp_jinja2  # type: ignore
 import config
 import dateutil.parser
@@ -126,7 +125,8 @@ class Admin:
                "course": self.course}
         for k, v in extra.items():
             out[k] = v
-        return aiohttp_jinja2.render_template(template, self.req, out)
+        return aiohttp_jinja2.render_template(  # type: ignore
+                  template, self.req, out)
 
     def _forbidden(self) -> web.Response:
         return web.Response(status=403, text="403 Forbidden")
