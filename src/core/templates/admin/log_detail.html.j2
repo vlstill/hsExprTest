@@ -1,25 +1,6 @@
-<!doctype html>
-<html lang=en>
-  <head>
-	<title>External evaluator for IS</title>
-	<link rel="stylesheet" href="stylesheet.css" type="text/css">
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<meta name="Author" content="Vladimír Štill">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-    }
-    pre {
-      background-color: #eee;
-      padding: 0.2em;
-    }
-    td { padding: 0.2em; }
-  </style>
-  </head>
-
-  <body>
+{% extends "admin/base.html.j2" %}
+{% block title %}Logs for {{course}}, evaluation id {{entry.id}}{% endblock %}
+{% block body %}
 	<h1>Logs for {{course}}, evaluation id {{entry.id}}</h1>
   <p>
     author: {{ entry.author | default("(unknown)", true) }}<br>
@@ -44,6 +25,6 @@
     </pre>
   </p>
   </body>
-</html>
+{% endblock %}
 <!-- vim: expandtab tabstop=2 ft=html
 -->
