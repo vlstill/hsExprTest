@@ -22,7 +22,7 @@
         <td><code>{{ r.option }}</td>
         <td>{{ "syntax check (hint)" if r.hint else "authorized" }}</td>
         <td class="res{{r.result}}">{{ r.result }}</td>
-        <td><a href="log_detail;id={{r.id}}">details</a></td>
+        <td><a href="log_detail?id={{r.id}}">details</a></td>
       </tr>
     {% endfor %}
 {% endblock %}
