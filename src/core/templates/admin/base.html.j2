@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang=en>
+  <head>
+	<title>{% block title %}External evaluator for IS{% endblock %}</title>
+	<link rel="stylesheet" href="stylesheet.css" type="text/css">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="Author" content="Vladimír Štill">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    td { padding: 0.2em; }
+    td.resTrue { background-color: #6f6; }
+    td.resFalse { background-color: #f66; }
+
+    #content {
+        padding: 1em;
+        padding-top: 0px;
+    }
+
+    .headfoot {
+        margin-bottom: 0px;
+        background-color: #F5DD35;
+    }
+
+    #header {
+        padding: 1em;
+        border-bottom: 1px solid;
+        display: flex;
+    }
+
+    #header a {
+        padding: 0.1em;
+        display: inline-flex;
+        height: 1.2em;
+    }
+
+    #header a + a {
+        margin-left: 1em;
+    }
+
+    #header a.icon {
+        display: inline-block;
+    }
+
+    #header a.icon img {
+        height: 1.2em;
+        vertical-align: top;
+    }
+
+    pre {
+      background-color: #eee;
+      padding: 0.2em;
+    }
+  </style>
+  {% block head %}
+  {% endblock %}
+  </head>
+
+  <body>
+    <div id="page">
+      <div id="header">
+        <a href="/admin/">[system administration]</a>
+        {% if course is not none %}
+          <a href="/admin/{{course}}/">[{{course}}]</a>
+        {% endif %}
+      </div>
+      <div id="content">
+        {% block body %}
+        {% endblock %}
+      </div>
+    </div>
+  </body>
+</html>
+<!-- vim: expandtab tabstop=2 ft=html
+-->

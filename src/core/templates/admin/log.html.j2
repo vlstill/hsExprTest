@@ -1,23 +1,6 @@
-<!doctype html>
-<html lang=en>
-  <head>
-	<title>External evaluator for IS</title>
-	<link rel="stylesheet" href="stylesheet.css" type="text/css">
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<meta name="Author" content="Vladimír Štill">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-    }
-    td { padding: 0.2em; }
-    td.resTrue { background-color: #6f6; }
-    td.resFalse { background-color: #f66; }
-  </style>
-  </head>
-
-  <body>
+{% extends "admin/base.html.j2" %}
+{% block title %}Logs for {{course}}{% endblock %}
+{% block body %}
 	<h1>Logs for {{course}}</h1>
   <p>
     Logs by days:<br>
@@ -42,8 +25,6 @@
         <td><a href="log_detail;id={{r.id}}">details</a></td>
       </tr>
     {% endfor %}
-  </p>
-  </body>
-</html>
+{% endblock %}
 <!-- vim: expandtab tabstop=2 ft=html
 -->
