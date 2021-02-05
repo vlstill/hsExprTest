@@ -4,6 +4,7 @@ import aiohttp_jinja2  # type: ignore
 import config
 import dateutil.parser
 import datetime
+import functor
 
 from cache import Cache
 from dataclasses import dataclass
@@ -33,27 +34,30 @@ class Admin:
         if self.course is None:
             return await self.summary()
 
-        course = self.conf.courses[self.course]
+        course = self.conf.courses.get(self.course)
+        if course is None:
+            return await self._e404(f"course {self.course}")
         if self.user not in course.authorized:
             return self._forbidden()
 
         if self.page is None:
             return await self.log_summary(course)
 
-        args_ = self.page.split(';')
-        page = args_[0]
-        args = {s[0]: s[1] for s in (s.split('=', 1) for s in args_[1:])}
+        if self.page == "log":
+            return await self.log(course)
 
-        if page == "log":
-            return await self.log(course, args)
+        if self.page == "log_detail":
+            id_ = self.req.query.get("id")
+            if id_ is not None and id_.isdigit():
+                return await self.log_detail(course, int(id_))
+            return await self._e404("id not specified or invalid")
 
-        if page == "log_detail":
-            return await self.log_detail(course, int(args["id"]))
+        return await self._e404(f"page {page}")
 
-        return await self.e404()
-
-    async def e404(self) -> web.Response:
-        return web.Response(status=404, text="404 not found")
+    async def _e404(self, extra: str = "") -> web.Response:
+        if extra:
+            extra = f" ({extra})"
+        return web.Response(status=404, text=f"404 not found{extra}")
 
     async def summary(self) -> web.Response:
         async with Cache(self.conf).connect() as conn:
@@ -79,10 +83,12 @@ class Admin:
             return self._render("admin/log_summary.html.j2",
                                 dates=dates)
 
-    async def log(self, course: config.Course, args: Dict[str, str]) \
-            -> web.Response:
-        from_ = parse_date(args["from"])
-        to = parse_date(args["to"], 23, 59, 59, 999999)
+    async def log(self, course: config.Course) -> web.Response:
+        from_ = functor.mapO(parse_date, self.req.query.get("from")) \
+            or datetime.datetime(1, 1, 1)
+        to = functor.mapO(lambda x: parse_date(x, 23, 59, 59, 999999),
+                          self.req.query.get("to")) \
+            or datetime.datetime(9999, 12, 31)
         async with Cache(self.conf).connect() as conn:
             rows = await conn.fetch("""
                 select stamp as timestamp,
