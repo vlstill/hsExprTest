@@ -126,8 +126,7 @@ class EvalTask:
         self.course_id = getMandatory("kod", "course_id", "course ID").lower()
         self.question_id, self.option = EvalTask.parse_qid(getMandatory("id"))
         self.answer = getMandatory("odp", "answer")
-        self.student_id = ifis(functor.mapO(functor.readInt, data.get("uco")),
-                               None)
+        self.student_id = functor.mapO(functor.readInt, data.get("uco"))
         self.view_only = ifis(data.get("zobrazeni") == "p", False)
         self.qset = None
 
