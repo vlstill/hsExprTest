@@ -84,7 +84,8 @@ class Admin:
                     order by stamp desc
                 """, course.name.encode('utf-8'))
             return self._render("admin/log_summary.html.j2",
-                                dates=dates)
+                                dates=dates,
+                                today=datetime.datetime.now().date())
 
     async def log(self, course: config.Course) -> web.Response:
         from_ = parse_date(self.req.query.get("from"),

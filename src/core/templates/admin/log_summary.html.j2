@@ -5,11 +5,11 @@
   <h3>Log range</h3>
   <form action="log" method="get">
     <label for="from">From: </label>
-    <input type="date" name="from" id="from">
+    <input type="date" name="from" id="from" value="{{today}}">
     <input type="time" name="from_time">
 
     <label for="to">to: </label>
-    <input type="date" name="to" id="to">
+    <input type="date" name="to" id="to" value="{{today}}">
     <input type="time" name="to_time">
 
     <input type="submit" value="go">
