@@ -14,12 +14,15 @@ from typing import Optional, Dict, Any
 
 def parse_date(raw: str, defhour: int = 0, defminute: int = 0,
                defsecond: int = 0, defmicrosecond: int = 0) \
-        -> datetime.datetime:
-    dt = dateutil.parser.parse(raw)
-    if " " not in raw:
-        dt = dt.replace(hour=defhour, minute=defminute, second=defsecond,
-                        microsecond=defmicrosecond)
-    return dt
+        -> Optional[datetime.datetime]:
+    try:
+        dt = dateutil.parser.parse(raw)
+        if " " not in raw:
+            dt = dt.replace(hour=defhour, minute=defminute, second=defsecond,
+                            microsecond=defmicrosecond)
+        return dt
+    except ValueError:
+        return None
 
 
 @dataclass
@@ -104,7 +107,8 @@ class Admin:
                       and stamp <= $3
                     order by stamp asc
                 """, course.name.encode('utf-8'), from_, to)
-            return self._render("admin/log.html.j2", rows=rows)
+            return self._render("admin/log.html.j2",
+                                **{"rows": rows, "from": from_, "to": to})
 
     async def log_detail(self, course: config.Course, eval_id: int) \
             -> web.Response:

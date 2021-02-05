@@ -3,7 +3,7 @@
 {% block body %}
 	<h1>Logs for {{course}}</h1>
   <p>
-    Logs by days:<br>
+    Logs from {{from}} to {{to}}:<br>
     <table>
       <tr>
         <td>Timestamp</td>
@@ -26,5 +26,5 @@
       </tr>
     {% endfor %}
 {% endblock %}
-<!-- vim: expandtab tabstop=2 ft=html
+<!-- vim: expandtab tabstop=2 shiftwidth=2 ft=html
 -->
