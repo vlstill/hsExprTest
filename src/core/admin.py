@@ -12,14 +12,17 @@ from aiohttp import web
 from typing import Optional, Dict, Any
 
 
-def parse_date(raw: str, defhour: int = 0, defminute: int = 0,
+def parse_date(date: Optional[str], time: Optional[str],
+               defhour: int = 0, defminute: int = 0,
                defsecond: int = 0, defmicrosecond: int = 0) \
-        -> datetime.datetime:
-    dt = dateutil.parser.parse(raw)
-    if " " not in raw:
-        dt = dt.replace(hour=defhour, minute=defminute, second=defsecond,
-                        microsecond=defmicrosecond)
-    return dt
+        -> Optional[datetime.datetime]:
+    try:
+        dt = dateutil.parser.parse(f"{date} {time or ''}")
+        if not time:
+            dt = dt.replace(hour=defhour, minute=defminute)
+        return dt.replace(second=defsecond, microsecond=defmicrosecond)
+    except ValueError:
+        return None
 
 
 @dataclass
@@ -81,13 +84,16 @@ class Admin:
                     order by stamp desc
                 """, course.name.encode('utf-8'))
             return self._render("admin/log_summary.html.j2",
-                                dates=dates)
+                                dates=dates,
+                                today=datetime.datetime.now().date())
 
     async def log(self, course: config.Course) -> web.Response:
-        from_ = functor.mapO(parse_date, self.req.query.get("from")) \
+        from_ = parse_date(self.req.query.get("from"),
+                           self.req.query.get("from_time")) \
             or datetime.datetime(1, 1, 1)
-        to = functor.mapO(lambda x: parse_date(x, 23, 59, 59, 999999),
-                          self.req.query.get("to")) \
+        to = parse_date(self.req.query.get("to"),
+                        self.req.query.get("to_time"),
+                        23, 59, 59, 999999) \
             or datetime.datetime(9999, 12, 31)
         async with Cache(self.conf).connect() as conn:
             rows = await conn.fetch("""
@@ -104,7 +110,8 @@ class Admin:
                       and stamp <= $3
                     order by stamp asc
                 """, course.name.encode('utf-8'), from_, to)
-            return self._render("admin/log.html.j2", rows=rows)
+            return self._render("admin/log.html.j2",
+                                **{"rows": rows, "from": from_, "to": to})
 
     async def log_detail(self, course: config.Course, eval_id: int) \
             -> web.Response:

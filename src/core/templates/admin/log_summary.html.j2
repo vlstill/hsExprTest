@@ -1,16 +1,29 @@
 {% extends "admin/base.html.j2" %}
-{% block title %}Log summary for {{course}}{% endblock %}
+{% block title %}Logs for {{course}}{% endblock %}
 {% block body %}
-	<h1>Log summary for {{course}}</h1>
-  <p>
-    Logs by days:<br>
+	<h1>Logs for {{course}}</h1>
+  <h3>Log range</h3>
+  <form action="log" method="get">
+    <label for="from">From: </label>
+    <input type="date" name="from" id="from" value="{{today}}">
+    <input type="time" name="from_time">
+
+    <label for="to">to: </label>
+    <input type="date" name="to" id="to" value="{{today}}">
+    <input type="time" name="to_time">
+
+    <input type="submit" value="go">
+  </form>
+
+  <h3>Logs by days</h3>
+  <ul>
     {% for date in dates %}
-      <a href="log?from={{date.stamp}};to={{date.stamp}}">
+      <li><a href="log?from={{date.stamp}};to={{date.stamp}}">
           {{date.stamp}} ({{date.count}} entries)
-      </a><br>
+      </a></li>
     {% endfor %}
-  </p>
+  </ul>
   </body>
 {% endblock %}
-<!-- vim: expandtab tabstop=2 ft=html
+<!-- vim: expandtab tabstop=2 shiftwidth=2 ft=html
 -->
