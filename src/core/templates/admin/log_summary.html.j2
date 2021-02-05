@@ -4,8 +4,14 @@
 	<h1>Logs for {{course}}</h1>
   <h3>Log range</h3>
   <form action="log" method="get">
-    <label for="from">From: </label><input type="date" name="from" id="from">
-    <label for="to">to: </label><input type="date" name="to" id="to">
+    <label for="from">From: </label>
+    <input type="date" name="from" id="from">
+    <input type="time" name="from_time">
+
+    <label for="to">to: </label>
+    <input type="date" name="to" id="to">
+    <input type="time" name="to_time">
+
     <input type="submit" value="go">
   </form>
 
