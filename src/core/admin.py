@@ -6,7 +6,7 @@ import dateutil.parser
 import datetime
 import functor
 
-from cache import Cache
+from db import DB
 from dataclasses import dataclass
 from aiohttp import web
 from typing import Optional, Dict, Any
@@ -63,7 +63,7 @@ class Admin:
         return web.Response(status=404, text=f"404 not found{extra}")
 
     async def summary(self) -> web.Response:
-        async with Cache(self.conf).connect() as conn:
+        async with DB(self.conf).connect() as conn:
             stats_ = await conn.fetch("select * from usage order by req desc")
             stats = [[row[0].decode("utf-8"), row[1], row[2], round(row[3], 1)]
                      for row in stats_]
@@ -76,7 +76,7 @@ class Admin:
 
     async def log_summary(self, course: config.Course) -> web.Response:
         assert self.course is not None
-        async with Cache(self.conf).connect() as conn:
+        async with DB(self.conf).connect() as conn:
             dates = await conn.fetch("""
                 select stamp :: date, count(*) from eval_log
                     where course = $1
@@ -95,7 +95,7 @@ class Admin:
                         self.req.query.get("to_time"),
                         23, 59, 59, 999999) \
             or datetime.datetime(9999, 12, 31)
-        async with Cache(self.conf).connect() as conn:
+        async with DB(self.conf).connect() as conn:
             rows = await conn.fetch("""
                 select stamp as timestamp,
                        author,
@@ -115,7 +115,7 @@ class Admin:
 
     async def log_detail(self, course: config.Course, eval_id: int) \
             -> web.Response:
-        async with Cache(self.conf).connect() as conn:
+        async with DB(self.conf).connect() as conn:
             row = await conn.fetchrow("""
                 select author,
                        convert_from(question, 'UTF8') as question,
