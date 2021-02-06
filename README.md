@@ -1,10 +1,19 @@
-# Description of Haskell Testing Support
+hsExprTest
+==========
+
+[![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
+
+Automatic testing of small Haskell assignments.
 
 A tool for simple randomized testing of Haskell expressions based on the
 QuickCheck library. The idea is that, unless you need to use custom data
 structures, you should not need to know anything about QuickCheck, testing
 should be automatized to maximal possible extend. It is intended to primarily
 work with small code snippets.
+
+**If you are looking for the programming-language-agnostic evaluation server which
+can be used to run hsExprTest and other language drivers, look at
+[exprtest](https://github.com/vlstill/exprtest.git).**
 
 ## Main Features
 
