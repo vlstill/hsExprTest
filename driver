@@ -10,7 +10,6 @@ import sys
 import tempfile
 import textwrap
 import yaml
-import evalconf
 from typing import List, Pattern, TextIO, Optional, Dict, Any, TypeVar
 
 from typing_extensions import Final
@@ -42,8 +41,24 @@ for i in range(3, len(sys.argv)):
         with open(v[2:], "r") as h:
             _config = yaml.safe_load(h)
 
+
+def from_source_file(path: str) -> Dict[str, Any]:
+    pat = re.compile("-- @\\s+([^:]*):\\s*(.*)")
+    collected = ""
+    with open(path, "r") as h:
+        for line in h:
+            m = pat.match(line)
+            if m is not None:
+                collected += f"{m[1]}: {m[2]}\n"
+    if not collected:
+        return {}
+    out = yaml.safe_load(collected)
+    assert isinstance(out, dict)
+    return out  # type: ignore
+
+
 if _config is None:
-    _config = evalconf.EvalConf().from_source_file(teacher).config
+    _config = from_source_file(teacher)
 
 
 ALL_EXTS : Final[List[str]] = []
