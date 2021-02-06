@@ -31,7 +31,7 @@ class DB:
 
     @asynccontextmanager
     async def connect(self) -> AsyncGenerator[asyncpg.Connection, None]:
-        assert self.config.postgres_cache
+        assert self.config.postgres
         conn = await asyncpg.connect(
             user=self.config.postgres_user,
             database="exprtest",
@@ -56,7 +56,7 @@ class DB:
             await conn.execute(f"create schema {name}")
 
     async def init(self) -> None:
-        if not self.config.postgres_cache:
+        if not self.config.postgres:
             return
         self.log.debug("db init start")
         async with self.connect() as conn:
@@ -185,7 +185,7 @@ class DB:
                   option: Optional[str], author: Optional[int], answer: str,
                   hint: bool) \
             -> Optional[CacheRes]:
-        if not self.config.postgres_cache:
+        if not self.config.postgres:
             return None
         if option is None:
             option = ""
@@ -273,7 +273,7 @@ class DB:
 
     async def set(self, cache_handle: Optional[CacheRes],
                   result: RunResult) -> None:
-        if not self.config.postgres_cache or cache_handle is None:
+        if not self.config.postgres or cache_handle is None:
             return
         req_id = cache_handle.req_id
         rev_id = cache_handle.rev_id

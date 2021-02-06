@@ -107,7 +107,7 @@ class Config:
         self.limit = Limit()
         self.verbose: bool = False
         self.journal: bool = False
-        self.postgres_cache: bool = True
+        self.postgres: bool = True
         self.postgres_host: str = "/var/run/postgresql"
         self.postgres_user: str = getpass.getuser()
         self.exprtest_stamp = _EXPRTEST_GIT_STAMP
@@ -228,6 +228,10 @@ class Config:
         if len(self.courses) == 0:
             raise ConfigException("At least one course must be set")
 
+        self.postgres = conf.get("postgres", False)
+        self.postgres_host = conf.get("postgres_host", self.postgres_host)
+        self.postgres_user = conf.get("postgres_user", self.postgres_user)
+
     def _setup_logging(self) -> None:
         root = logging.getLogger()
         if self.verbose:
@@ -263,7 +267,7 @@ class Config:
                 "courses": list(map(Course.to_dict, self.courses.values())),
                 "postgres_user": self.postgres_user,
                 "postgres_host": self.postgres_host,
-                "postgres_cache": self.postgres_cache,
+                "postgres": self.postgres,
                 "exprtest_stamp": self.exprtest_stamp}
 
 
