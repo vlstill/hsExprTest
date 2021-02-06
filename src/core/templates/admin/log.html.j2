@@ -3,7 +3,16 @@
 {% block body %}
 	<h1>Logs for {{course}}</h1>
   <p>
-    Logs from {{from}} to {{to}}:<br>
+    <form action="log" method="get">
+      Logs from
+      <input type="date" name="from" id="from" value="{{from.date()}}">
+      <input type="time" name="from_time" value="{{from.time()}}">
+      to
+      <input type="date" name="to" id="to" value="{{to.date()}}">
+      <input type="time" name="to_time" value="{{to.time()}}">
+      <input type="submit" value="load">
+      <br>
+    </form>
     <table>
       <tr>
         <td>Timestamp</td>
