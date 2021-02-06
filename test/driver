@@ -3,7 +3,7 @@
 BUILD=$PWD/_build
 OUTDIR=$BUILD/tests
 mkdir -p $OUTDIR
-EXPR_TEST="$PYTHON $PWD/src/hs/driver"
+EXPR_TEST="$PYTHON $PWD/driver"
 cd $1
 
 FAILED=""
