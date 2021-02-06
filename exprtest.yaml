@@ -8,6 +8,9 @@ limit: # per worker
     memory: 1G
     swap: 0 # default if memory is set
     cpu: 100% # 100% is one CPU
+postgres: true
+# postgres_user: …
+# postgres_host: host addres or socket dir
 courses:
   ib015:
     isolation: false
