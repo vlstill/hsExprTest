@@ -24,7 +24,7 @@ class CacheRes:
     result: Optional[RunResult] = None
 
 
-class Cache:
+class DB:
     def __init__(self, config: Config) -> None:
         self.config = config
         self.log = logging.getLogger("cache")
@@ -61,7 +61,7 @@ class Cache:
         self.log.debug("db init start")
         async with self.connect() as conn:
             async with conn.transaction():
-                await Cache.create_schema_if_not_exists("exprtest", conn)
+                await DB.create_schema_if_not_exists("exprtest", conn)
                 await conn.execute("set search_path to exprtest")
                 utc_now_defined = await conn.fetchval("""
                     select exists(

@@ -25,7 +25,7 @@ import re
 import html
 import logging
 
-from cache import Cache
+from db import DB
 import config
 import cgroup
 import functor
@@ -144,7 +144,7 @@ class EvalTask:
 
 
 async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
-                            cache: Cache, data: PostOrGet,
+                            db: DB, data: PostOrGet,
                             mode: InterfaceMode) \
         -> Tuple[bool, str, List[testenv.PointEntry]]:
     try:
@@ -159,12 +159,12 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
 
         question: Optional[str] = None
 
-        cache_res = await cache.get(course=course,
-                                    question=task.question_id,
-                                    option=task.option,
-                                    answer=task.answer,
-                                    author=task.student_id,
-                                    hint=InterfaceMode.Priviledged not in mode)
+        cache_res = await db.get(course=course,
+                                 question=task.question_id,
+                                 option=task.option,
+                                 answer=task.answer,
+                                 author=task.student_id,
+                                 hint=InterfaceMode.Priviledged not in mode)
         if cache_res is not None and cache_res.result is not None:
             run_res = cache_res.result
         else:
@@ -190,7 +190,7 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
                 run_res = await env.run(
                             task.option,
                             hint=InterfaceMode.Priviledged not in mode)
-                await cache.set(cache_res, run_res)
+                await db.set(cache_res, run_res)
 
         log = 80 * "="
         log += textwrap.dedent(f"""
@@ -235,7 +235,7 @@ async def handle_evaluation(conf: config.Config, slots: cgroup.SlotManager,
 
 
 def get_eval_handler(eval_sem: asyncio.BoundedSemaphore, conf: config.Config,
-                     slots: cgroup.SlotManager, cache: Cache,
+                     slots: cgroup.SlotManager, db: DB,
                      mode: InterfaceMode) \
                      -> Callable[[web.Request], Awaitable[web.Response]]:
     headers: Dict[str, str] = {}
@@ -248,7 +248,7 @@ def get_eval_handler(eval_sem: asyncio.BoundedSemaphore, conf: config.Config,
             start = time.perf_counter()
             data = await PostOrGet.create(request)
             (result, comment, points) = await handle_evaluation(conf, slots,
-                                                                cache,
+                                                                db,
                                                                 data, mode)
             end = time.perf_counter()
             print(f"Handled in {end - start}", file=sys.stderr, flush=True)
@@ -347,10 +347,10 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
         print("shutdown")
         loop.stop()
 
-    cache = Cache(conf)
+    db = DB(conf)
 
     async def start_runner(runner: web.AppRunner, conf: config.Config) -> None:
-        await cache.init()
+        await db.init()
         await runner.setup()
         site: Optional[Union[web.TCPSite, web.UnixSite, web.SockSite]] = None
         if conf.port is not None:
@@ -373,17 +373,17 @@ def start_web(conf: config.Config, slots: cgroup.SlotManager) -> None:
 
     eval_sem = asyncio.BoundedSemaphore(conf.max_workers)
 
-    handle_is = get_eval_handler(eval_sem, conf, slots, cache,
+    handle_is = get_eval_handler(eval_sem, conf, slots, db,
                                  InterfaceMode.IS | InterfaceMode.Priviledged)
     app.router.add_get("/is", handle_is)
     app.router.add_post("/is", handle_is)
 
-    handle_hint = get_eval_handler(eval_sem, conf, slots, cache,
+    handle_hint = get_eval_handler(eval_sem, conf, slots, db,
                                    InterfaceMode.Null)
     app.router.add_get("/hint", handle_hint)
     app.router.add_post("/hint", handle_hint)
 
-    handle_internal = get_eval_handler(eval_sem, conf, slots, cache,
+    handle_internal = get_eval_handler(eval_sem, conf, slots, db,
                                        InterfaceMode.Priviledged)
     app.router.add_get("/internal", handle_internal)
     app.router.add_post("/internal", handle_internal)
