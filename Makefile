@@ -2,16 +2,15 @@
 
 PWD != pwd
 BUILD_DIR=${PWD}/_build
-SRC=${PWD}/src
-HS_ROOT=${SRC}/hs
+HS_ROOT=${PWD}
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
 CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
 GHC ?= ghc
 HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dynamic"; else echo ""; fi
 
-PYSRC_PY != find src -type f -name '*.py'
-PYSRC_HASHBANG != find src -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
+PYSRC_PY != find ${PWD} -type f -name '*.py'
+PYSRC_HASHBANG != find ${PWD} -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
 PYSRC != echo $(PYSRC_PY) $(PYSRC_HASHBANG) | tr ' ' '\n' | awk '!a[$$0]++'
 
 -include local.make
