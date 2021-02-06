@@ -259,7 +259,10 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
             dst.write("\n    |]\n\n")
             dst.write(textwrap.dedent("""\
                 runASTCheck :: ASTCheck -> Q [Dec]
-                runASTCheck check = studentAST >>= check >> pure []
+                runASTCheck check = do
+                    ast <- studentAST
+                    check ast
+                    pure []
                 """))
     with open(os.path.join(dstDir, "StudentASTChecks.hs"), "w") as dst:
         dst.write(textwrap.dedent("""\
