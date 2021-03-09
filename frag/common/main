@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+START=$(date +%s)
+
+global_timeout() {
+    trap - ALRM
+    echo "global_timeout triggered"
+    pgrep -P $$
+    pkill -9 -P $$
+    pgrep -P $$
+    pgrep hstest
+    echo "post kill"
+    last=$(tail -n1 out.list)
+    if [[ "$last" ]]; then
+        echo "FAILED: Global Timeout" >> out/$last
+        last_test=$(tail -n1 test.journal)
+        if [[ "$last_test" ]]; then
+            echo "the last test might have been:" >> out/$last
+            echo $last_test >> out/$last
+        fi
+    fi
+    kill -ALRM $$
+    exit 14
+}
+
+trap global_timeout ALRM
+
+# drop sandboxing links for cc, sh, we don't use them and sh link can break GHC
+BIN=$(readlink -f ../bin)
+rm -f $BIN/*
+ln -s $HOME/group $BIN
+ln -s $HOME/sandbox $BIN
+PATH=$(echo $PATH | sed "s|$HOME:||")
+
+touch out/meta.accept
+echo meta.accept >> out.list
+echo meta.errors >> out.list
+echo test.compile >> out.list
+printf "Running compilation… "
+if ./eval/compile >& out/test.compile; then
+    echo "[passed]"
+    touch passed/test.compile
+    touch passed/meta.accept
+    echo test.warnings >> out.list
+
+    printf "Running warnings… "
+    WARNINGS=(-Wmissing-signatures -Wunused-matches -Wincomplete-patterns -Widentities -Wredundant-constraints -Wunused-binds -Werror)
+    rm *.hi *.o -f
+    if ghc -ieval Main ${WARNINGS[@]} "$@" -o hstest_w  >& out/test.warnings; then
+        echo "[passed]"
+        touch passed/test.warnings
+    else
+        echo "[failed]"
+    fi
+
+    # actual tests
+    export TEST_TIMEOUT=$(($FRAG_DEADLINE - $(date +%s)))
+    # no sandbox here :-/
+    ./hstest +RTS -M950M 2>> out/meta.errors & # async+wait for the sake of trap
+    if wait $!; then
+        touch passed/test
+    fi
+    if grep -q "Heap exhausted" out/meta.errors; then
+        last=$(tail -n1 out.list)
+        printf "\nOut of Memory\n" >> out/$last
+    fi
+
+    # move warnings to the end
+    sed '/^test.warnings$/d' -i out.list --follow-symlinks
+    echo test.warnings >> out.list
+else
+    echo "[failed]"
+fi
+
+echo "testsuite took $(($(date +%s) - $START))s, $(($FRAG_DEADLINE - $(date +%s)))s until deadline"

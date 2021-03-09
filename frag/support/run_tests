@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+if ! [[ "$1" ]]; then
+    echo "usage: $0 TASK [SOLUTION.hs"]
+    exit 1
+fi
+
+tmp_dir=$(mktemp -d -t run-$1-XXXXXXXXXX)
+INC=$1; shift
+trap "cd /tmp; rm -rf $tmp_dir" EXIT
+
+ARG=
+if [[ $1 = "--dump-tests" ]]; then
+    ARG=$1
+    shift
+fi
+grep -q 'module Student where' $1 || echo 'module Student where' > $tmp_dir/Student.hs
+if [[ "$1" ]]; then
+    cat $1 >> $tmp_dir/Student.hs
+    shift
+fi
+
+runghc --ghc-arg=-i$tmp_dir --ghc-arg=-i$INC --ghc-arg=-i../frag-common Main $ARG "$@"
+EC=$?
+if [[ $EC = 0 ]]; then
+    echo -e "\u001b[32mOK\u001b[0m"
+else
+    echo -e "\u001b[31mFAILED\u001b[0m"
+fi
+exit $EC

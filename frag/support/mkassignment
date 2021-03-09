@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+import json
+import os.path
+import sys
+import itertools
+import shutil
+import subprocess
+from datetime import datetime, timedelta
+from dateutil.parser import parse as parse_date
+from typing import Dict, List, Tuple, Any, Union, Final
+
+
+TEST_HS: Final = sys.argv[1]
+SEM_END: Final = sys.argv[2]
+DEST_DIR: Final = sys.argv[3]
+
+config: Dict[str, Union[datetime, int]] = {}
+
+config["semend"] = parse_date(SEM_END)
+
+with open(TEST_HS, "r") as h:
+    for ln in itertools.islice(h, 0, 16):
+        if ln.startswith("-- @"):
+            k, v = ln[4:].split(':', 1)
+            k = k.strip().replace(' ', '_')
+            v = v.strip()
+            if k == "start" or k == "end" or k == "eval_start":
+                config[k] = parse_date(v)
+            else:
+                config[k] = int(v)
+
+if "eval_start" not in config:
+    config["eval_start"] = config["start"]
+
+frag_assignment_config = {
+    "files": ["Student.hs"],
+    "eval-extra": ["../../frag/common"],
+    "grade-def":  {"fail": 0, "group": "test", "name": "group"},
+    "grade": [{"start": str(config["start"]), "pass": config["points"]},
+              {"start": str(config["end"]), "pass": 0}],
+    "eval-publish": [{"group": "test",
+                      "eval_start": str(config["eval_start"]),
+                      "anchor": str(config["eval_start"]),
+                      "interval": config["interval"],
+                      "start": str(config["eval_start"]),
+                      "end": str(config["semend"])}]}
+
+r = subprocess.run(["runghc", "--ghc-arg=-i" + os.path.dirname(TEST_HS),
+                    "--ghc-arg=-i../frag/common",
+                    "--ghc-arg=-i../frag/support",
+                    "--ghc-arg=-DIMPORT",
+                    "--ghc-arg=-Wno-missing-methods",
+                    "../frag/common/Main.hs", "--dump-tests"],
+                   stdout=subprocess.PIPE, text=True)
+assert r.returncode == 0
+tests: List[Tuple[str, int]] = []
+for ln in r.stdout.splitlines():
+    stest, sweight = ln.split(',')
+    tests.append((stest.strip(), int(sweight)))
+
+TEST_TEMPLATE: Final = """\
+#!/usr/bin/env bash
+exec -a hstest sandbox "{TEST_NAME}"
+"""
+
+
+gendir = os.path.join(DEST_DIR, "_gen")
+shutil.rmtree(gendir, ignore_errors=True)
+if tests:
+    frag_assignment_config["grade"] = []
+    total_weight = sum(w for _, w in tests)
+    grade: List[Dict[str, Any]] = []
+    for test, weight in tests:
+        isgrace = timedelta(minutes=2)
+        grade.append(
+            {"start": str(config["start"]),
+             "end": str(config["end"] + isgrace),
+             "seq-min": 1,
+             "seq-max": config["attempts"],
+             "pass": (config["points"] * weight) // total_weight,
+             "name": test})
+
+    total_pts = sum(e["pass"] for e in grade)
+    diff_pts = config["points"] - total_pts
+    if diff_pts > 0:
+        print('\033[91m'  # red
+              f"W: Correcting points for {grade[-1]['name']} by {diff_pts} to "
+              f"achieve sum {config['points']}"
+              '\033[0m', file=sys.stderr)
+        grade[-1]["pass"] += diff_pts
+
+    frag_assignment_config["grade"] = grade
+
+
+def merge_in(a: Dict[str, Any], b: Dict[str, Any]):
+    for k, v in b.items():
+        if k not in a:
+            a[k] = b[k]
+        else:
+            assert type(a[k]) == type(b[k])  # noqa
+            if isinstance(a[k], dict):
+                merge_in(a[k], b[k])
+            else:
+                assert False, f"could not merge {type(a[k])}"
+
+
+try:
+    with open(os.path.join(DEST_DIR, "assignment.part.json"), "r") as partH:
+        part = json.load(partH)
+        merge_in(frag_assignment_config, part)
+except OSError:
+    pass
+
+with open(os.path.join(DEST_DIR, "assignment.json"), "w") as h:
+    json.dump(frag_assignment_config, h, indent=True, ensure_ascii=False)
+
+# vim: expandtab

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Put in module header and remove possible UTF-8 BOM
+cp Student.hs Submitted.hs
+sed -i '1s/^\(\xEF\xBB\xBF\)\{0,1\}/{-# LANGUAGE Safe #-}\n\nmodule Student where\n{-# LINE 1 "Submitted.hs" #-}\n/' Student.hs
+WERRORS=(-Werror=missing-signatures)
+ghc -rtsopts -ieval Main ${WERRORS[@]} "$@" -o hstest
