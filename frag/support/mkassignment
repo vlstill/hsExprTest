@@ -35,7 +35,7 @@ if "eval_start" not in config:
 
 frag_assignment_config = {
     "files": ["Student.hs"],
-    "eval-extra": ["../../frag/common"],
+    "eval-extra": ["../../hsExprTest/frag/common"],
     "grade-def":  {"fail": 0, "group": "test", "name": "group"},
     "grade": [{"start": str(config["start"]), "pass": config["points"]},
               {"start": str(config["end"]), "pass": 0}],
@@ -47,11 +47,11 @@ frag_assignment_config = {
                       "end": str(config["semend"])}]}
 
 r = subprocess.run(["runghc", "--ghc-arg=-i" + os.path.dirname(TEST_HS),
-                    "--ghc-arg=-i../frag/common",
-                    "--ghc-arg=-i../frag/support",
+                    "--ghc-arg=-i../hsExprTest/frag/common",
+                    "--ghc-arg=-i../hsExprTest/frag/support",
                     "--ghc-arg=-DIMPORT",
                     "--ghc-arg=-Wno-missing-methods",
-                    "../frag/common/Main.hs", "--dump-tests"],
+                    "../hsExprTest/frag/common/Main.hs", "--dump-tests"],
                    stdout=subprocess.PIPE, text=True)
 assert r.returncode == 0
 tests: List[Tuple[str, int]] = []
