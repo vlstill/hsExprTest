@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # Put in module header and remove possible UTF-8 BOM
 cp Student.hs Submitted.hs
-sed -i '1s/^\(\xEF\xBB\xBF\)\{0,1\}/{-# LANGUAGE Safe #-}\n\nmodule Student where\n{-# LINE 1 "Submitted.hs" #-}\n/' Student.hs
+EXTS=Safe
+if [[ -f $DIR/_hs_extensions ]]; then
+    EXTS="$EXTS, $(cat $DIR/_hs_extensions | tr -d '\n')"
+fi
+sed -i "1s/^\\(\\xEF\\xBB\\xBF\\)\\{0,1\\}/{-# LANGUAGE $EXTS #-}\n\nmodule Student where\n{-# LINE 1 \"Submitted.hs\" #-}\n/" Student.hs
 WERRORS=(-Werror=missing-signatures)
 ghc -rtsopts -ieval Main ${WERRORS[@]} "$@" -o hstest
