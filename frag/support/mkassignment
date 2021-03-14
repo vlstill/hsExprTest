@@ -54,6 +54,7 @@ r = subprocess.run(["runghc", "--ghc-arg=-i" + os.path.dirname(TEST_HS),
                     "--ghc-arg=-i../hsExprTest/frag/support",
                     "--ghc-arg=-DIMPORT",
                     "--ghc-arg=-Wno-missing-methods",
+                    "--ghc-arg=-fdefer-type-errors",
                     "../hsExprTest/frag/common/Main.hs", "--dump-tests"],
                    stdout=subprocess.PIPE, text=True)
 assert r.returncode == 0
