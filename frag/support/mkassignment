@@ -15,6 +15,11 @@ TEST_HS: Final = sys.argv[1]
 SEM_END: Final = sys.argv[2]
 DEST_DIR: Final = sys.argv[3]
 
+
+def fragdate(date: datetime) -> str:
+    return str(date).replace("+01:00", " CET").replace("+02:00", " CEST")
+
+
 config: Dict[str, Union[datetime, int]] = {}
 
 config["semend"] = parse_date(SEM_END)
@@ -33,18 +38,16 @@ with open(TEST_HS, "r") as h:
 if "eval_start" not in config:
     config["eval_start"] = config["start"]
 
+grade_def = {"fail": 0, "group": "test", "name": "group"}
+
 frag_assignment_config = {
     "files": ["Student.hs"],
     "eval-extra": ["../../hsExprTest/frag/common"],
-    "grade-def":  {"fail": 0, "group": "test", "name": "group"},
-    "grade": [{"start": str(config["start"]), "pass": config["points"]},
-              {"start": str(config["end"]), "pass": 0}],
     "eval-publish": [{"group": "test",
-                      "eval_start": str(config["eval_start"]),
-                      "anchor": str(config["eval_start"]),
+                      "start": fragdate(config["eval_start"]),
+                      "anchor": fragdate(config["eval_start"]),
                       "interval": config["interval"],
-                      "start": str(config["eval_start"]),
-                      "end": str(config["semend"])}]}
+                      "end": fragdate(config["semend"])}]}
 
 r = subprocess.run(["runghc", "--ghc-arg=-i" + os.path.dirname(TEST_HS),
                     "--ghc-arg=-i../hsExprTest/frag/common",
@@ -68,14 +71,13 @@ exec -a hstest sandbox "{TEST_NAME}"
 gendir = os.path.join(DEST_DIR, "_gen")
 shutil.rmtree(gendir, ignore_errors=True)
 if tests:
-    frag_assignment_config["grade"] = []
     total_weight = sum(w for _, w in tests)
     grade: List[Dict[str, Any]] = []
     for test, weight in tests:
         isgrace = timedelta(minutes=2)
-        grade.append(
-            {"start": str(config["start"]),
-             "end": str(config["end"] + isgrace),
+        grade.append(grade_def |
+            {"start": fragdate(config["start"]),
+             "end": fragdate(config["end"] + isgrace),
              "seq-min": 1,
              "seq-max": config["attempts"],
              "pass": (config["points"] * weight) // total_weight,
@@ -90,7 +92,7 @@ if tests:
               '\033[0m', file=sys.stderr)
         grade[-1]["pass"] += diff_pts
 
-    frag_assignment_config["grade"] = grade
+    frag_assignment_config["eval-grade"] = grade
 
 
 def merge_in(a: Dict[str, Any], b: Dict[str, Any]):
