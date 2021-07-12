@@ -4,8 +4,7 @@ PWD != pwd
 BUILD_DIR=${PWD}/_build
 HS_ROOT=${PWD}
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
-CABAL_OPTS_BUILD=--builddir ${BUILD_DIR}
-CABAL_OPTS=${CABAL_OPTS_BUILD} --bindir ${BUILD_DIR}/bin --datasubdir ${BUILD_DIR}/data
+CABAL_OPTS=--builddir ${BUILD_DIR}
 GHC ?= ghc
 HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dynamic"; else echo ""; fi
 
@@ -19,8 +18,6 @@ MYPY ?= mypy
 
 all : submodules build test
 
-CXXFLAGS += -D_POSIX_C_SOURCE
-
 ${BUILD_DIR} :
 	mkdir -p $@
 	touch $@
@@ -30,27 +27,22 @@ ${BUILD_DIR}/obj :
 	touch $@
 
 builddir :
-	mkdir -p ${BUILD_DIR}/data
-	mkdir -p ${BUILD_DIR}/bin
+	mkdir -p ${BUILD_DIR}
 
-configure : builddir ${BUILD_DIR}/_confstamp
-
-${BUILD_DIR}/_confstamp :
-	cabal v1-install ${HS_CABAL} --only-dependencies --enable-tests
-	cd ${HS_ROOT} && cabal v1-configure --enable-tests ${CABAL_OPTS}
+configure :
 
 build : build-hs pycheck
 
-build-hs : configure
-	cd ${HS_ROOT} && cabal v1-build ${CABAL_OPTS_BUILD}
-	cabal v1-install --enable-tests ${HS_CABAL} ${CABAL_OPTS}
+build-hs : builddir
+	cd ${HS_ROOT} && cabal v2-build ${CABAL_OPTS}
+	cabal v2-install --lib ${HS_CABAL} ${CABAL_OPTS}
 
-doc :
-	cd ${HS_ROOT} && cabal v1-haddock $(HADDOCKDYN) --builddir=${BUILD_DIR}
+doc : builddir
+	cd ${HS_ROOT} && cabal v2-haddock $(HADDOCKDYN) --builddir=${BUILD_DIR}
 	find ${BUILD_DIR}/doc/html -name '*.html' -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
 
-test : configure pycheck build
-	cd ${HS_ROOT} && cabal v1-test --show-details=always ${CABAL_OPTS_BUILD}
+test : configure build pycheck
+	cd ${HS_ROOT} && cabal v2-test ${CABAL_OPTS}
 	./test/driver examples $T
 	./test/driver test $T
 
