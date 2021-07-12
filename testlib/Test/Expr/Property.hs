@@ -12,7 +12,10 @@ module Test.Expr.Property ( prop, Prop (..), compareTypes ) where
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun )
 import Control.Monad ( unless, replicateM, filterM, zipWithM, void )
-import Language.Haskell.TH ( Q, Name, Cxt, Specificity
+import Language.Haskell.TH ( Q, Name, Cxt
+#if MIN_VERSION_template_haskell(2, 17, 0)
+                           , Specificity
+#endif
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName )
 import Language.Haskell.TH.ExpandSyns ( expandSyns )

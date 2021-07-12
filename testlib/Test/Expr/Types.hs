@@ -17,7 +17,11 @@ module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normal
 
 import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt
                            , newName, pprint )
-import Language.Haskell.TH.Syntax ( Lift, mkName, Specificity ( SpecifiedSpec ) )
+import Language.Haskell.TH.Syntax ( Lift, mkName
+#if MIN_VERSION_template_haskell(2, 17, 0)
+                                 , Specificity ( SpecifiedSpec )
+#endif
+                                 )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 import Control.Arrow ( second, (>>>) )
 import Control.Monad ( filterM )
