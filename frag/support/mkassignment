@@ -15,9 +15,18 @@ TEST_HS: Final = sys.argv[1]
 SEM_END: Final = sys.argv[2]
 DEST_DIR: Final = sys.argv[3]
 
+def as_date(val: Union[datetime, int]) -> datetime:
+    assert isinstance(val, datetime)
+    return val
 
-def fragdate(date: datetime) -> str:
-    return str(date).replace("+01:00", " CET").replace("+02:00", " CEST")
+
+def as_int(val: Union[datetime, int]) -> int:
+    assert isinstance(val, int)
+    return val
+
+
+def fragdate(date: Union[datetime, int]) -> str:
+    return str(as_date(date)).replace("+01:00", " CET").replace("+02:00", " CEST")
 
 
 config: Dict[str, Union[datetime, int]] = {}
@@ -78,14 +87,14 @@ if tests:
         isgrace = timedelta(minutes=2)
         grade.append(grade_def |
             {"start": fragdate(config["start"]),
-             "end": fragdate(config["end"] + isgrace),
+             "end": fragdate(as_date(config["end"]) + isgrace),
              "seq-min": 1,
              "seq-max": config["attempts"],
-             "pass": (config["points"] * weight) // total_weight,
+             "pass": (as_int(config["points"]) * weight) // total_weight,
              "name": test})
 
     total_pts = sum(e["pass"] for e in grade)
-    diff_pts = config["points"] - total_pts
+    diff_pts = as_int(config["points"]) - total_pts
     if diff_pts > 0:
         print('\033[91m'  # red
               f"W: Correcting points for {grade[-1]['name']} by {diff_pts} to "
