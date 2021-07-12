@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+export GHC_ENVIRONMENT=$(readlink -f _build/.ghc.environment.*)
 BUILD=$PWD/_build
 OUTDIR=$BUILD/tests
 mkdir -p $OUTDIR
