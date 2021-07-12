@@ -20,7 +20,7 @@ before_install:
     - $GHC --version
     - cabal --version
     - python3 --version
-    - pip3 install aiohttp aiofiles pylibacl pyaml mypy
+    - pip3 install aiohttp aiofiles pylibacl pyaml mypy types-python-dateutil types-PyYAML
     - cabal update
 
 script:
