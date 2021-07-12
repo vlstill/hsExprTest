@@ -33,7 +33,10 @@ configure :
 
 build : build-hs pycheck
 
-build-hs : builddir
+prerequisites :
+	cabal v2-install --lib QuickCheck
+
+build-hs : builddir prerequisites
 	cd ${HS_ROOT} && cabal v2-build ${CABAL_OPTS}
 	cabal v2-install --lib ${HS_CABAL} ${CABAL_OPTS}
 
