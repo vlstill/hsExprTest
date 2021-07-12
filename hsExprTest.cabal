@@ -1,5 +1,5 @@
 name:                hsExprTest
-version:             3.4.1
+version:             3.4.2
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
@@ -12,7 +12,7 @@ license:            BSD2
 license-file:       LICENSE
 homepage:           https://github.com/vlstill/hsExprTest
 
-cabal-version:      >= 1.22
+cabal-version:      1.22
 build-type:         Simple
 -- see https://travis-ci.org/vlstill/hsExprTest for current test results
 tested-with:        GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.1, GHC == 8.10.1
