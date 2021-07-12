@@ -8,8 +8,11 @@ import shutil
 import subprocess
 from datetime import datetime, timedelta
 from dateutil.parser import parse as parse_date
-from typing import Dict, List, Tuple, Any, Union, Final
-
+if sys.version_info[0:2] >= (3, 9):
+    from typing import Dict, List, Tuple, Any, Union, Final
+else:
+    from typing import Dict, List, Tuple, Any, Union
+    from typing_extensions import Final
 
 TEST_HS: Final = sys.argv[1]
 SEM_END: Final = sys.argv[2]
