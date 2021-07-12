@@ -2,7 +2,7 @@
 
 -- | Functions for working with Template Haskell type representation.
 --
--- (c) 2018 Vladimír Štill
+-- (c) 2018–2021 Vladimír Štill
 
 module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normalizeContext
                        , getTVars, regenTVars
@@ -17,7 +17,7 @@ module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normal
 
 import Language.Haskell.TH ( Q, Type (..), Name, reifyInstances, TyVarBndr (..), Cxt
                            , newName, pprint )
-import Language.Haskell.TH.Syntax ( Lift, mkName )
+import Language.Haskell.TH.Syntax ( Lift, mkName, Specificity ( SpecifiedSpec ) )
 import Language.Haskell.TH.ExpandSyns ( substInType )
 import Control.Arrow ( second, (>>>) )
 import Control.Monad ( filterM )
@@ -69,11 +69,9 @@ hasInstance t cls = (== 1) . length <$> reifyInstances cls [t]
 normalizeContext :: Type -> Type
 normalizeContext = set . nc
   where
-    set :: ([TyVarBndr], Cxt, Type) -> Type
     set ([], [], t)    = t
     set (bndr, cxt, t) = ForallT bndr cxt t
 
-    nc :: Type -> ([TyVarBndr], Cxt, Type)
     nc (ForallT bndr cxt t0) = (bndr ++ bndrs, cxt ++ cxts, t)
       where
         (bndrs, cxts, t) = nc t0
@@ -151,14 +149,23 @@ unify lt rt = hoistQ $ applyUnification <$> unifyingSubstitution lt rt
 
     kindmap = mconcat (map toMap (lbndrs <> rbndrs))
 
-    toMap (PlainTV _)    = mempty
+    toMap PlainTV {}    = mempty
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    toMap (KindedTV n _ k) = Map.singleton n k
+#else
     toMap (KindedTV n k) = Map.singleton n k
+#endif
 
     fromMap = gmap toBndr
 
     toBndr var = case Map.lookup var kindmap of
+#if MIN_VERSION_template_haskell(2, 17, 0)
+                    Just k  -> KindedTV var SpecifiedSpec k
+                    Nothing -> PlainTV var SpecifiedSpec
+#else
                     Just k  -> KindedTV var k
                     Nothing -> PlainTV var
+#endif
 
     applyUnification :: Substitution -> Q (TypeOrder, Type)
     applyUnification subst = do
@@ -309,9 +316,17 @@ getTVars = go
 #if MIN_VERSION_template_haskell(2, 16, 0)
     go (ForallVisT bndrs t)  = go t <> mconcat (map goBndr bndrs)
 #endif
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    go MulArrowT             = mempty
+#endif
 
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    goBndr (PlainTV n _)    = Set.singleton n
+    goBndr (KindedTV n _ _) = Set.singleton n
+#else
     goBndr (PlainTV n)    = Set.singleton n
     goBndr (KindedTV n _) = Set.singleton n
+#endif
 
 rename :: Renaming -> Type -> Type
 rename sub = go
@@ -345,9 +360,17 @@ rename sub = go
 #if MIN_VERSION_template_haskell(2, 16, 0)
     go (ForallVisT bndrs t)  = ForallVisT (map goBndr bndrs) (go t)
 #endif
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    go t@MulArrowT           = t
+#endif
 
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    goBndr (PlainTV n f)    = PlainTV (ren n) f
+    goBndr (KindedTV n f k) = KindedTV (ren n) f k
+#else
     goBndr (PlainTV n)    = PlainTV (ren n)
     goBndr (KindedTV n k) = KindedTV (ren n) k
+#endif
 
     ren :: Name -> Name
     ren n | Just x <- lookup n sub = x
@@ -388,5 +411,9 @@ ppty = normalizeContext >>> simplify >>> \case
                   (a, b) | filter (== '.') b == b -> a ++ b
                          | otherwise              -> a ++ drop 1 (takeWhile (== '.') b)
 
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    unkind (KindedTV n f _) = PlainTV n f
+#else
     unkind (KindedTV n _) = PlainTV n
-    unkind p@(PlainTV _)  = p
+#endif
+    unkind p@PlainTV {}  = p

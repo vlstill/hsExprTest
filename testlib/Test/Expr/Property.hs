@@ -1,18 +1,18 @@
 {-# LANGUAGE TemplateHaskell, LambdaCase, TupleSections, Unsafe
-           , NamedFieldPuns, RecordWildCards
+           , NamedFieldPuns, RecordWildCards, CPP
            #-}
 
 -- | Property generation. Allows to generate property which compares two
 -- implementations of the same functionality.
 --
--- (c) 2018 Vladimír Štill
+-- (c) 2018–2021 Vladimír Štill
 
 module Test.Expr.Property ( prop, Prop (..), compareTypes ) where
 
 import Test.QuickCheck ( Blind (..), Arbitrary )
 import Test.QuickCheck.Function ( Fun )
 import Control.Monad ( unless, replicateM, filterM, zipWithM, void )
-import Language.Haskell.TH ( Q, Name, Cxt
+import Language.Haskell.TH ( Q, Name, Cxt, Specificity
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName )
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
@@ -215,7 +215,11 @@ type TyVarName = Name
 degeneralize :: Type -> Q Type
 degeneralize t0 = degen [] [] $ normalizeContext t0
   where
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    degen :: [TyVarBndr Specificity] -> Cxt -> Type -> Q Type
+#else
     degen :: [TyVarBndr] -> Cxt -> Type -> Q Type
+#endif
     degen bndr cxt (ForallT b c t) = degen (bndr ++ b) (cxt ++ c) t
     degen bndr0 cxt0 t = do
         substc <- extractCandidates bndr0
@@ -231,17 +235,31 @@ degeneralize t0 = degen [] [] $ normalizeContext t0
         ex (AppT (ConT c) (VarT v)) = pure (v, c)
         ex x = $(pfail "degeneralize: Complex context %s not supported") $ pprint x
 
+#if MIN_VERSION_template_haskell(2, 17, 0)
+    extractCandidates :: [TyVarBndr Specificity] -> Q [(TyVarName, [Type])]
+#else
     extractCandidates :: [TyVarBndr] -> Q [(TyVarName, [Type])]
+#endif
     extractCandidates = mapM ex
       where
+#if MIN_VERSION_template_haskell(2, 17, 0)
+        ex (PlainTV x f) = ex (KindedTV x f StarT)
+        ex (KindedTV x _ StarT) =
+#else
         ex (PlainTV x) = ex (KindedTV x StarT)
-        ex (KindedTV x StarT) = (x, ) <$> sequence
-                                            [ [t| Integer |]  -- the default
-                                            , [t| Rational |] -- for fractional
-                                            , [t| Int16 |]    -- for bounded
-                                            , [t| Double |]   -- for floating-point
-                                            ]
-        ex (KindedTV x (AppT (AppT ArrowT StarT) StarT)) = (x, ) . (:[]) <$> [t| [] |]
+        ex (KindedTV x StarT) =
+#endif
+            (x, ) <$> sequence [ [t| Integer |]  -- the default
+                               , [t| Rational |] -- for fractional
+                               , [t| Int16 |]    -- for bounded
+                               , [t| Double |]   -- for floating-point
+                               ]
+#if MIN_VERSION_template_haskell(2, 17, 0)
+        ex (KindedTV x _ (AppT (AppT ArrowT StarT) StarT)) =
+#else
+        ex (KindedTV x (AppT (AppT ArrowT StarT) StarT)) =
+#endif
+            (x, ) . (:[]) <$> [t| [] |]
         ex ktv = $(pfail "degeneralize: Complex type variable %s not supported") $ pprint ktv
 
     filterSubstitutions :: [(TyVarName, [Type])] -> [(TyVarName, ClassName)] -> Q [(TyVarName, Type)]
