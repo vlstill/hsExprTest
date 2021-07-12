@@ -4,7 +4,8 @@ PWD != pwd
 BUILD_DIR=${PWD}/_build
 HS_ROOT=${PWD}
 HS_CABAL=${HS_ROOT}/hsExprTest.cabal
-CABAL_OPTS=--builddir ${BUILD_DIR}
+CABAL_OPTS_BLD=--builddir ${BUILD_DIR}
+CABAL_OPTS_LOCAL=${CABAL_OPTS_BLD} --package-env=$(BUILD_DIR)
 GHC ?= ghc
 HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dynamic"; else echo ""; fi
 
@@ -28,24 +29,26 @@ ${BUILD_DIR}/obj :
 
 builddir :
 	mkdir -p ${BUILD_DIR}
+	rm -f ${BUILD_DIR}/.ghc.environment.*
 
 configure :
 
 build : build-hs pycheck
 
-prerequisites :
-	cabal v2-install --lib QuickCheck
+prerequisites : builddir
+	cabal v2-install --lib QuickCheck ${CABAL_OPTS_LOCAL}
 
-build-hs : builddir prerequisites
-	cd ${HS_ROOT} && cabal v2-build ${CABAL_OPTS}
-	cabal v2-install --lib ${HS_CABAL} ${CABAL_OPTS}
+build-hs : prerequisites
+	cd ${HS_ROOT} && cabal v2-build ${CABAL_OPTS_BLD}
+	cabal v2-install --lib ${HS_CABAL} ${CABAL_OPTS_LOCAL}
+	@echo "set your GHC_ENVIRONMENT to $$(readlink -f ${BUILD_DIR}/.ghc.environment.*) to use hsExprTest"
 
 doc : builddir
-	cd ${HS_ROOT} && cabal v2-haddock $(HADDOCKDYN) --builddir=${BUILD_DIR}
+	cd ${HS_ROOT} && cabal v2-haddock $(CABAL_OPTS_LOCAL) $(HADDOCKDYN) --builddir=${BUILD_DIR}
 	find ${BUILD_DIR}/doc/html -name '*.html' -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
 
 test : configure build pycheck
-	cd ${HS_ROOT} && cabal v2-test ${CABAL_OPTS}
+	cd ${HS_ROOT} && cabal v2-test ${CABAL_OPTS_BLD}
 	./test/driver examples $T
 	./test/driver test $T
 
@@ -60,4 +63,4 @@ clean :
 submodules :
 	git submodule update -i
 
-.PHONY: all clean test configure build builddir submodules pycheck doc $(PYSRC:%=%-mypy)
+.PHONY: all clean test configure build builddir submodules pycheck doc install $(PYSRC:%=%-mypy)
