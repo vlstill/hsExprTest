@@ -1,40 +1,59 @@
+---
 name: Haskell CI
 
 on:
   push:
-    branches: [ master ]
+    branches: ['*']
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false  # let other jobs continue once the first failed
+      matrix:
+        ghc: ['9.0.1', '8.10.4', '8.8.4', '8.6.5', '8.4.4']
+
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1
-      with:
-        ghc-version: '8.10.3'
-        cabal-version: '3.2'
+      - uses: actions/checkout@v2
+      - uses: actions/setup-haskell@v1
+        with:
+          ghc-version: '${{matrix.ghc}}'
+          cabal-version: '3.4'
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy types-python-dateutil types-PyYAML PyYAML
 
-    - name: Cache
-      uses: actions/cache@v1
-      env:
-        cache-name: cache-cabal
-      with:
-        path: ~/.cabal
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
+      - name: Cache
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-cabal
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-ghc${{ matrix.ghc }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc${{ matrix.ghc }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-ghc${{ matrix.ghc }}-build-
+            ${{ runner.os }}-ghc${{ matrix.ghc }}-
 
-    - name: Install dependencies
-      run: |
-        cabal update
-        cabal build --only-dependencies --enable-tests --enable-benchmarks
-    - name: Build
-      run: cabal build --enable-tests --enable-benchmarks all
-    - name: Run tests
-      run: cabal test all
+      - name: Build
+        run: make build
+      - name: Run tests
+        run: make test
+
+      - name: Build Docs
+        run: make doc
+        if: ${{ matrix.ghc == '9.0.1' }}
+
+      - name: Deploy Docs
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: gh-pages
+          folder: _build/doc/html/hsExprTest
+        if: ${{ matrix.ghc == '9.0.1' && github.ref == 'master' }}
