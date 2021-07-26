@@ -1,1 +1,1 @@
-hs-hiord.ok.hs
+hiord.ok.hs
