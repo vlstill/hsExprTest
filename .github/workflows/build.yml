@@ -56,4 +56,4 @@ jobs:
         with:
           branch: gh-pages
           folder: _build/doc/html/hsExprTest
-        if: ${{ matrix.ghc == '9.0.1' && github.ref == 'master' }}
+        if: ${{ matrix.ghc == '9.0.1' && github.ref == 'refs/heads/master' }}
