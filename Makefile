@@ -43,8 +43,12 @@ build-hs : prerequisites
 	@echo "set your GHC_ENVIRONMENT to $$(readlink -f ${BUILD_DIR}/.ghc.environment.*) to use hsExprTest"
 
 doc : builddir
-	cd ${HS_ROOT} && cabal v2-haddock $(CABAL_OPTS_BLD) $(HADDOCKDYN) --builddir=${BUILD_DIR}
-	find ${BUILD_DIR}/doc/html -name '*.html' -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
+	cd ${HS_ROOT} && cabal v2-haddock $(CABAL_OPTS_BLD) $(HADDOCKDYN) \
+	    | tee ${BUILD_DIR}/_doclog
+	rm -rf ${BUILD_DIR}/doc
+	cp -r $$(dirname $$(tail -n1 ${BUILD_DIR}/_doclog))/../.. ${BUILD_DIR}/doc
+	find ${BUILD_DIR}/doc/html -name '*.html' \
+	    -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
 
 test : configure build pycheck
 	cd ${HS_ROOT} && cabal v2-test ${CABAL_OPTS_BLD}
