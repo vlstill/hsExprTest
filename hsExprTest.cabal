@@ -1,9 +1,9 @@
 name:                hsExprTest
-version:             3.5.0
+version:             3.5.1
 description:
         This application allows to compare two types and compare two expressions by testing (using QuickCheck).
 
-        See https://github.com/vlstill/hsExprTest/blob/master/src/hs/README.md for usage details.
+        See https://github.com/vlstill/hsExprTest/blob/master/README.md for usage details.
 synopsis:           Expression Testing
 category:           Testing
 author:             Vladimír Štill <xstill@mail.muni.cz>
@@ -39,6 +39,7 @@ Library
                       Test.Expr.Utils
                       Test.Expr.Config
                       Test.Expr.Reflection
+                      Test.Expr.Modifiers
                       Test.QuickCheck.Range
                       Test.QuickCheck.Convertible
                       Test.QuickCheck.Literal
