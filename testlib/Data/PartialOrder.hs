@@ -1,5 +1,7 @@
 {-# LANGUAGE DefaultSignatures, Safe #-}
 
+-- (c) 2018-2021 Vladimír Štill
+
 module Data.PartialOrder where
 
 import Data.Maybe ( isJust )
@@ -67,14 +69,3 @@ instance PartialOrder a => PartialOrder [a] where
                               Just c  -> Just c
     pcompare [] (_:_)       = Just LT
     pcompare (_:_) []       = Just GT
-
-instance PartialOrder a => PartialOrder (Maybe a) where
-    pcompare (Just a) (Just b) = pcompare a b
-    pcompare Nothing  (Just _) = Just LT
-    pcompare (Just _) Nothing  = Just GT
-    pcompare Nothing  Nothing  = Just EQ
-
-instance (PartialOrder a, PartialOrder b) => PartialOrder (Either a b) where
-    pcompare (Left a)  (Left b)  = pcompare a b
-    pcompare (Right a) (Right b) = pcompare a b
-    pcompare _         _         = Nothing
