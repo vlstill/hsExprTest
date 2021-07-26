@@ -1,5 +1,5 @@
 ---
-name: Haskell CI
+name: Build
 
 on:
   push:
