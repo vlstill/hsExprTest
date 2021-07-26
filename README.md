@@ -120,6 +120,22 @@ The `expr = "<name>"` is needed to specify the name of expression to be
 compared. After this test follows.  Available options can be found in [test
 options](#test-options).
 
+#### Disallowing Imports for Student
+
+Normally student is allowed to import any [Safe
+Haskell](https://ghc.haskell.org/trac/ghc/wiki/SafeHaskell)  module in scope
+(which includes `base`, `QuickCheck` and `hsExprTest` and their dependencies).
+This can be disallowed by the annotation `-- @ allow imports: False`.
+
+```haskell
+-- @ allow imports: False
+import qualified Data.Maybe
+
+expr = "mapMaybe"
+
+mapMaybe = Data.Maybe.mapMaybe
+```
+
 ### Using source injection
 
 Source injection is needed to specify helper functions, insert imports to
@@ -151,22 +167,6 @@ myfoldr = Prelude.foldr
 Here student is tasked with programming `foldr`, therefore `foldr` needs to be
 hidden from prelude. But solution file import of Prelude is not in inject
 section, so `foldr` can be used in solution file.
-
-#### Disallowing Imports for Student
-
-Normally student is allowed to import any [Safe
-Haskell](https://ghc.haskell.org/trac/ghc/wiki/SafeHaskell)  module in scope
-(which includes `base`, `QuickCheck` and `hsExprTest` and their dependencies).
-This can be disallowed by the annotation `-- @ allow imports: False`.
-
-```haskell
--- @ allow imports: False
-import qualified Data.Maybe
-
-expr = "mapMaybe"
-
-mapMaybe = Data.Maybe.mapMaybe
-```
 
 #### Importing Data Types
 
@@ -220,7 +220,13 @@ instance NFData a => NFData (BinTree a) where
     rnf (Node v t1 t2) = rnf v `seq` rnf t1 `seq` rnf t2 `seq` ()
 ```
 
-### Using QuickCheck Modifiers & Patterns
+### Using QuickCheck Modifiers & Annotations and Patterns
+
+Modifiers can be used to change the way in which arguments for tests are
+generated, for example to specify that a number should be positive. Some
+modifiers are added automatically (mainly for functions) but in most cases used
+modifiers depend on the intentions of the author and must be added by them –
+either using annotations or patterns (see below).
 
 List of QuickCheck modifiers can be found in [Test.QuickCheck.Modifiers][qcm].
 Note that `Blind` modifier for inputs which are not instance of `Show` is
@@ -232,9 +238,69 @@ uncurried. There are also additional modifiers defined in `hsExprTest`, namely
 
 [qcm]: https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/Test-QuickCheck-Modifiers.html
 
-If QuickCheck (or hsExprTest's) modifiers should be used you should provide the
-patterns into which arguments are bound by hand, with the suitable type
-annotations.
+#### Modifiers Using Annotation
+
+Adding modifiers using annotations is simpler, but can be used only to modify
+each argument independently from the rest. Annotations are given in the type of
+the teachers expression in the task file and specify which type is used to
+generate values for given argument.
+
+```haskell
+-- shorthand for QuickCheck and hsExprTest modifiers + TestAs
+import Test.Expr.Modifiers
+
+expr = "div3"
+
+-- specify the modifier to use for given argument after `TestAs` (which is an
+-- infix type operator).
+div3 :: Integral i => i `TestAs` NonNegative i -> i
+div3 0 = 0
+div3 1 = 0
+div3 2 = 0
+div3 x = 1 + div3 (x - 3)
+```
+
+This function will run as if it was defined as `div3 :: Integral i => i -> i`,
+but the first argument will be generated as `NonNegative i`.
+
+There are some requirements for the annotations:
+
+- The type after `TestAs` must be instance of `Arbitrary` to make it possible to
+  generate them (functions are lifted to `Fun` as usual).
+- It must be possible to convert the generated type to the original type using
+  `Test.QuickCheck.Convertible.convert` from `hsExprTest` – this holds if these
+  types are coercible using
+  [`Data.Coerce.coerce`](https://hackage.haskell.org/package/base/docs/Data-Coerce.html#v:coerce)
+  (i.e. they are `newtype`-derived from the same base representation), or if
+  one is a function type and the other is appropriate
+  [`Test.QuickCheck.Fun`](https://hackage.haskell.org/package/QuickCheck/docs/Test-QuickCheck.html#t:Fun).
+
+Generally, these constraints will be met if the type after `TestAs` is just the
+type before it wrapped in a modifier, or a newtype of the given type.
+
+```haskell
+newtype MyPrettyTree = MPT (BinTree a)
+
+-- this is safe, just a newtype wrapper
+foo :: BinTree Int `TestAs` MyPrettyTree Int -> Int
+
+-- this will not work, type mismatch between auto-degeneralized `BinTree Integer`
+-- and annotated `BinTree Int`
+bar :: Integral a => BinTree a `TestAs` BinTree Int -> Int
+
+newtype MyIntTree = MIT (BinTree Int)
+
+-- this is OK too – the source type and the destination are coercible (newtype)
+baz :: BinTree Int `TestAs` MyIntTree -> Int
+```
+
+#### Modifiers Using Patterns
+
+Alternatively, modifiers can be specified with patterns into which arguments are
+bound by hand, possibly with the suitable type annotations. The advantage of
+this approach is that it can be used to generate multiple dependent arguments at
+once and bind them to multiple variable patterns for use as multiple arguments –
+see the `Triangle` example below. It can be also used instead of annotations.
 
 ```haskell
 -- @ INJECT BEGIN
