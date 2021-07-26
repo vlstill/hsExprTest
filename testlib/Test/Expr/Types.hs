@@ -444,12 +444,16 @@ unannotate typ = case typ of
       | fn == ''TestAs -> (stripAnnotations l, rewriteAnnotations r)
     fn `AppT` x -> go2 AppT fn x
     t `SigT` k -> go2 SigT t k
+#if MIN_VERSION_template_haskell(2, 15, 0)
     t `AppKindT` k -> go2 AppKindT t k
+#endif
     ForallT bndrs ctx ty -> let (ubn, rbn) = unzip $ goBndr <$> bndrs
                                 (uctx, rctx) = unzip $ unannotate <$> ctx
                                 (ut, rt) = unannotate ty
                             in (ForallT ubn uctx ut, ForallT rbn rctx rt)
+#if MIN_VERSION_template_haskell(2, 16, 0)
     ForallVisT bndrs ty ->  join2 ForallVisT (unzip $ goBndr <$> bndrs) (unannotate ty)
+#endif
     ParensT t -> map2 ParensT $ unannotate t
 
     v@VarT {} -> dup v
@@ -459,7 +463,9 @@ unannotate typ = case typ of
     t@UnboxedTupleT {} -> dup t
     s@UnboxedSumT {} -> dup s
     ArrowT -> dup ArrowT
+#if MIN_VERSION_template_haskell(2, 17, 0)
     MulArrowT -> dup MulArrowT
+#endif
     EqualityT -> dup EqualityT
     ListT -> dup ListT
     t@PromotedTupleT {} -> dup t
@@ -469,7 +475,9 @@ unannotate typ = case typ of
     ConstraintT -> dup ConstraintT
     l@LitT {} -> dup l
     WildCardT -> dup WildCardT
+#if MIN_VERSION_template_haskell(2, 15, 0)
     ImplicitParamT x t -> map2 (ImplicitParamT x) $ unannotate t
+#endif
   where
     goInfix ctor l op r
       | op == ''TestAs = (stripAnnotations l, rewriteAnnotations r)
@@ -479,5 +487,9 @@ unannotate typ = case typ of
     dup x = (x, x)
 
     goBndr p@PlainTV {} = dup p
+#if MIN_VERSION_template_haskell(2, 17, 0)
     goBndr (KindedTV n f k) = map2 (KindedTV n f) (unannotate k)
+#else
+    goBndr (KindedTV n k) = map2 (KindedTV n) (unannotate k)
+#endif
     map2 fn (x, y) = (fn x, fn y)

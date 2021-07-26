@@ -240,7 +240,7 @@ degeneralize t0 = degen [] [] $ normalizeContext t0
 #if MIN_VERSION_template_haskell(2, 17, 0)
     degen :: [TyVarBndr Specificity] -> Cxt -> Type -> Q (Type, Substitution)
 #else
-    degen :: [TyVarBndr] -> Cxt -> Type -> Q Type
+    degen :: [TyVarBndr] -> Cxt -> Type -> Q (Type, Substitution)
 #endif
     degen bndr cxt (ForallT b c t) = degen (bndr ++ b) (cxt ++ c) t
     degen bndr0 cxt0 t = do
