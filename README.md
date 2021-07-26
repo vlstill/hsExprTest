@@ -2,6 +2,7 @@ hsExprTest
 ==========
 
 [![Build Status](https://travis-ci.org/vlstill/hsExprTest.svg?branch=master)](https://travis-ci.org/vlstill/hsExprTest)
+[![GitLab CI Status](https://gitlab.fi.muni.cz/xstill/hsExprTest/badges/master/pipeline.svg)](https://gitlab.fi.muni.cz/xstill/hsExprTest/-/commits/master)
 
 Automatic testing of small Haskell assignments.
 
