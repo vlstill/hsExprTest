@@ -7,12 +7,15 @@ HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BLD=--builddir ${BUILD_DIR}
 CABAL_OPTS_LOCAL=${CABAL_OPTS_BLD} --package-env=$(BUILD_DIR)
 GHC ?= ghc
+COMPILER = $(GHC:%=--with-compiler=$(GHC))
 
 PYSRC_PY != find ${PWD} -type f -name '*.py'
 PYSRC_HASHBANG != find ${PWD} -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
 PYSRC != echo $(PYSRC_PY) $(PYSRC_HASHBANG) | tr ' ' '\n' | awk '!a[$$0]++'
 
 -include local.make
+
+CABAL_OPTS_BLD += $(COMPILER)
 
 MYPY ?= mypy
 
