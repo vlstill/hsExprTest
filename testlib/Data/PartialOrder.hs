@@ -6,6 +6,8 @@ module Data.PartialOrder where
 
 import Data.Maybe ( isJust )
 
+-- | Partially ordered values. The default instance just lifts 'compare' to
+-- 'pcompare', i.e. all values should be comparable.
 class PartialOrder a where
     pcompare :: a -> a -> Maybe Ordering
     comparable :: a -> a -> Bool

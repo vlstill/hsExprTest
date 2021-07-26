@@ -44,7 +44,7 @@ import qualified Data.Set as Set ( singleton, member, null )
 import qualified Data.Map as Map ( singleton, lookup )
 
 -- | Intended to be used with the teacher's solution:
--- @foo :: a `TestAs` Int -> b `TestAs` (Large b)
+-- @foo :: a `'TestAs'` Positive a -> b `'TestAs'` Large b -> Bool@
 type TestAs α β = α
 
 -- | Get arity of a type (i.e. the number of arguments needed to make the value
