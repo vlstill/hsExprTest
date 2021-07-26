@@ -10,14 +10,14 @@ import Control.Monad ( replicateM )
 import Test.Expr.Internal.Compat
 
 -- instance {-# OVERLAPS #-} (Convertible a a', Convertible b b') => Convertible (Fun a' b) (a -> b') where
---     convert (Fun _ f) x = convert (f (convert x))
+--     convert' (Fun _ f) x = convert' (f (convert' x))
 
 -- | For each n >= 0 build an
 -- @instance OVERLAPS … => Convertible (Fun (a1', a2', …) b) (a1 -> a2 -> … -> b')@
 convertibleN :: Int -> Q Dec
 convertibleN n = do
     let convertible = mkName "Convertible"
-        convert = mkName "convert"
+        convert = mkName "convert'"
         fun = mkName "Fun"
     as <- map VarT <$> replicateM n (newName "a")
     a's <- map VarT <$> replicateM n (newName "a'")

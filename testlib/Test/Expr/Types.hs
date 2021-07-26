@@ -6,6 +6,8 @@
 
 module Test.Expr.Types ( arity, uncurryType, isFunctionType, hasInstance, normalizeContext
                        , getTVars, regenTVars
+                       , rewriteAnnotations, stripAnnotations, unannotate
+                       , TestAs
                        -- * Type Substitution
                        , Substitution, substitute, (//)
                        , Renaming, rename
@@ -40,6 +42,10 @@ import Text.Printf.Mauke.TH ( sprintf )
 import           Data.Set        ( Set )
 import qualified Data.Set as Set ( singleton, member, null )
 import qualified Data.Map as Map ( singleton, lookup )
+
+-- | Intended to be used with the teacher's solution:
+-- @foo :: a `TestAs` Int -> b `TestAs` (Large b)
+type TestAs α β = α
 
 -- | Get arity of a type (i.e. the number of arguments needed to make the value
 -- fully applied).
@@ -136,7 +142,7 @@ gmap f = foldr (\x xs -> f x : xs) []
 --   * type contexts cannot be simplified, so we can get contexts which
 --     constraints such as @Functor []@ and types misjudged as 'TUnifiable'
 --     instead of the actual ordering
-unify :: Type -> Type -> Q (Either (UniTypeId, String) (TypeOrder, Type))
+unify :: Type -> Type -> Q (Either (UniTypeId, String) (TypeOrder, Type, Substitution))
 unify lt rt = hoistQ $ applyUnification <$> unifyingSubstitution lt rt
   where
     hoistQ (Right x)  = fmap Right x
@@ -171,7 +177,7 @@ unify lt rt = hoistQ $ applyUnification <$> unifyingSubstitution lt rt
                     Nothing -> PlainTV var
 #endif
 
-    applyUnification :: Substitution -> Q (TypeOrder, Type)
+    applyUnification :: Substitution -> Q (TypeOrder, Type, Substitution)
     applyUnification subst = do
         slcxt <- nub <$> filterM constraintNeeded (map (// subst) lcxt)
         srcxt <- nub <$> filterM constraintNeeded (map (// subst) rcxt)
@@ -189,7 +195,7 @@ unify lt rt = hoistQ $ applyUnification <$> unifyingSubstitution lt rt
                       (False, True) -> TLessGeneral
                       _             -> TUnifiable
 
-        pure (typeOrd `meet` cxtOrd, ty)
+        pure (typeOrd `meet` cxtOrd, ty, subst)
       where
         basety = nlt // subst
         vars = getTVars basety
@@ -421,3 +427,57 @@ ppty = normalizeContext >>> simplify >>> \case
     unkind (KindedTV n _) = PlainTV n
 #endif
     unkind p@PlainTV {}  = p
+
+rewriteAnnotations :: Type -> Type
+rewriteAnnotations = snd . unannotate
+
+stripAnnotations :: Type -> Type
+stripAnnotations = fst . unannotate
+
+-- | @unannotate t ≈ (stripAnnotations t, rewriteAnnotations t)@
+unannotate :: Type -> (Type, Type)
+unannotate typ = case typ of
+    InfixT l op r  -> goInfix InfixT l op r
+    UInfixT l op r -> goInfix UInfixT l op r
+    -- (VarT ''TestAs `AppT` a) `AppT` b
+    (ConT fn `AppT` l) `AppT` r
+      | fn == ''TestAs -> (stripAnnotations l, rewriteAnnotations r)
+    fn `AppT` x -> go2 AppT fn x
+    t `SigT` k -> go2 SigT t k
+    t `AppKindT` k -> go2 AppKindT t k
+    ForallT bndrs ctx ty -> let (ubn, rbn) = unzip $ goBndr <$> bndrs
+                                (uctx, rctx) = unzip $ unannotate <$> ctx
+                                (ut, rt) = unannotate ty
+                            in (ForallT ubn uctx ut, ForallT rbn rctx rt)
+    ForallVisT bndrs ty ->  join2 ForallVisT (unzip $ goBndr <$> bndrs) (unannotate ty)
+    ParensT t -> map2 ParensT $ unannotate t
+
+    v@VarT {} -> dup v
+    c@ConT {} -> dup c
+    p@PromotedT {} -> dup p
+    t@TupleT {} -> dup t
+    t@UnboxedTupleT {} -> dup t
+    s@UnboxedSumT {} -> dup s
+    ArrowT -> dup ArrowT
+    MulArrowT -> dup MulArrowT
+    EqualityT -> dup EqualityT
+    ListT -> dup ListT
+    t@PromotedTupleT {} -> dup t
+    PromotedNilT -> dup PromotedNilT
+    PromotedConsT -> dup PromotedConsT
+    StarT -> dup StarT
+    ConstraintT -> dup ConstraintT
+    l@LitT {} -> dup l
+    WildCardT -> dup WildCardT
+    ImplicitParamT x t -> map2 (ImplicitParamT x) $ unannotate t
+  where
+    goInfix ctor l op r
+      | op == ''TestAs = (stripAnnotations l, rewriteAnnotations r)
+      | otherwise      = go2 (\x -> ctor x op) l r
+    go2 ctor l r = join2 ctor (unannotate l) (unannotate r)
+    join2 ctor (sl, rl) (sr, rr) = (ctor sl sr, ctor rl rr)
+    dup x = (x, x)
+
+    goBndr p@PlainTV {} = dup p
+    goBndr (KindedTV n f k) = map2 (KindedTV n f) (unannotate k)
+    map2 fn (x, y) = (fn x, fn y)

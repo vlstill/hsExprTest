@@ -67,48 +67,67 @@ prop p@Prop {..} = (,) <$> info teacherName <*> info studentName >>= \case
     ex i@(DataConI nam typ _) = (i, Just (nam, typ))
     ex i                      = (i, Nothing)
 
-assertAndNormalizeType :: TypeOrder -> Teacher Type -> Student Type -> Teacher Type -> Student Type -> Q Type
+assertAndNormalizeType :: TypeOrder -> Teacher Type -> Student Type -> Teacher Type -> Student Type -> Q (Type, Substitution)
 assertAndNormalizeType typeOrder ttype stype ttype0 stype0 = do
-    (ord, cmpty) <- unifyOrFail ttype stype ttype0 stype0
+    (ord, cmpty, subst) <- unifyOrFail ttype stype ttype0 stype0
     unless (ord `gte` typeOrder) $
         $(pfail "The student's type is not valid: expecting %s, but %s\n\tteacher: %s\n\tstudent: %s")
                 (typeOrdExpected typeOrder) (typeOrdErr ord) (ppty ttype) (ppty stype)
-    pure cmpty
+    pure (cmpty, subst)
 
 
 testFun :: Prop -> Teacher Type -> Student Type -> Q Exp
 testFun Prop {..} ttype0 stype0 = do
-    let nttype = normalizeContext ttype0
-    ttype <- expandSyns $ stripAnnotations nttype
+    let (snttype, rnttype) = unannotate $ normalizeContext ttype0
+    sttype <- expandSyns $ snttype
+    rttype <- expandSyns $ rnttype
     stype <- expandSyns $ normalizeContext stype0
 
-    cmpty <- assertAndNormalizeType typeOrder ttype stype ttype0 stype0
+    -- first check that types match, with the stripped/unannotated version of the teacher type
+    -- and get the type of actually compared arguments and substitution substitution for used types
+    (cmpty, subst) <- assertAndNormalizeType typeOrder sttype stype (stripAnnotations ttype0) stype0
+    -- then rewrite annotations and apply substitution on the result
+    let polygenty = normalizeContext $ rttype // subst
 
-    dcmpty <- case degenType of
-                Nothing -> degeneralize cmpty
-                Just t -> pure t
+    (dcmpty, genty) <- case degenType of
+        Nothing -> do
+            (dcmpty, degensubst) <- degeneralize cmpty
+            pure (dcmpty, polygenty // degensubst)
+        Just t -> do
+            unless (sttype == rttype) $
+                $(pfail "annotated type cannot be used together with `degenType`: plain %s, annotated %s")
+                (pprint sttype) (pprint rttype)
+            pure (t, t)
 
     let (targs, rty) = uncurryType dcmpty
+    let (genargs, genrty) = uncurryType genty
     let ar = length targs
     retEq <- rty `hasInstance` ''Eq
     unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint rty
+    unless (rty == genrty) $
+        $(pfail "testFun: return type cannot be changed by annotation – plain: %s, annotated: %s")
+        (pprint rty) (pprint genrty)
+    unless (ar == length genargs) $
+        $(pfail "annotations cannot change arity – plain %d, annotated: %d")
+        ar (length genargs)
 
     (pats, args) <- case pattern of
         Nothing -> do xs <- replicateM ar (newName "x")
-                      pats <- zipWithM mkpat targs xs
+                      pats <- zipWithM mkpat genargs xs
                       args <- zipWithM mkvar targs xs
                       pure (pats, args)
         Just pats0 -> do let xs = extractVars pats0
                              pats = untupP $ pushTypes (zip xs targs) pats0
-                         unless (length xs == length targs) $(pfail "teacher-provided patter does not match arity of the expression's type")
+                         unless (length xs == ar) $(pfail "teacher-provided patter does not match arity of the expression's type")
+                         unless (targs == genargs) $
+                            $(pfail "teacher-type-annotations are not compattible with custom patterns, plain: %s, annotated %s")
+                            (pprint dcmpty) (pprint genty)
                          args <- zipWithM mkvar targs xs
                          pure (pats, args)
 
     pure $ LamE pats (UInfixE (apply teacherName args `SigE` rty) comparer (apply studentName args `SigE` rty))
 
   where
-    stripAnnotations = id
-
     -- | construct a pattern from its type and variable name (@x@)
     -- * for function types, it constructs @Fun _ x@
     -- * if the type is not Show-able, wraps the pattern in 'Blind'
@@ -182,10 +201,10 @@ testFun Prop {..} ttype0 stype0 = do
     untupP (TupP ps) = ps
     untupP p         = [p]
 
-unifyOrFail :: Type -> Type -> Type -> Type -> Q (TypeOrder, Type)
+unifyOrFail :: Type -> Type -> Type -> Type -> Q (TypeOrder, Type, Substitution)
 unifyOrFail tty sty ttype0 stype0 = unify tty sty >>= \case
     Left err -> uncurry typeFail err ttype0 stype0
-    Right (ord, cmpty) -> pure (ord, cmpty)
+    Right (ord, cmpty, subst) -> pure (ord, cmpty, subst)
 
 typeFail :: UniTypeId -> String -> Type -> Type -> Q b
 typeFail LeftType err ttype0 _ = $(pfail "error in teacher type: %s\n\t%s") err (ppty ttype0)
@@ -215,11 +234,11 @@ compareTypes typeOrder tt st = do
 type ClassName = Name
 type TyVarName = Name
 
-degeneralize :: Type -> Q Type
+degeneralize :: Type -> Q (Type, Substitution)
 degeneralize t0 = degen [] [] $ normalizeContext t0
   where
 #if MIN_VERSION_template_haskell(2, 17, 0)
-    degen :: [TyVarBndr Specificity] -> Cxt -> Type -> Q Type
+    degen :: [TyVarBndr Specificity] -> Cxt -> Type -> Q (Type, Substitution)
 #else
     degen :: [TyVarBndr] -> Cxt -> Type -> Q Type
 #endif
@@ -229,7 +248,7 @@ degeneralize t0 = degen [] [] $ normalizeContext t0
         cxt <- extractCxt cxt0
         sub <- filterSubstitutions substc cxt
 
-        pure $ t // sub
+        pure (t // sub, sub)
 
     -- | extract simple contexts to
     extractCxt :: Cxt -> Q [(TyVarName, ClassName)]

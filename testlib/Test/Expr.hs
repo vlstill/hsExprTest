@@ -12,7 +12,8 @@ module Test.Expr (
                  testType, extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
                  (<==>), cmpTeacherStudent,
-                 testArgs, runProperty, runProperties, Args (..), scheduleAlarm
+                 testArgs, runProperty, runProperties, Args (..), scheduleAlarm,
+                 TestAs
                  ) where
 
 import Test.QuickCheck ( Result (..), stdArgs, chatty, maxSuccess, replay, Property
@@ -41,7 +42,7 @@ import Text.Printf.Mauke.TH ( sprintf )
 import Test.Expr.Utils
 import Test.Expr.Property
 import Test.Expr.Config
-import Test.Expr.Types ( TypeOrder )
+import Test.Expr.Types ( TypeOrder, TestAs )
 
 testArgs :: Args
 testArgs = stdArgs { chatty = False
@@ -76,8 +77,8 @@ testMain config = do
 
     let mainName = mkName "main"
     mainType <- [t| IO () |]
-    pattern <- sequence pat
-    degenType <- sequence degen
+    pattern <- sequence $ config `getConfig` TestPattern
+    degenType <- sequence $ config `getConfig` DegenType
     body <- case (evalEx, eval, tname) of
               (Just evx, _, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE evx `AppE` liftSafeTH config `AppE` studentExp) |]
@@ -103,8 +104,6 @@ testMain config = do
 
     mayName = config `getConfig` Expression
     Just typeOrder = config `getConfig` TypeOrd
-    pat = config `getConfig` TestPattern
-    degen = config `getConfig` DegenType
 
 testType :: TypeOrder -> ExprName -> Q Exp
 testType typeOrder name = do
