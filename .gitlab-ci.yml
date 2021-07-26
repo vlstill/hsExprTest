@@ -1,0 +1,45 @@
+---
+image: haskell-ib015:v2020.1.0
+
+doc:
+    stage: build
+    script:
+        - make doc
+    artifacts:
+        name: "doc"
+        paths:
+            - _build/doc/
+        when: on_success
+        expire_in: 1 month
+    tags:
+        - shared-fi
+
+.validate_template: &validate_def
+    stage: build
+    before_script:
+        - PATH=/opt/ghc/$GHCVERS/bin:$PATH
+        - echo "GHC = ghc-$GHCVERS" >> local.make
+    script:
+        - make test
+    tags:
+        - shared-fi
+
+validate_8.4.4:
+    <<: *validate_def
+    variables:
+        GHCVERS: 8.4.4
+
+validate_8.6.5:
+    <<: *validate_def
+    variables:
+        GHCVERS: 8.6.5
+
+validate_8.8.3:
+    <<: *validate_def
+    variables:
+        GHCVERS: 8.8.3
+
+validate_8.10.1:
+    <<: *validate_def
+    variables:
+        GHCVERS: 8.10.1
