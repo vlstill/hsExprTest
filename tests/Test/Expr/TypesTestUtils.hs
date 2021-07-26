@@ -14,9 +14,9 @@ import Text.Printf.Mauke.TH ( sprintf )
 data TestSuccess = TS
 data TestFailure = TF
 
-simplifyRet :: Either (UniTypeId, String) (TypeOrder, Type) -> Either UniTypeId TypeOrder
+simplifyRet :: Either (UniTypeId, String) (TypeOrder, Type, Substitution) -> Either UniTypeId TypeOrder
 simplifyRet (Left (a, _))  = Left a
-simplifyRet (Right (a, _)) = Right a
+simplifyRet (Right (a, _, _)) = Right a
 
 testUnify :: Q Pat -> Q Type -> Q Type -> Q Exp
 testUnify pat t1 t2 = do
@@ -27,7 +27,7 @@ testUnify pat t1 t2 = do
     loc <- spliceFileLoc
     let res = simplifyRet uni
         sres = show res
-        pres = either (const "<<failed>>") (pprint . snd) uni
+        pres = either (const "<<failed>>") (pprint . (\(_, t, _) -> t)) uni
     [| case res of
             $(pat) -> putStr "." >> pure True
             _      -> putStrLn ($(sprintf "\nunification test failed:\n    %s\n    `unify`\n    %s\n    =\n    %s\n\n        expected %s\n        got      %s\n        at       %s")
