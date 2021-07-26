@@ -65,7 +65,8 @@ ALL_EXTS : Final[List[str]] = []
 ST_EXTS : Final[List[str]] = ["Safe"] + ALL_EXTS
 T_EXTS : Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
                              "ScopedTypeVariables", "DataKinds",
-                             "StandaloneDeriving", "DeriveDataTypeable"] \
+                             "StandaloneDeriving", "DeriveDataTypeable",
+                             "TypeOperators"] \
                              + ALL_EXTS
 MAIN_EXTS : Final[List[str]] = T_EXTS
 
