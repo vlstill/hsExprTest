@@ -7,7 +7,6 @@ HS_CABAL=${HS_ROOT}/hsExprTest.cabal
 CABAL_OPTS_BLD=--builddir ${BUILD_DIR}
 CABAL_OPTS_LOCAL=${CABAL_OPTS_BLD} --package-env=$(BUILD_DIR)
 GHC ?= ghc
-HADDOCKDYN != if grep -q ID=arch /etc/os-release; then echo " --ghc-options=-dynamic"; else echo ""; fi
 
 PYSRC_PY != find ${PWD} -type f -name '*.py'
 PYSRC_HASHBANG != find ${PWD} -type f -executable -exec sh -c 'file {} | grep -iqF python' \; -print
@@ -44,7 +43,7 @@ build-hs : prerequisites
 	@echo "set your GHC_ENVIRONMENT to $$(readlink -f ${BUILD_DIR}/.ghc.environment.*) to use hsExprTest"
 
 doc : builddir
-	cd ${HS_ROOT} && cabal v2-haddock $(CABAL_OPTS_LOCAL) $(HADDOCKDYN) --builddir=${BUILD_DIR}
+	cd ${HS_ROOT} && cabal v2-haddock $(CABAL_OPTS_BLD) $(HADDOCKDYN) --builddir=${BUILD_DIR}
 	find ${BUILD_DIR}/doc/html -name '*.html' -exec sed -i 's|<a href="file:///[^"]*/html/libraries/\([^"/]*\)/|<a href="https://hackage.haskell.org/package/\1/docs/|g' {} \;
 
 test : configure build pycheck
