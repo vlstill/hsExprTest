@@ -24,22 +24,27 @@ doc:
     tags:
         - shared-fi
 
-validate_8.4.4:
+validate_8.4:
     <<: *validate_def
     variables:
         GHCVERS: 8.4.4
 
-validate_8.6.5:
+validate_8.6:
     <<: *validate_def
     variables:
         GHCVERS: 8.6.5
 
-validate_8.8.3:
+validate_8.8:
     <<: *validate_def
     variables:
         GHCVERS: 8.8.4
 
-validate_8.10.1:
+validate_8.10:
     <<: *validate_def
     variables:
         GHCVERS: 8.10.4
+
+validate_9.0:
+    <<: *validate_def
+    variables:
+        GHCVERS: 9.0.1
