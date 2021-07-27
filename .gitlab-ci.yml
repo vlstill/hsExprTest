@@ -1,5 +1,5 @@
 ---
-image: haskell-ib015:v2020.1.0
+image: haskell-ib015:v2021.0.0
 
 doc:
     stage: build
