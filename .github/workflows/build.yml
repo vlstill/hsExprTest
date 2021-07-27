@@ -17,20 +17,7 @@ jobs:
         ghc: ['9.0.1', '8.10.4', '8.8.4', '8.6.5', '8.4.4']
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-haskell@v1
-        with:
-          ghc-version: '${{matrix.ghc}}'
-          cabal-version: '3.4'
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-      - name: Python packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install mypy types-python-dateutil types-PyYAML PyYAML
-
-      - name: Cache
+      - name: Cabal Cache
         uses: actions/cache@v1
         env:
           cache-name: cache-cabal
@@ -42,8 +29,19 @@ jobs:
             ${{ runner.os }}-ghc${{ matrix.ghc }}-build-
             ${{ runner.os }}-ghc${{ matrix.ghc }}-
 
-      - name: Update Cabal
-        run: cabal v2-update
+      - uses: actions/checkout@v2
+      - uses: actions/setup-haskell@v1
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: '3.4'
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy types-python-dateutil types-PyYAML PyYAML
+
       - name: Build
         run: make build
       - name: Run tests
@@ -52,7 +50,6 @@ jobs:
       - name: Build Docs
         run: make doc
         if: ${{ matrix.ghc == '9.0.1' }}
-
       - name: Deploy Docs
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
