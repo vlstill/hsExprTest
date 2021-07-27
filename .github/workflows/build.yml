@@ -42,6 +42,8 @@ jobs:
             ${{ runner.os }}-ghc${{ matrix.ghc }}-build-
             ${{ runner.os }}-ghc${{ matrix.ghc }}-
 
+      - name: Update Cabal
+        run: cabal v2-update
       - name: Build
         run: make build
       - name: Run tests
