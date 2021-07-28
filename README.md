@@ -72,18 +72,18 @@ in the examples) on how to preprocess the student files.
 
 ### Type Comparison
 
-**NOTE**: type comparison is temporarily unavailable
-
 ```haskell
--- @ type
+-- @ typecmp
 Bool  -> [[a]] -> Int
 ```
 
 Type equality test contains preamble specifying it is type test and expected
-type. Types are tested for equality, that is they can differ only in naming of
+type(s). Types are tested for equality, that is they can differ only in naming of
 type variables, for example, allowed answer for this question would be
 `Bool -> [[x]] -> Int` but neither `a -> [[b]] -> Int` nor `Bool -> [[Int]] -> Int`
-would be allowed.
+would be allowed. If multiple types should be tested in one exercise, they
+should be given each on a single line both in the teacher's assignment file and
+in student's solution.
 
 Available comparison options can be found in [test options](#test-options).
 
