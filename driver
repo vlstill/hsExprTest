@@ -245,8 +245,8 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
                 dst.write(conf.inject)
 
             if not conf.allow_imports():
-                dst.write("no_imports_for_student_allowed :: ()\n"
-                          "no_imports_for_student_allowed = ()\n\n")
+                dst.write("noImportsForStudentAllowed :: ()\n"
+                          "noImportsForStudentAllowed = ()\n\n")
 
             dst.write('{-# LINE 1 "IS.hs" #-}\n')
             write_student(src, dst, conf)
