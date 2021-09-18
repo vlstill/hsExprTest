@@ -35,7 +35,7 @@ builddir :
 
 configure :
 
-build : build-hs pycheck
+build : build-hs pycheck driverWrap
 
 prerequisites : builddir
 	cabal v2-install --lib QuickCheck ${CABAL_OPTS_LOCAL}
@@ -62,6 +62,12 @@ pycheck : $(PYSRC:%=%-mypy)
 
 $(PYSRC:%=%-mypy) :
 	env MYPYPATH=$(dir $@) $(MYPY) --check-untyped-defs --warn-redundant-casts --warn-return-any $(@:%-mypy=%)
+
+driverWrap : ${BUILD_DIR}/driverWrap
+
+${BUILD_DIR}/driverWrap : build-hs
+	printf '#!/bin/sh\nexport GHC_ENVIRONMENT=$$(readlink -f ${BUILD_DIR}/.ghc.environment.*)\n${PWD}/driver "$$@"\n' > $@
+	chmod +x $@
 
 clean :
 	rm -rf ${BUILD_DIR}
