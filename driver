@@ -264,6 +264,7 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
                     ) where
 
                 import Test.Expr.Reflection ( Q, Dec, ASTCheck )
+                import Control.Applicative ( pure )
                 """))
             dst.write(format(conf.inject or ""))
             dst.write(textwrap.dedent("""\
