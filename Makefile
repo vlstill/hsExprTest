@@ -38,7 +38,7 @@ configure :
 build : build-hs pycheck driverWrap
 
 prerequisites : builddir
-	cabal v2-install --lib QuickCheck ${CABAL_OPTS_LOCAL}
+	cabal v2-install --lib ${CABAL_OPTS_LOCAL} QuickCheck ${CABAL_EXTRA_PREREQ}
 
 build-hs : prerequisites
 	cd ${HS_ROOT} && cabal v2-build ${CABAL_OPTS_BLD}
