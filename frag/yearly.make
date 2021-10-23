@@ -7,8 +7,13 @@ assignments : $(ASSIGN_HWS)
 %/assignment.json : %/Test.hs $(MKASGN) $(HSDEPS) %/assignment.part.json
 	$(MKASGN) $< $(SEM_END) $(dir $@)
 
-import : assignments
+import : $(ASSIGN_HWS)
 	$(FRAG) import
+
+$(BIG_HW:%=assignment.%) : assignment.% : %/assignment.json
+
+$(BIG_HW:%=import.%) : import.% : %/assignment.json
+	(cd $(@:import.%=%); $(FRAG) import)
 
 .PHONY: import assignments
 
