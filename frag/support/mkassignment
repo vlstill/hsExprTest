@@ -44,13 +44,15 @@ with open(TEST_HS, "r") as h:
             k, v = ln[4:].split(':', 1)
             k = k.strip().replace(' ', '_')
             v = v.strip()
-            if k == "start" or k == "end" or k == "eval_start":
+            if k in ["start", "end", "eval_start", "eval_pub_start", "pub_start"]:
                 config[k] = parse_date(v)
             else:
                 config[k] = int(v)
 
 if "eval_start" not in config:
     config["eval_start"] = config["start"]
+if "eval_pub_start" not in config:
+    config["eval_pub_start"] = config.get("pub_start", config["eval_start"])
 
 grade_def = {"fail": 0, "group": "test", "name": "group"}
 
@@ -58,14 +60,17 @@ frag_assignment_config = {
     "files": ["Student.hs"],
     "eval-extra": ["../../hsExprTest/frag/common"],
     "eval-publish": [{"group": "test",
-                      "start": fragdate(config["eval_start"]),
+                      "start": fragdate(config["eval_pub_start"]),
                       "anchor": fragdate(config["eval_start"]),
                       "interval": config["interval"],
                       "end": fragdate(config["semend"])}]}
 
-ghc_env = glob.glob("../hsExprTest/_build/.ghc.environment.*")[0]
+ghc_env = glob.glob("../hsExprTest/_build/.ghc.environment.*")
 print(f"GHC_ENVIRONMENT={ghc_env}", file=sys.stderr)
-os.environ["GHC_ENVIRONMENT"] = os.path.abspath(ghc_env)
+if not ghc_env:
+    raise RuntimeError("Please run ‹make prep› in the top-level questions "
+                       "repository first")
+os.environ["GHC_ENVIRONMENT"] = os.path.abspath(ghc_env[0])
 r = subprocess.run(["runghc", "--ghc-arg=-i" + os.path.dirname(TEST_HS),
                     "--ghc-arg=-i../hsExprTest/frag/common",
                     "--ghc-arg=-i../hsExprTest/frag/support",
