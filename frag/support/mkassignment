@@ -8,6 +8,7 @@ import sys
 import itertools
 import shutil
 import subprocess
+from copy import deepcopy
 from datetime import datetime, timedelta
 from dateutil.parser import parse as parse_date
 if sys.version_info[0:2] >= (3, 9):
@@ -98,13 +99,15 @@ if tests:
     grade: List[Dict[str, Any]] = []
     for test, weight in tests:
         isgrace = timedelta(minutes=2)
-        grade.append(grade_def |
-            {"start": fragdate(config["start"]),
-             "end": fragdate(as_date(config["end"]) + isgrace),
-             "seq-min": 1,
-             "seq-max": config["attempts"],
-             "pass": (as_int(config["points"]) * weight) // total_weight,
-             "name": test})
+        this_grade = deepcopy(grade_def)
+        for key, val in {"start": fragdate(config["start"]),
+                         "end": fragdate(as_date(config["end"]) + isgrace),
+                         "seq-min": 1,
+                         "seq-max": config["attempts"],
+                         "pass": (as_int(config["points"]) * weight) // total_weight,
+                         "name": test}.items():
+            this_grade[key] = val
+        grade.append(this_grade)
 
     total_pts = sum(e["pass"] for e in grade)
     diff_pts = as_int(config["points"]) - total_pts
