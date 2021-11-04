@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, KindSignatures, PolyKinds, TypeOperators, GADTs
            , ExplicitForAll, ScopedTypeVariables, FlexibleInstances
-           , LambdaCase, Safe #-}
+           , LambdaCase, Safe, TypeApplications #-}
 
 
 -- | Entenstion of QuickCheck's modifiers with Integral ranges with type
@@ -25,6 +25,7 @@ import Data.Char ( chr, ord )
 import Data.Kind ( Type )
 import Data.Function ( on )
 import Control.Arrow
+import Control.DeepSeq
 import System.Random
 
 import Test.QuickCheck
@@ -52,6 +53,9 @@ instance Eq i => Eq (Ranges i ranges) where
 
 instance Ord i => Ord (Ranges i ranges) where
     compare = compare `on` unRange
+
+instance NFData i => NFData (Ranges i ranges) where
+    rnf (Range v) = rnf v
 
 -- | Convert compile time type ranges to runtime values.
 class CRange (a :: k) where
@@ -100,6 +104,12 @@ instance forall i ranges.
                  filter (`inRanges` toRanges (Proxy :: Proxy ranges)) >>>
                  map Range
 
+instance CoArbitrary i => CoArbitrary (Ranges i r) where
+    coarbitrary (Range v) = coarbitrary v
+
+instance forall i r. Function i => Function (Ranges i r) where
+    function = functionMap unRange (Range @i @r)
+
 newtype CharRanges ranges = CharRange { charRangeToRange :: Ranges Char ranges }
 type CharRange (from :: Nat) (to :: Nat) = CharRanges '[ '(from, to) ]
 
@@ -115,10 +125,18 @@ instance Eq (CharRanges ranges) where
 instance Ord (CharRanges ranges) where
     compare = compare `on` (unRange . charRangeToRange)
 
+instance NFData (CharRanges ranges) where
+    rnf (CharRange v) = rnf v
+
 instance forall ranges. CRange ranges => Arbitrary (CharRanges ranges) where
     arbitrary = fmap (CharRange . unsafeRMap chr) (arbitrary :: Gen (Ranges Int ranges))
     shrink = charRangeToRange >>> unsafeRMap ord >>> shrink >>> map (CharRange . unsafeRMap chr)
 
+instance CoArbitrary (CharRanges r) where
+    coarbitrary (CharRange v) = coarbitrary v
+
+instance forall r. Function (CharRanges r) where
+    function = functionMap charRangeToRange (CharRange @r)
 
 newtype BoundedList (a :: Type) (from :: Nat) (to :: Nat) = BoundedList { unBoundedList :: [a] }
         deriving ( Eq, Ord )
@@ -134,5 +152,11 @@ instance forall a from to. (Arbitrary a, KnownNat from, KnownNat to) => Arbitrar
                 BoundedList <$> vectorOf l arbitrary
 
     shrink (BoundedList xs) = map BoundedList . filter ((>= intNatVal (Proxy :: Proxy from)) . length) $ shrink xs
+
+instance CoArbitrary a => CoArbitrary (BoundedList a from to) where
+    coarbitrary (BoundedList bl) = coarbitrary bl
+
+instance forall a from to. Function a => Function (BoundedList a from to) where
+    function = functionMap unBoundedList (BoundedList @a @from @to)
 
 type AsciiPrintableRange = CharRange 32 126
