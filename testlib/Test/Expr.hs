@@ -47,6 +47,7 @@ import Test.Expr.Types ( TypeOrder, TestAs )
 testArgs :: Args
 testArgs = stdArgs { chatty = False
                    , maxSuccess = 1000
+                   , maxShrinks = 100
                    -- QC has no direct support for seeding, however,
                    -- replay also modifies size but it should only
                    -- (possibly) change size of the first testcase
