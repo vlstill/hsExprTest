@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # Put in module header and remove possible UTF-8 BOM
@@ -10,4 +12,8 @@ if [[ -f $DIR/_hs_extensions ]]; then
 fi
 sed -i "1s/^\\(\\xEF\\xBB\\xBF\\)\\{0,1\\}/{-# LANGUAGE $EXTS #-}\n\nmodule Student where\n{-# LINE 1 \"Submitted.hs\" #-}\n/" Student.hs
 WERRORS=(-Werror=missing-signatures)
+# make sure student's file can be compiled with -XSafe before attemting to use
+# its reflector
+ghc -rtsopts -ieval -XSafe -c Student.hs ${WERRORS[@]} "$@"
+perl $DIR/mkreflect.pl < Submitted.hs > StudentReflector.hs
 ghc -rtsopts -ieval Main ${WERRORS[@]} "$@" -o hstest
