@@ -56,6 +56,7 @@ if "eval_pub_start" not in config:
     config["eval_pub_start"] = config.get("pub_start", config["eval_start"])
 
 grade_def = {"fail": 0, "group": "test", "name": "group"}
+isgrace = timedelta(minutes=2)
 
 frag_assignment_config = {
     "files": ["Student.hs"],
@@ -64,7 +65,9 @@ frag_assignment_config = {
                       "start": fragdate(config["eval_pub_start"]),
                       "anchor": fragdate(config["eval_start"]),
                       "interval": config["interval"],
-                      "end": fragdate(config["semend"])}]}
+                      "end": fragdate(config["semend"])}],
+    "tag-auto": [{"points": 1,
+                  "tag": "grade_ok"}]}
 
 ghc_env = glob.glob("../hsExprTest/_build/.ghc.environment.*")
 print(f"GHC_ENVIRONMENT={ghc_env}", file=sys.stderr)
@@ -98,7 +101,6 @@ if tests:
     total_weight = sum(w for _, w in tests)
     grade: List[Dict[str, Any]] = []
     for test, weight in tests:
-        isgrace = timedelta(minutes=2)
         this_grade = deepcopy(grade_def)
         for key, val in {"start": fragdate(config["start"]),
                          "end": fragdate(as_date(config["end"]) + isgrace),
@@ -139,6 +141,14 @@ try:
         merge_in(frag_assignment_config, part)
 except OSError:
     pass
+
+
+if "feedback" not in frag_assignment_config:
+    frag_assignment_config["feedback"] = {}
+else:
+    frag_assignment_config["review-auto"] = \
+        [{"start": fragdate(config["eval_start"]),
+          "end": fragdate(as_date(config["end"]) + isgrace)}]
 
 with open(os.path.join(DEST_DIR, "assignment.json"), "w") as h:
     json.dump(frag_assignment_config, h, indent=True, ensure_ascii=False)
