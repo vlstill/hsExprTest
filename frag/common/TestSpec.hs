@@ -4,7 +4,7 @@
 module TestSpec (
     -- * Test Specification
     TestSpec ( TestSpec, group, name, property, pointWeight, info, maxSucc,
-               caseTimeoutMicroSec, testTimeoutSec ),
+               maxShrinks, caseTimeoutMicroSec, testTimeoutSec ),
     makeTests,
     RunCondMode ( Spec, Exec, Dep ),
     RunCond ( Fn, Or, And, Always, With, Depends ), (∧), (∨),
@@ -148,6 +148,7 @@ data TestSpec = TestSpec { group :: String,
                            pointWeight :: Int,
                            info :: Maybe String,
                            maxSucc :: Maybe Int,
+                           maxShrinks :: Maybe Int,
                            caseTimeoutMicroSec :: Int,
                            testTimeoutSec :: Int
                          }
@@ -167,6 +168,7 @@ makeTest (runCond, weight, modifier) = do
                                     pointWeight = weight,
                                     info = Nothing,
                                     maxSucc = Nothing,
+                                    maxShrinks = Nothing,
                                     caseTimeoutMicroSec = 1000000, -- 1s
                                     testTimeoutSec = 20,
                                     property = $(pure props) } |]

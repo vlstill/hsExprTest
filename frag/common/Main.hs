@@ -7,7 +7,7 @@ import Test ( tests )
 import TestSpec ( TestSpec (..), RunCond (..), RunCondMode (..) )
 
 import Test.Expr ( testArgs )
-import Test.QuickCheck ( Result ( Success ), Property, maxSuccess,
+import Test.QuickCheck ( Result ( Success ), Property, maxSuccess, maxShrinks,
                          quickCheckWithResult, output, within, labels, Args )
 import Test.QuickCheck.Property ( callback, Callback ( PostTest ), CallbackKind ( NotCounterexample ), testCase, theException )
 
@@ -194,9 +194,12 @@ runTest test = do
     maybe (out' "not implemented" >> reportTestFailure) evalTestCond $ property test
     outLn' . maybe "" (\x ->  " [" ++ x ++ "]\n") $ info test
   where
-    args = case maxSucc test of
+    args₀ = case maxSucc test of
         Nothing -> testArgs
-        (Just n) -> testArgs { maxSuccess = n }
+        Just n  -> testArgs { maxSuccess = n }
+    args = case TestSpec.maxShrinks test of
+        Nothing -> args₀
+        Just n  -> args₀ { Test.QuickCheck.maxShrinks = n }
 
     fmtCE = unlines . map ("    " ++) . filter (/= "(*)") . lines . output
 
