@@ -102,11 +102,8 @@ testFun Prop {..} ttype0 stype0 = do
     let (targs, rty) = uncurryType dcmpty
     let (genargs, genrty) = uncurryType genty
     let ar = length targs
-    retEq <- rty `hasInstance` ''Eq
-    unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint rty
-    unless (rty == genrty) $
-        $(pfail "testFun: return type cannot be changed by annotation – plain: %s, annotated: %s")
-        (pprint rty) (pprint genrty)
+    retEq <- genrty `hasInstance` ''Eq
+    unless retEq . $(pfail "testFun: return type not comparable: %s") $ pprint genrty
     unless (ar == length genargs) $
         $(pfail "annotations cannot change arity – plain %d, annotated: %d")
         ar (length genargs)
@@ -125,7 +122,8 @@ testFun Prop {..} ttype0 stype0 = do
                          args <- zipWithM mkvar targs xs
                          pure (pats, args)
 
-    pure $ LamE pats (UInfixE (apply teacherName args `SigE` rty) comparer (apply studentName args `SigE` rty))
+    let call fn = (VarE 'convert `AppE` (apply fn args `SigE` rty)) `SigE` genrty
+    pure $ LamE pats (UInfixE (call teacherName) comparer (call studentName))
 
   where
     -- | construct a pattern from its type and variable name (@x@)
