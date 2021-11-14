@@ -4,12 +4,13 @@
 
 -- | Simple utility functions for testing.
 --
--- (c) 2014-2018 Vladimír Štill
+-- (c) 2014-2021 Vladimír Štill
 
 module Test.Expr (
                  -- * Test Entry
                  testMain,
-                 testType, extractOptionDef, extractOptionMaybe, extractOption,
+                 testType, testType',
+                 extractOptionDef, extractOptionMaybe, extractOption,
                  -- * Test Expression Building Blocks
                  (<==>), cmpTeacherStudent,
                  testArgs, runProperty, runProperties, Args (..), scheduleAlarm,
@@ -32,7 +33,7 @@ import Control.Applicative ( (<|>) )
 import System.Exit ( exitSuccess, exitFailure )
 import Language.Haskell.TH ( Q, Exp (..), Dec (..), Clause (..), Body (..),
                              Lit (..), lookupValueName, mkName, Info (..),
-                             reify, tupleDataName )
+                             Type (..), reify, tupleDataName )
 
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Posix.Signals ( scheduleAlarm )
@@ -106,17 +107,20 @@ testMain config = do
     mayName = config `getConfig` Expression
     Just typeOrder = config `getConfig` TypeOrd
 
-testType :: TypeOrder -> ExprName -> Q Exp
-testType typeOrder name = do
+testType' :: (Type -> Type) -> TypeOrder -> ExprName -> Q Exp
+testType' proj typeOrder name = do
     st <- getType "student" =<< sequence . fmap reify =<< lookupValueName sn
     tt <- getType "teacher" =<< sequence . fmap reify =<< lookupValueName tn
-    compareTypes typeOrder tt st
+    compareTypes typeOrder (proj tt) (proj st)
   where
     getType kind Nothing = $(pfail "could not find %s type %s") kind name
     getType _ (Just (VarI _ t _)) = pure t
     getType kind _ = $(pfail "internal error while getting %s type %s") kind name
     tn = "Teacher." ++ name
     sn = "Student." ++ name
+
+testType :: TypeOrder -> ExprName -> Q Exp
+testType = testType' id
 
 extractOptionDef :: String -> Exp -> Q Exp
 extractOptionDef name def = maybe def VarE <$> lookupValueName ("Teacher." ++ name)
