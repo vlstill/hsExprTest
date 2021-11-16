@@ -10,8 +10,18 @@ say "";
 my $header = 1;
 my $import = 0;
 while ( <> ) {
-    if ( /^\s*$/ ) {
+    if ( /^(\s)*$/ || ($header && /^\s*--/) ) {
         print;
+    }
+    elsif ( $header && /^\s*{-.*-}/ ) {
+        print;
+    }
+    elsif ( $header && /^\s*{-/ ) {
+        print;
+        while ( <> ) {
+            print;
+            last if /-}/
+        }
     }
     elsif ( not $header ) {
         print "    $_";
