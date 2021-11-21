@@ -44,4 +44,5 @@ while ( <> ) {
         print "    $_";
     }
 }
-say "  |]"
+say ""; # avoid problems with missing end newline
+say "  |]";
