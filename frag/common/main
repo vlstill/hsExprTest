@@ -72,4 +72,6 @@ else
     echo "[failed]"
 fi
 
-echo "testsuite took $(($(date +%s) - $START))s, $(($FRAG_DEADLINE - $(date +%s)))s until deadline"
+echo "test.timing" >> out.list
+touch passed/test.timing
+echo "testsuite took $(($(date +%s) - $START))s, $(($FRAG_DEADLINE - $(date +%s)))s until deadline" > out/test.timing
