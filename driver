@@ -443,7 +443,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                            pass_fds=pass_fds, encoding="utf-8")
 
     lint = shutil.which("fi-hlint")
-    if not conf.typecmp and not conf.hlint and lint is not None:
+    if not conf.typecmp and conf.hlint and lint is not None:
         lp = subprocess.run([lint, "Student.hs"],
                             stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE,
