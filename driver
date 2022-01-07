@@ -97,6 +97,7 @@ class TestConf:
         self.ast_checks : List[str] = []
         self.allow_hint = True
         self.raw: bool = False
+        self.hlint = True
         self.config = config
 
     def reflection(self) -> bool:
@@ -191,6 +192,8 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                             conf.typecmp_num_types = int(match[2])
                     elif key == "allow hint":
                         conf.allow_hint = match[2].strip().lower() == "true"
+                    elif key == "hlint":
+                        conf.hlint = match[2].strip().lower() == "true"
 
 
                 if conf.reflection():
@@ -439,7 +442,8 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                            stdout=sys.stdout, stderr=sys.stdout,
                            pass_fds=pass_fds, encoding="utf-8")
 
-    if not conf.typecmp and (lint := shutil.which("fi-hlint")) is not None:
+    lint = shutil.which("fi-hlint")
+    if not conf.typecmp and not conf.hlint and lint is not None:
         lp = subprocess.run([lint, "Student.hs"],
                             stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE,
