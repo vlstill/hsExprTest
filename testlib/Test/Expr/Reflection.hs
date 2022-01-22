@@ -29,9 +29,8 @@ type ASTCheck = [Dec] -> Q ()
 isComprehentionD :: Dec -> Q ()
 isComprehentionD (ValD (VarP _) body _) = matchCInBody body
 isComprehentionD (ValD _ _ _)   = fail "Only plain variable declarations (without pattern matching) allowed"
-isComprehentionD (FunD _ cls)
-              | length cls == 1 = let [Clause _ b _] = cls in matchCInBody b
-              | otherwise       = fail "Forbidden multiline declaration"
+isComprehentionD (FunD _ [Clause _ b _]) = matchCInBody b
+isComprehentionD (FunD _ _)              = fail "Forbidden multiline declaration"
 isComprehentionD _            = pure ()
 
 matchCInBody :: Body -> Q ()

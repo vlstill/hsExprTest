@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Test.QuickCheck.GenConvertible where
 
 -- (c) 2018 Vladimír Štill
@@ -37,7 +38,11 @@ convertibleN n = do
         -- Convertible (Fun (a1', a2', …) b) (a1 -> a2 -> … -> b')
         head = (ConT convertible `AppT` in_t) `AppT` out_t
 
+#if MIN_VERSION_template_haskell(2, 18, 0)
+        fun_p = ConP fun [] [WildP, VarP f] -- (Pat _ f)
+#else
         fun_p = ConP fun [WildP, VarP f] -- (Pat _ f)
+#endif
 
         -- (convert x1, convert x2, …)
         argtuple = TupE $ map (\x -> wrapTupElemE (VarE convert `AppE` VarE x)) xs

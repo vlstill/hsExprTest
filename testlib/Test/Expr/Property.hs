@@ -18,6 +18,7 @@ import Language.Haskell.TH ( Q, Name, Cxt
 #endif
                            , Info (..), Exp (..), Type (..), Pat (..), TyVarBndr (..)
                            , reportWarning, pprint, reify, newName )
+import Language.Haskell.TH.Lib ( conP )
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 import Data.Int ( Int16 )
 import Data.List ( intercalate )
@@ -141,7 +142,7 @@ testFun Prop {..} ttype0 stype0 = do
         then pure typed
         else do
             reportWarning . $(sprintf "testFun: no instance of Show for %s, using Blind") $ pprint t
-            pure $ ConP 'Blind [typed]
+            conP 'Blind [pure typed]
       where
         baseT (AppT ListT tt) = ListT `AppT` baseT tt
         baseT tt | isFunctionType tt = ConT ''Fun `AppT` mkArgTuple ct `AppT` rt
@@ -160,7 +161,11 @@ testFun Prop {..} ttype0 stype0 = do
     extractVars (TupP ps)           = concatMap extractVars ps
     extractVars (UnboxedTupP ps)    = concatMap extractVars ps
     extractVars (UnboxedSumP p _ _) = extractVars p
+#if MIN_VERSION_template_haskell(2, 18, 0)
+    extractVars (ConP _ _ ps)       = concatMap extractVars ps
+#else
     extractVars (ConP _ ps)         = concatMap extractVars ps
+#endif
     extractVars (InfixP p1 _ p2)    = extractVars p1 ++ extractVars p2
     extractVars (UInfixP p1 _ p2)   = extractVars p1 ++ extractVars p2
     extractVars (ParensP p)         = extractVars p
@@ -181,7 +186,11 @@ testFun Prop {..} ttype0 stype0 = do
     pushTypes d (TupP ps)           = TupP $ map (pushTypes d) ps
     pushTypes d (UnboxedTupP ps)    = UnboxedTupP $ map (pushTypes d) ps
     pushTypes d (UnboxedSumP p a b) = UnboxedSumP (pushTypes d p) a b
+#if MIN_VERSION_template_haskell(2, 18, 0)
+    pushTypes d (ConP c ts ps)      = ConP c ts $ map (pushTypes d) ps
+#else
     pushTypes d (ConP c ps)         = ConP c $ map (pushTypes d) ps
+#endif
     pushTypes d (InfixP p1 i p2)    = InfixP (pushTypes d p1) i (pushTypes d p2)
     pushTypes d (UInfixP p1 i p2)   = UInfixP (pushTypes d p1) i (pushTypes d p2)
     pushTypes d (ParensP p)         = ParensP $ pushTypes d p

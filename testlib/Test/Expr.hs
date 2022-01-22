@@ -64,7 +64,7 @@ testMain config = do
     evalEx  <- lookupValueName "Teacher.evaluatorEx"
     $(pfail "Either teacher expression or evaluator has to be given for %s") name
          & when (isNothing (tname <|> eval <|> evalEx))
-    let Just studentExp = studentExp'
+    let studentExp = fromJust studentExp'
 
     testBefore <- lookupValueName "Teacher.testBefore"
     $(pfail "Error: testBefore ignored in evaluator mode")
@@ -86,8 +86,8 @@ testMain config = do
                                  $(pure $ VarE evx `AppE` liftSafeTH config `AppE` studentExp) |]
               (_, Just ev, _) -> [| scheduleAlarm $(timeout) >>
                                  $(pure $ VarE ev `AppE` studentExp) |]
-              (_, _, Just teacherName) -> lookupValueName (fromJust sn) >>=
-                                          \(Just studentName) -> -- used by {..}
+              (_, _, Just teacherName) -> fromJust <$> lookupValueName (fromJust sn) >>=
+                                          \studentName -> -- used by {..}
                                           [| scheduleAlarm $(timeout) >>
                                           $(testBeforeExpr) >>= \tbr -> unless tbr exitFailure >>
                                           runProperty $(args) $(prop Prop {..}) |]
@@ -105,7 +105,7 @@ testMain config = do
     unitExp = pure . Just . ConE $ tupleDataName 0
 
     mayName = config `getConfig` Expression
-    Just typeOrder = config `getConfig` TypeOrd
+    typeOrder = fromJust $ config `getConfig` TypeOrd
 
 testType' :: (Type -> Type) -> TypeOrder -> ExprName -> Q Exp
 testType' proj typeOrder name = do
