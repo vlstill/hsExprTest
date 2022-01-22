@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false  # let other jobs continue once the first failed
       matrix:
-        ghc: ['9.0.1', '8.10', '8.8', '8.6', '8.4']
+        ghc: ['9.0.2', '8.10', '8.8', '8.6', '8.4']
 
     steps:
       - name: Cabal Cache
@@ -49,10 +49,10 @@ jobs:
 
       - name: Build Docs
         run: make doc
-        if: ${{ matrix.ghc == '9.0.1' }}
+        if: ${{ matrix.ghc == '9.0.2' }}
       - name: Deploy Docs
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
           branch: gh-pages
           folder: _build/doc/html/hsExprTest
-        if: ${{ matrix.ghc == '9.0.1' && github.ref == 'refs/heads/master' }}
+        if: ${{ matrix.ghc == '9.0.2' && github.ref == 'refs/heads/master' }}
