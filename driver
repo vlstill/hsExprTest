@@ -62,8 +62,14 @@ if _config is None:
     _config = from_source_file(teacher)
 
 
+NO_DERIVING: Final[List[str]] = \
+    ["NoDeriveDataTypeable", "NoDeriveFoldable",
+     "NoDeriveFunctor", "NoDeriveGeneric", "NoDeriveLift",
+     "NoDeriveTraversable", "NoEmptyDataDeriving",
+     "NoGeneralizedNewtypeDeriving", "NoStandaloneDeriving"]
+
 ALL_EXTS : Final[List[str]] = []
-ST_EXTS : Final[List[str]] = ["Safe"] + ALL_EXTS
+ST_EXTS: Final[List[str]] = ["Safe"] + ALL_EXTS + NO_DERIVING
 T_EXTS : Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
                              "ScopedTypeVariables", "DataKinds",
                              "StandaloneDeriving", "DeriveDataTypeable",
