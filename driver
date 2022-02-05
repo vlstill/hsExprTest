@@ -23,6 +23,15 @@ if len(sys.argv) < 3:
           "[-pFD] [-cCONFIG] [--hint]", file=sys.stderr)
     sys.exit(1)
 
+
+def except_hook(exctype, value, traceback):
+    print("INTERNAL ERROR, please report this result;\n"
+          f"terminating with error of type {exctype}")
+    sys.__excepthook__(exctype, value, traceback)
+
+
+sys.excepthook = except_hook
+
 teacher : Final[str] = os.path.abspath(sys.argv[1])
 student : Final[str] = os.path.abspath(sys.argv[2])
 hint : bool = False
