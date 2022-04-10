@@ -1,5 +1,5 @@
-{-# LANGUAGE Unsafe, DeriveAnyClass, LambdaCase, DataKinds, GADTs,
-             TemplateHaskell, TypeApplications, FlexibleContexts,
+{-# LANGUAGE Unsafe, DeriveAnyClass,  DerivingStrategies, LambdaCase, DataKinds,
+             GADTs, TemplateHaskell, TypeApplications, FlexibleContexts,
              ScopedTypeVariables, UnicodeSyntax, ConstraintKinds #-}
 module Main ( main ) where
 
@@ -33,7 +33,9 @@ import System.Posix.Signals ( installHandler, Handler( CatchOnce ), realTimeAlar
 import qualified Data.Map as Map
 
 
-data GlobalTimeout = GlobalTimeout deriving (Show, Exception)
+data GlobalTimeout = GlobalTimeout
+    deriving stock Show
+    deriving anyclass Exception
 
 setupAlarm :: MonadIO m => Int -> m ()
 setupAlarm secs = liftIO $ do
@@ -51,7 +53,7 @@ data TestsState = TestsState { _failedTests :: Int
                              , _testOutput :: Maybe Handle
                              , _currentTest :: Maybe String
                              , _currentFailed :: Bool
-                             } deriving ( Show )
+                             } deriving Show
 makeLenses ''TestsState
 
 instance Default TestsState where
@@ -259,8 +261,10 @@ runTest test = do
                 outLn' . unlines . map ("    " <>) $ input timeout
                 testResult testName False
 
-newtype Timeout = Timeout { input :: [String] } deriving (Show, Eq)
-newtype TimeoutPropagator = TimeoutPropagator { getTimeout :: Timeout } deriving (Show, Exception)
+newtype Timeout = Timeout { input :: [String] } deriving stock (Show, Eq)
+newtype TimeoutPropagator = TimeoutPropagator { getTimeout :: Timeout }
+    deriving stock Show
+    deriving anyclass Exception
 
 
 quickCheckWithResultExc :: Args -> Property -> IO (Either Timeout Result)
