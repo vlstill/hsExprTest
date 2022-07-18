@@ -1,5 +1,5 @@
 ---
-image: haskell-ib015:v2021.0.0
+image: gitlab.fi.muni.cz:5050/xstill/ci-images/haskell-ib015:v2022.0.0
 
 doc:
     stage: build
@@ -48,3 +48,8 @@ validate_9.0:
     <<: *validate_def
     variables:
         GHCVERS: 9.0.1
+
+validate_9.2:
+    <<: *validate_def
+    variables:
+        GHCVERS: 9.2.3
