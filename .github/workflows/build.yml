@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false  # let other jobs continue once the first failed
       matrix:
-        ghc: ['9.2.1', '9.0.2', '8.10', '8.8', '8.6', '8.4']
+        ghc: ['9.2.3', '9.0.2', '8.10', '8.8', '8.6', '8.4']
 
     steps:
       - name: Cabal Cache
