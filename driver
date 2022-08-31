@@ -39,16 +39,33 @@ include : List[str] = []
 journal_fd : int = 2
 _config : Optional[Dict[str, Any]] = None
 
+
+def _get_opt(val: str, *opts: str) -> Optional[str]:
+    for opt in opts:
+        if getattr(_get_opt, "next_opt", None) is None:
+            if val.startswith(f"-{opt}"):
+                opt_len = len(opt) + 1
+                if len(val) > opt_len:
+                    return val[opt_len:]
+                else:
+                    setattr(_get_opt, "next_opt", opt)
+                    return None
+        elif getattr(_get_opt, "next_opt", None) == opt:
+            setattr(_get_opt, "next_opt", None)
+            return val
+    return None
+
+
 for i in range(3, len(sys.argv)):
     v = sys.argv[i]
     if v == "--hint":
         hint = True
-    if v.startswith("-p"):
-        journal_fd = int(v[2:])
-    elif v.startswith("-I") or v.startswith("-i"):
-        include.append(v[2:])
-    elif v.startswith("-c"):
-        with open(v[2:], "r") as h:
+    if (val := _get_opt(v, "p")):
+        journal_fd = int(val)
+    elif (val := _get_opt(v, "i", "I")):
+        include.append(val)
+    elif (val := _get_opt(v, "c")):
+        with open(val, "r") as h:
             _config = yaml.safe_load(h)
 
 
