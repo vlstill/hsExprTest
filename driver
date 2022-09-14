@@ -32,12 +32,12 @@ def except_hook(exctype, value, traceback):
 
 sys.excepthook = except_hook
 
-teacher : Final[str] = os.path.abspath(sys.argv[1])
-student : Final[str] = os.path.abspath(sys.argv[2])
-hint : bool = False
-include : List[str] = []
-journal_fd : int = 2
-_config : Optional[Dict[str, Any]] = None
+teacher: Final[str] = os.path.abspath(sys.argv[1])
+student: Final[str] = os.path.abspath(sys.argv[2])
+hint: bool = False
+include: List[str] = []
+journal_fd: int = 2
+_config: Optional[Dict[str, Any]] = None
 
 
 def _get_opt(val: str, *opts: str) -> Optional[str]:
@@ -94,26 +94,28 @@ NO_DERIVING: Final[List[str]] = \
      "NoDeriveTraversable", "NoEmptyDataDeriving",
      "NoGeneralizedNewtypeDeriving", "NoStandaloneDeriving"]
 
-ALL_EXTS : Final[List[str]] = []
+ALL_EXTS: Final[List[str]] = []
 ST_EXTS: Final[List[str]] = ["Safe"] + ALL_EXTS + NO_DERIVING
-T_EXTS : Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
-                             "ScopedTypeVariables", "DataKinds",
-                             "StandaloneDeriving", "DeriveDataTypeable",
-                             "TypeOperators", "KindSignatures",
-                             "DerivingStrategies",
-                             "GeneralizedNewtypeDeriving"] \
-                             + ALL_EXTS
-MAIN_EXTS : Final[List[str]] = T_EXTS
+T_EXTS: Final[List[str]] = ["TemplateHaskell", "Unsafe", "ExplicitForAll",
+                            "ScopedTypeVariables", "DataKinds",
+                            "StandaloneDeriving", "DeriveDataTypeable",
+                            "TypeOperators", "KindSignatures",
+                            "DerivingStrategies",
+                            "GeneralizedNewtypeDeriving"] \
+                            + ALL_EXTS
+MAIN_EXTS: Final[List[str]] = T_EXTS
 
-OPT_R : Final[Pattern[str]] = re.compile("-- @ +([^:]*)(?:: +(.*))?")
-LIST_SPLIT_R : Final[Pattern[str]] = re.compile(" *, *| +")
-ERR_HEADER : Final[Pattern[str]] = re.compile(r"^([^:]*)[.]hs:[0-9]*:[0-9]*:")
-IGNORE : Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
-AST_CHECK_DECL : Final[Pattern[str]] = re.compile(r"^([^\s:]*)\s*::\s*ASTCheck")
+OPT_R: Final[Pattern[str]] = re.compile("-- @ +([^:]*)(?:: +(.*))?")
+LIST_SPLIT_R: Final[Pattern[str]] = re.compile(" *, *| +")
+ERR_HEADER: Final[Pattern[str]] = re.compile(r"^([^:]*)[.]hs:[0-9]*:[0-9]*:")
+IGNORE: Final[Pattern[str]] = re.compile(r"^(-- .*)?\s*$")
+AST_CHECK_DECL: Final[Pattern[str]] = re.compile(r"^([^\s:]*)\s*::\s*ASTCheck")
 
-GHC_LINE_ERR : Final[Pattern[str]] = re.compile(r"^[0-9]*\s*\|")
-COMPILE_LINE : Final[Pattern[str]] = re.compile(r"^(\[[0-9]+\s+of\s+[0-9]+\]|Linking .* ...)")
-AST_CHECK_EXC: Final = re.compile(r"^\s+Exception when trying to run compile-time code:")
+GHC_LINE_ERR: Final[Pattern[str]] = re.compile(r"^[0-9]*\s*\|")
+COMPILE_LINE: Final[Pattern[str]] = re.compile(
+    r"^(\[[0-9]+\s+of\s+[0-9]+\]|Linking .* ...)")
+AST_CHECK_EXC: Final = re.compile(
+    r"^\s+Exception when trying to run compile-time code:")
 AST_CHECK_CALL_STACK: Final = re.compile(
     r"^(CallStack \(from HasCallStack\):"
     r"|\s+error, called at [.]/Teacher[.]hs:[0-9]+:[0-9]+ in main:Teacher"
@@ -121,12 +123,12 @@ AST_CHECK_CALL_STACK: Final = re.compile(
 
 
 class TestConf:
-    def __init__(self, config : Dict[str, object]) -> None:
-        self.inject : str = ""
-        self.typecmp : bool = False
+    def __init__(self, config: Dict[str, object]) -> None:
+        self.inject: str = ""
+        self.typecmp: bool = False
         self.typecmpex: bool = False
-        self.typecmp_num_types : int = 0
-        self.ast_checks : List[str] = []
+        self.typecmp_num_types: int = 0
+        self.ast_checks: List[str] = []
         self.allow_hint = True
         self.raw: bool = False
         self.hlint = True
@@ -165,10 +167,10 @@ class TestConf:
     def question_path(self) -> str:
         return self.get_typed("question_path", teacher, str)
 
-    def _get(self, key : str, default : object) -> object:
+    def _get(self, key: str, default: object) -> object:
         return self.config.get(key, default)
 
-    def get_typed(self, key : str, default : T, ty : type) -> T:
+    def get_typed(self, key: str, default: T, ty: type) -> T:
         val = self._get(key, default)
         if not isinstance(val, ty):
             msg = f"Invalid config type of {key}, got {type(val)} expected " \
@@ -178,7 +180,7 @@ class TestConf:
         return val  # type: ignore
 
 
-def warn(msg : str) -> None:
+def warn(msg: str) -> None:
     print("W: " + msg, file=sys.stderr)
 
 
@@ -186,11 +188,11 @@ def write_type(dst: TextIO, t: str, i: int, prefix: str = "") -> None:
     dst.write(f"{prefix}t{i} :: {t}\n{prefix}t{i} = undefined\n")
 
 
-def val2bool(val : str) -> bool:
+def val2bool(val: str) -> bool:
     return val.lower() == "yes" or val.lower() == "true"
 
 
-def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
+def mkTeacherFile(srcFile: FilePath, dstFile: FilePath) -> TestConf:
     with open(dstFile, "w") as dst:
         with open(srcFile, "r") as src:
             assert _config is not None
@@ -200,13 +202,13 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                                       + " #-}\n\n")
             dst.write("module Teacher where\n\n")
 
-            inject : bool = False
-            inject_end : bool = False
+            inject: bool = False
+            inject_end: bool = False
 
-            for l in src:
-                match = OPT_R.fullmatch(l.rstrip())
+            for ln in src:
+                match = OPT_R.fullmatch(ln.rstrip())
                 if match:
-                    key : str = match[1]
+                    key: str = match[1]
 
                     if key == "INJECT BEGIN":
                         assert not inject, "inject inside inject"
@@ -227,23 +229,22 @@ def mkTeacherFile(srcFile : FilePath, dstFile : FilePath) -> TestConf:
                     elif key == "hlint":
                         conf.hlint = match[2].strip().lower() == "true"
 
-
                 if conf.reflection():
-                    match = AST_CHECK_DECL.search(l)
+                    match = AST_CHECK_DECL.search(ln)
                     if match:
                         conf.ast_checks.append(match[1])
 
                 if inject:
-                    conf.inject += l
+                    conf.inject += ln
                 if inject_end:
-                    conf.inject += l
+                    conf.inject += ln
                     inject_end = False
 
                 if not conf.typecmp or conf.typecmpex:
-                    dst.write(l)
+                    dst.write(ln)
                 else:
-                    if not IGNORE.match(l):
-                        write_type(dst, l, conf.typecmp_num_types)
+                    if not IGNORE.match(ln):
+                        write_type(dst, ln, conf.typecmp_num_types)
                         conf.typecmp_num_types += 1
 
             return conf
@@ -262,7 +263,7 @@ def write_student(src: TextIO, dst: TextIO, conf: TestConf, prefix: str = "") \
                 type_idx += 1
 
 
-def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
+def mkStudentFile(srcFile: FilePath, dstFile: FilePath, conf: TestConf) \
         -> None:
     with open(dstFile, "w") as dst:
         # one skipping BOM if present
@@ -289,8 +290,8 @@ def mkStudentFile(srcFile : FilePath, dstFile : FilePath, conf : TestConf) \
             write_student(src, dst, conf)
 
 
-def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
-                           conf : TestConf) -> None:
+def mkStudentReflectorFile(srcFile: FilePath, dstDir: FilePath,
+                           conf: TestConf) -> None:
     with open(os.path.join(dstDir, "StudentReflector.hs"), "w") as dst:
         with open(srcFile, "r", encoding='utf-8-sig') as src:
             dst.write(textwrap.dedent("""\
@@ -334,7 +335,7 @@ def mkStudentReflectorFile(srcFile : FilePath, dstDir : FilePath,
             dst.write(f"$(runASTCheck Teacher.{c})\n")
 
 
-def mkMainFile(filename : FilePath, conf : TestConf) -> None:
+def mkMainFile(filename: FilePath, conf: TestConf) -> None:
     reflect = ""
     if conf.reflection():
         reflect = "import qualified StudentASTChecks"
@@ -376,7 +377,9 @@ $(testMain (TestConfig
         else:
             dst.write("main :: IO ()\nmain = do\n")
             for i in range(conf.typecmp_num_types):
-                dst.write(f'''    $(testType $(extractOptionDef "typeOrder" (ConE 'TEqual)) "t{i}")\n''')
+                dst.write(f'''\
+    $(testType $(extractOptionDef "typeOrder" (ConE 'TEqual)) "t{i}")
+''')
 
 
 with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
@@ -394,8 +397,8 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
     mkMainFile("Main.hs", conf)
 
     include.append(os.path.dirname(conf.question_path()))
-    invocation : List[str] = [f"-i{x}" for x in include] + ["-dynamic"]
-    execution : List[str] = []
+    invocation: List[str] = [f"-i{x}" for x in include] + ["-dynamic"]
+    execution: List[str] = []
 
     if conf.typecmp:
         # just compile, does not need to run
@@ -431,18 +434,18 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                        pass_fds=pass_fds, encoding="utf-8")
 
     if conf.compiled():
-        for l in r.stdout.splitlines():
-            if COMPILE_LINE.search(l) is None:
-                print(l, flush=True)
+        for ln in r.stdout.splitlines():
+            if COMPILE_LINE.search(ln) is None:
+                print(ln, flush=True)
             else:
-                print(l, flush=True, file=sys.stderr)
+                print(ln, flush=True, file=sys.stderr)
     else:
         print(r.stdout, end='', flush=True)
     hide = False
     ast_check = False
     hidden = 0
-    for l in r.stderr.splitlines():
-        m = ERR_HEADER.match(l)
+    for ln in r.stderr.splitlines():
+        m = ERR_HEADER.match(ln)
         if m:
             hide = False
             ast_check = False
@@ -452,14 +455,14 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
             elif m[1] == "StudentASTChecks":
                 ast_check = True
         if hide:
-            print(l, file=sys.stderr, flush=True)
+            print(ln, file=sys.stderr, flush=True)
         elif ast_check and \
-                (GHC_LINE_ERR.search(l) is not None or
-                 AST_CHECK_EXC.search(l) is not None or
-                 AST_CHECK_CALL_STACK.search(l) is not None):
-            print(l, file=sys.stderr, flush=True)
+                (GHC_LINE_ERR.search(ln) is not None or
+                 AST_CHECK_EXC.search(ln) is not None or
+                 AST_CHECK_CALL_STACK.search(ln) is not None):
+            print(ln, file=sys.stderr, flush=True)
         else:
-            print(l, flush=True)
+            print(ln, flush=True)
     if hidden > 0:
         print(f"+ {hidden} more errors hidden in syntax check mode, check "
               "that your function is correctly typed and named", flush=True)
