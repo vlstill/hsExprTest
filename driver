@@ -120,6 +120,10 @@ AST_CHECK_CALL_STACK: Final = re.compile(
     r"^(CallStack \(from HasCallStack\):"
     r"|\s+error, called at [.]/Teacher[.]hs:[0-9]+:[0-9]+ in main:Teacher"
     r"|\s+Code: runASTCheck)")
+HINT_TYPE_MISSING_LEAD: Final = re.compile(
+    r"^ *Top-level binding with no type signature:")
+HINT_TYPE_MISSING_TYPE: Final = re.compile(
+    r"^(?P<fun> *[^ ]* ::) (?P<type>.*)$")
 
 
 class TestConf:
@@ -443,6 +447,7 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
         print(r.stdout, end='', flush=True)
     hide = False
     ast_check = False
+    type_missing = False
     hidden = 0
     for ln in r.stderr.splitlines():
         m = ERR_HEADER.match(ln)
@@ -461,7 +466,15 @@ with tempfile.TemporaryDirectory(prefix="hsExprTest.") as wd:
                  AST_CHECK_EXC.search(ln) is not None or
                  AST_CHECK_CALL_STACK.search(ln) is not None):
             print(ln, file=sys.stderr, flush=True)
+        # don't show students the type inferred by GHC if they did not write it
+        elif hint and type_missing:
+            type_missing = False
+            if (m := HINT_TYPE_MISSING_TYPE.match(ln)) is not None:
+                print(m["fun"], "(type missing)", flush=True)
+                print(ln, file=sys.stderr, flush=True)
         else:
+            if hint and HINT_TYPE_MISSING_LEAD.match(ln) is not None:
+                type_missing = True
             print(ln, flush=True)
     if hidden > 0:
         print(f"+ {hidden} more errors hidden in syntax check mode, check "
