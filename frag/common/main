@@ -32,15 +32,7 @@ ln -s $HOME/group $BIN
 ln -s $HOME/sandbox $BIN
 PATH=$(echo $PATH | sed "s|$HOME:||")
 
-touch out/meta.accept
-echo meta.accept >> out.list
-echo meta.errors >> out.list
-echo test.compile >> out.list
-printf "Running compilation… "
-if ./eval/compile >& out/test.compile; then
-    echo "[passed]"
-    touch passed/test.compile
-    touch passed/meta.accept
+do_warnigns() {
     echo test.warnings >> out.list
 
     printf "Running warnings… "
@@ -52,7 +44,29 @@ if ./eval/compile >& out/test.compile; then
     else
         echo "[failed]"
     fi
+}
 
+do_lint() {
+    local TEST=test.lint
+    echo $TEST >> out.list
+    printf "Running lint… "
+    if ! which fi-hlint >&/dev/null; then
+        echo "[missing]"
+        return
+    fi
+
+    local LINT_OUT=out/$TEST
+    fi-hlint Student.hs >& $LINT_OUT
+    if [[ -s $LINT_OUT ]]; then
+        # some warning exists
+        echo "[failed]"
+    else
+        echo "[passed]"
+        touch passed/$TEST
+    fi
+}
+
+do_tests() {
     # actual tests
     export TEST_TIMEOUT=$(($FRAG_DEADLINE - $(date +%s)))
     # no sandbox here :-/
@@ -64,10 +78,26 @@ if ./eval/compile >& out/test.compile; then
         last=$(tail -n1 out.list)
         printf "\nOut of Memory\n" >> out/$last
     fi
+}
 
-    # move warnings to the end
-    sed '/^test.warnings$/d' -i out.list --follow-symlinks
-    echo test.warnings >> out.list
+touch out/meta.accept
+echo meta.accept >> out.list
+echo meta.errors >> out.list
+echo test.compile >> out.list
+printf "Running compilation… "
+if ./eval/compile >& out/test.compile; then
+    echo "[passed]"
+    touch passed/test.compile
+    touch passed/meta.accept
+
+    # running in this order so that warnings are not skipped when timeout hits
+    do_warnigns
+    do_lint
+    do_tests
+
+    # move warnings & lint to the end
+    sed '/^\(test.warnings\|test.lint\)$/d' -i out.list --follow-symlinks
+    printf "test.warnings\ntest.lint" >> out.list
 else
     echo "[failed]"
 fi
