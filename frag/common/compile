@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 
-set -e
+set -ex
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+function join_by {
+    local d=${1-} f=${2-}
+    if shift 2; then
+        printf %s "$f" "${@/#/$d}"
+    else
+        printf %s "$f"
+    fi
+}
 
 # Put in module header and remove possible UTF-8 BOM
 cp Student.hs Submitted.hs
@@ -10,15 +19,16 @@ cp Student.hs Submitted.hs
 # GHC2021 default-enabled set of extensions (GHC 9.2+) enables some extensions
 # that are not safe for use by students. So we disable them.
 # On top of that, we enable Safe
-EXTS="Safe, NoDeriveDataTypeable, NoDeriveFoldable, NoDeriveFunctor, NoDeriveGeneric, NoDeriveLift, NoDeriveTraversable, NoEmptyDataDeriving, NoGeneralizedNewtypeDeriving, NoStandaloneDeriving"
+EXTS=("Safe" "NoDeriveDataTypeable" "NoDeriveFoldable" "NoDeriveFunctor" "NoDeriveGeneric" "NoDeriveLift" "NoDeriveTraversable" "NoEmptyDataDeriving" "NoGeneralizedNewtypeDeriving" "NoStandaloneDeriving")
 if [[ -f $DIR/_hs_extensions ]]; then
-    EXTS="$EXTS, $(cat $DIR/_hs_extensions | tr -d '\n')"
+    extra=$(cat $DIR/_hs_extensions | tr -d '\n' | sed 's/, */ /')
+    EXTS+=($extra)
 fi
 
-sed -i "1s/^\\(\\xEF\\xBB\\xBF\\)\\{0,1\\}/{-# LANGUAGE $EXTS #-}\n\nmodule Student where\n{-# LINE 1 \"Submitted.hs\" #-}\n/" Student.hs
+sed -i "1s/^\\(\\xEF\\xBB\\xBF\\)\\{0,1\\}/{-# LANGUAGE $(join_by ', ' ${EXTS[@]}) #-}\n\nmodule Student where\n\n{-# LINE 1 \"Submitted.hs\" #-}\n/" Student.hs
 WERRORS=(-Werror=missing-signatures)
 # make sure student's file can be compiled with -XSafe before attemting to use
 # its reflector
-ghc -rtsopts -ieval -XSafe -c Student.hs ${WERRORS[@]} "$@"
+ghc -rtsopts -ieval ${EXTS[@]/#/-X} ${WERRORS[@]} -c Student.hs "$@"
 perl $DIR/mkreflect.pl < Submitted.hs > StudentReflector.hs
 ghc -rtsopts -ieval Main ${WERRORS[@]} "$@" -o hstest
