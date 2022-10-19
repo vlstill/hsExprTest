@@ -97,7 +97,7 @@ if ./eval/compile >& out/test.compile; then
 
     # move warnings & lint to the end
     sed '/^\(test.warnings\|test.lint\)$/d' -i out.list --follow-symlinks
-    printf "test.warnings\ntest.lint" >> out.list
+    printf "test.warnings\ntest.lint\n" >> out.list
 else
     echo "[failed]"
 fi
